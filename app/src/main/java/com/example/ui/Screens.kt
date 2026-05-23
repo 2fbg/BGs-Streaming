@@ -229,6 +229,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     val errorMsg by viewModel.errorMessage.collectAsState()
 
     var showManualDialog by remember { mutableStateOf(false) }
+    var editingPlaylist by remember { mutableStateOf<com.example.data.model.ManualPlaylist?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Predef, 1: Manual List
 
     Box(
@@ -300,14 +301,26 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // USERNAME & PASSWORD IN THE EXACT SAME ROW WITHOUT EYE BUTTON!
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // USERNAME & PASSWORD IN A SINGLE CONTIGUOUS MODERN ROW WITH 15-CHAR LIMIT
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             OutlinedTextField(
                                 value = username,
-                                onValueChange = { viewModel.setCredentials(it, password) },
-                                label = { Text("Usuário", fontSize = 12.sp, color = Color.Gray) },
+                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(it, password) },
+                                label = { Text("Usuário (máx 15)", fontSize = 10.sp, color = Color.Gray) },
                                 maxLines = 1,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color.Gray.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
                                     .weight(1f)
                                     .testTag("username_input"),
@@ -317,16 +330,26 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
                                     focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
-                                    unfocusedContainerColor = Color(0xFF09090C)
+                                    unfocusedContainerColor = Color(0xFF09090C),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
                                 )
                             )
 
-                            // No eye button / raw Password input
                             OutlinedTextField(
                                 value = password,
-                                onValueChange = { viewModel.setCredentials(username, it) },
-                                label = { Text("Senha", fontSize = 12.sp, color = Color.Gray) },
+                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(username, it) },
+                                label = { Text("Senha (máx 15)", fontSize = 10.sp, color = Color.Gray) },
                                 maxLines = 1,
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = Color.Gray.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
                                 visualTransformation = PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                 modifier = Modifier
@@ -338,7 +361,9 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
                                     focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
-                                    unfocusedContainerColor = Color(0xFF09090C)
+                                    unfocusedContainerColor = Color(0xFF09090C),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
                                 )
                             )
                         }
@@ -491,29 +516,38 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = 4.dp)
+                                        .clickable { viewModel.selectPlaylist(manual.name) },
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (isSelected) Color(0xFF1F0B0E) else Color(0xFF111115)
+                                        containerColor = if (isSelected) Color(0xFF1F0B0E) else Color(0xFF0F0F12)
                                     ),
+                                    shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(
                                         width = 1.dp,
-                                        color = if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.White.copy(alpha = 0.05f)
+                                        color = if (isSelected) com.example.ui.theme.SophisticatedRedStart.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.05f)
                                     )
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { viewModel.selectPlaylist(manual.name) },
+                                            colors = RadioButtonDefaults.colors(selectedColor = com.example.ui.theme.SophisticatedRedStart)
+                                        )
+                                        
                                         Column(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clickable { viewModel.selectPlaylist(manual.name) }
+                                            modifier = Modifier.weight(1f)
                                         ) {
                                             Text(
                                                 text = manual.name,
                                                 fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
                                                 color = Color.White
                                             )
+                                            Spacer(modifier = Modifier.height(2.dp))
                                             Text(
                                                 text = manual.url,
                                                 fontSize = 11.sp,
@@ -522,13 +556,33 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
-                                        RadioButton(
-                                            selected = isSelected,
-                                            onClick = { viewModel.selectPlaylist(manual.name) },
-                                            colors = RadioButtonDefaults.colors(selectedColor = com.example.ui.theme.SophisticatedRedStart)
-                                        )
-                                        IconButton(onClick = { viewModel.deleteManualPlaylist(manual.name) }) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Delete List", tint = Color.Gray.copy(alpha = 0.7f))
+                                        
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            IconButton(
+                                                onClick = { editingPlaylist = manual },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = "Edit List",
+                                                    tint = com.example.ui.theme.GoldPremium.copy(alpha = 0.85f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { viewModel.deleteManualPlaylist(manual.name) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete List",
+                                                    tint = Color.Red.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -611,6 +665,12 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
             }
 
             // Enter Home instantly if items already cached in Room!
+            LaunchedEffect(Unit) {
+                viewModel.loginSuccess.collect {
+                    onNavigateToHome()
+                }
+            }
+
             LaunchedEffect(loadingProgress) {
                 if (loadingProgress == 100) {
                     delay(400)
@@ -673,15 +733,22 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
             }
         }
 
-        // Add Manual Playlist Dialog Form
-        if (showManualDialog) {
-            var inputListName by remember { mutableStateOf("") }
-            var inputListUrl by remember { mutableStateOf("") }
+        // Unified Add/Edit Manual Playlist Dialog Form
+        if (showManualDialog || editingPlaylist != null) {
+            val isEditing = editingPlaylist != null
+            val initialName = editingPlaylist?.name ?: ""
+            val initialUrl = editingPlaylist?.url ?: ""
             
-            Dialog(onDismissRequest = { showManualDialog = false }) {
+            var inputListName by remember(editingPlaylist) { mutableStateOf(initialName) }
+            var inputListUrl by remember(editingPlaylist) { mutableStateOf(initialUrl) }
+            
+            Dialog(onDismissRequest = { 
+                showManualDialog = false 
+                editingPlaylist = null
+            }) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Column(
@@ -689,7 +756,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Adicionar Lista Manual",
+                            text = if (isEditing) "Editar Lista Manual" else "Adicionar Lista Manual",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = Color.White
@@ -699,18 +766,38 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         OutlinedTextField(
                             value = inputListName,
                             onValueChange = { inputListName = it },
-                            label = { Text("Nome da Lista") },
+                            label = { Text("Nome da Lista", color = Color.Gray, fontSize = 12.sp) },
+                            singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NetflixRed, focusedLabelColor = NetflixRed)
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                                focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                focusedContainerColor = Color(0xFF09090C),
+                                unfocusedContainerColor = Color(0xFF09090C),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         OutlinedTextField(
                             value = inputListUrl,
                             onValueChange = { inputListUrl = it.trim() },
-                            label = { Text("URL M3U") },
+                            label = { Text("URL M3U", color = Color.Gray, fontSize = 12.sp) },
+                            singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NetflixRed, focusedLabelColor = NetflixRed)
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                                focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                focusedContainerColor = Color(0xFF09090C),
+                                unfocusedContainerColor = Color(0xFF09090C),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
                         Spacer(modifier = Modifier.height(20.dp))
                         
@@ -718,20 +805,29 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            TextButton(onClick = { showManualDialog = false }) {
-                                Text("Cancelar", color = Color.Gray)
+                            TextButton(onClick = { 
+                                showManualDialog = false 
+                                editingPlaylist = null
+                            }) {
+                                Text("Cancelar", color = Color.Gray, fontWeight = FontWeight.SemiBold)
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Button(
                                 onClick = {
                                     if (inputListName.isNotEmpty() && inputListUrl.isNotEmpty()) {
-                                        viewModel.addManualPlaylist(inputListName, inputListUrl)
+                                        if (isEditing) {
+                                            viewModel.updateManualPlaylist(editingPlaylist!!.name, inputListName, inputListUrl)
+                                        } else {
+                                            viewModel.addManualPlaylist(inputListName, inputListUrl)
+                                        }
                                         showManualDialog = false
+                                        editingPlaylist = null
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed)
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.SophisticatedRedStart)
                             ) {
-                                Text("Salvar")
+                                Text("Salvar", fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -1016,6 +1112,16 @@ fun HomeScreen(
                                     fontSize = 13.sp,
                                     color = Color.Gray
                                 )
+                                if (errorMsg != null) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Detalhes: $errorMsg",
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 12.sp,
+                                        color = Color.Red.copy(alpha = 0.85f),
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                }
                             }
                         }
                     }

@@ -20,6 +20,7 @@ import okhttp3.Request
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
+@kotlin.OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = Room.databaseBuilder(
@@ -60,6 +61,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
+
+    private val _loginSuccess = MutableSharedFlow<Unit>(replay = 0)
+    val loginSuccess = _loginSuccess.asSharedFlow()
 
     // Manual list records
     val manualPlaylists = manualPlaylistDao.getAllManualPlaylists().stateIn(
@@ -166,41 +170,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                
-                // Prefetch the remaining predefined servers silently in background
-                prefetchOtherPlaylistsInBackground()
-            }
-        }
-    }
-
-    private fun prefetchOtherPlaylistsInBackground() {
-        viewModelScope.launch(Dispatchers.IO) {
-            // Give 8 seconds delay on initial boot to ensure active layout is buttery smooth
-            kotlinx.coroutines.delay(8000)
-            
-            val user = _username.value.trim()
-            val pass = _password.value.trim()
-            if (user.isEmpty() || pass.isEmpty()) return@launch
-            
-            predefinedServers.forEach { server ->
-                val serverName = server.name
-                if (serverName != _activePlaylistName.value) {
-                    try {
-                        val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(serverName)
-                        val oneDayMs = 24 * 60 * 60 * 1000L
-                        val isFresh = (System.currentTimeMillis() - lastUpdate) < oneDayMs
-                        
-                        // Prefetch if never cached or if the cache is older than 24 hours
-                        if (lastUpdate == 0L || !isFresh) {
-                            Log.d("MK21_VM", "Silently pre-fetching background cache for: $serverName")
-                            downloadAndParsePlaylistSilently(serverName)
-                            // Pause 3 seconds between servers to avoid heavy connection spike
-                            kotlinx.coroutines.delay(3000)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("MK21_VM", "Failed prefetching $serverName in background", e)
-                    }
-                }
             }
         }
     }
@@ -232,9 +201,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         
         // Load items. If they do not exist in database cache, download them automatically.
         viewModelScope.launch {
-            val count = playlistItemDao.getItemsByType(playlistName, ContentType.LIVE.name).first().size
-            if (count == 0) {
-                refreshActivePlaylist()
+            if (isCredentialsConfigured()) {
+                val count = playlistItemDao.getItemsByType(playlistName, ContentType.LIVE.name).first().size
+                if (count == 0) {
+                    refreshActivePlaylist()
+                }
             }
         }
     }
@@ -300,6 +271,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateManualPlaylist(oldName: String, newName: String, newUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (oldName != newName) {
+                manualPlaylistDao.deleteManualPlaylist(oldName)
+                playlistItemDao.clearPlaylistItems(oldName)
+                manualPlaylistDao.insertManualPlaylist(ManualPlaylist(newName, newUrl))
+                if (_activePlaylistName.value == oldName) {
+                    selectPlaylist(newName)
+                }
+            } else {
+                manualPlaylistDao.insertManualPlaylist(ManualPlaylist(newName, newUrl))
+                playlistItemDao.clearPlaylistItems(newName)
+                if (_activePlaylistName.value == newName) {
+                    refreshActivePlaylist()
+                }
+            }
+        }
+    }
+
     fun deleteManualPlaylist(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
             manualPlaylistDao.deleteManualPlaylist(name)
@@ -360,7 +350,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
                 preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
                 _loadingProgress.value = 100
-                Thread.sleep(100) // slight delay to show progress complete
+                _loginSuccess.emit(Unit)
+                kotlinx.coroutines.delay(1200) // slight delay to show progress complete
                 _loadingProgress.value = null
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao processar a lista: ${e.message}"
@@ -371,24 +362,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun downloadAndParsePlaylistSilently(targetPlaylist: String = _activePlaylistName.value) {
-        val downloadUrl = getActivePlaylistDownloadUrl(targetPlaylist)
-        if (downloadUrl.isEmpty()) return
+        try {
+            val downloadUrl = getActivePlaylistDownloadUrl(targetPlaylist)
+            if (downloadUrl.isEmpty()) return
 
-        val request = Request.Builder().url(downloadUrl).build()
-        val response = okHttpClient.newCall(request).execute()
-        if (response.isSuccessful) {
-            response.body?.byteStream()?.let { stream ->
-                val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
-                if (parsedItems.isNotEmpty()) {
-                    viewModelScope.launch(Dispatchers.IO) {
-                        playlistItemDao.clearPlaylistItems(targetPlaylist)
-                        parsedItems.chunked(1000).forEach { chunk ->
-                            playlistItemDao.insertItems(chunk)
+            val request = Request.Builder().url(downloadUrl).build()
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                response.body?.byteStream()?.let { stream ->
+                    val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
+                    if (parsedItems.isNotEmpty()) {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            playlistItemDao.clearPlaylistItems(targetPlaylist)
+                            parsedItems.chunked(1000).forEach { chunk ->
+                                playlistItemDao.insertItems(chunk)
+                            }
+                            preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
                         }
-                        preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
                     }
                 }
             }
+        } catch (e: Exception) {
+            Log.e("MK21_VM", "Silent download/parse failed safely context: ${e.message}", e)
         }
     }
 
