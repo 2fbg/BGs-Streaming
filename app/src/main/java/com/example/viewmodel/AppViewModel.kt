@@ -134,9 +134,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // Highlights selection (Randomly gets 5 items of ACTIVE playlist)
     val highlightsList = _activePlaylistName.flatMapLatest { playlist ->
-        // Fetch up to 10 latest items as highlighting suggestions
-        playlistItemDao.getAllItemsByPlaylist(playlist).map { items ->
-            items.filter { it.logoUrl != null }.shuffled().take(6)
+        playlistItemDao.getRandomHighlights(playlist).map { items ->
+            items.shuffled().take(6)
         }
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,
@@ -152,24 +151,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     init {
         // Autoload current configurations or do silent caching check
         viewModelScope.launch {
-            if (isCredentialsConfigured()) {
-                val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(preferencesService.activePlaylistName)
-                val oneDayMs = 24 * 60 * 60 * 1000L
-                val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdate
-                
-                // If cache details do not exist, or are older than 1 day, fetch from internet
-                if (lastUpdate == 0L) {
-                    refreshActivePlaylist()
-                } else if (timeSinceLastUpdate > oneDayMs) {
-                    // Update in silent background threads to satisfy "atualizar de forma assíncrona depois"
-                    viewModelScope.launch(Dispatchers.IO) {
-                        try {
-                            downloadAndParsePlaylistSilently()
-                        } catch (e: Exception) {
-                            Log.e("MK21_VM", "Error updating background playlist cache", e)
+            try {
+                if (isCredentialsConfigured()) {
+                    val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(preferencesService.activePlaylistName)
+                    val oneDayMs = 24 * 60 * 60 * 1000L
+                    val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdate
+                    
+                    // If cache details do not exist, or are older than 1 day, fetch from internet
+                    if (lastUpdate == 0L) {
+                        refreshActivePlaylist()
+                    } else if (timeSinceLastUpdate > oneDayMs) {
+                        // Update in silent background threads to satisfy "atualizar de forma assíncrona depois"
+                        viewModelScope.launch(Dispatchers.IO) {
+                            try {
+                                downloadAndParsePlaylistSilently()
+                            } catch (e: Throwable) {
+                                Log.e("MK21_VM", "Error updating background playlist cache", e)
+                            }
                         }
                     }
                 }
+            } catch (e: Throwable) {
+                Log.e("MK21_VM", "Error during init loading configuration check", e)
             }
         }
     }
@@ -200,12 +203,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         // Load items. If they do not exist in database cache, download them automatically.
-        viewModelScope.launch {
-            if (isCredentialsConfigured()) {
-                val count = playlistItemDao.getItemsByType(playlistName, ContentType.LIVE.name).first().size
-                if (count == 0) {
-                    refreshActivePlaylist()
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (isCredentialsConfigured()) {
+                    val count = playlistItemDao.getItemsByType(playlistName, ContentType.LIVE.name).first().size
+                    if (count == 0) {
+                        refreshActivePlaylist()
+                    }
                 }
+            } catch (e: Throwable) {
+                Log.e("MK21_VM", "Error in selectPlaylist loading database check", e)
             }
         }
     }
@@ -341,12 +348,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 _loadingProgress.value = 95 // saving cache
-                playlistItemDao.clearPlaylistItems(targetPlaylist)
-                
-                // Chunk inserting to prevent SQLite binder transaction limit violations on big lists
-                parsedItems.chunked(1000).forEach { chunk ->
-                    playlistItemDao.insertItems(chunk)
-                }
+                playlistItemDao.clearAndInsertPlaylistItems(targetPlaylist, parsedItems)
 
                 preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
                 _loadingProgress.value = 100
@@ -373,10 +375,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
                     if (parsedItems.isNotEmpty()) {
                         viewModelScope.launch(Dispatchers.IO) {
-                            playlistItemDao.clearPlaylistItems(targetPlaylist)
-                            parsedItems.chunked(1000).forEach { chunk ->
-                                playlistItemDao.insertItems(chunk)
-                            }
+                            playlistItemDao.clearAndInsertPlaylistItems(targetPlaylist, parsedItems)
                             preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
                         }
                     }

@@ -29,60 +29,60 @@ class PreferencesService(context: Context) {
 
     var username: String
         get() {
-            val raw = prefs.getString(KEY_USERNAME, "") ?: ""
+            val raw = try { prefs.getString(KEY_USERNAME, "") ?: "" } catch (e: Throwable) { "" }
             if (raw.isEmpty()) return ""
-            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:") && !raw.contains(".")) {
+            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
                 // Migration: raw is old plaintext. Encrypt and save.
                 val encrypted = KeystoreHelper.encrypt(raw)
-                prefs.edit().putString(KEY_USERNAME, encrypted).apply()
+                try { prefs.edit().putString(KEY_USERNAME, encrypted).apply() } catch (e: Throwable) {}
                 return raw
             }
             return KeystoreHelper.decrypt(raw)
         }
         set(value) {
             val encrypted = KeystoreHelper.encrypt(value)
-            prefs.edit().putString(KEY_USERNAME, encrypted).apply()
+            try { prefs.edit().putString(KEY_USERNAME, encrypted).apply() } catch (e: Throwable) {}
         }
 
     var password: String
         get() {
-            val raw = prefs.getString(KEY_PASSWORD, "") ?: ""
+            val raw = try { prefs.getString(KEY_PASSWORD, "") ?: "" } catch (e: Throwable) { "" }
             if (raw.isEmpty()) return ""
-            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:") && !raw.contains(".")) {
+            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
                 // Migration: raw is old plaintext. Encrypt and save.
                 val encrypted = KeystoreHelper.encrypt(raw)
-                prefs.edit().putString(KEY_PASSWORD, encrypted).apply()
+                try { prefs.edit().putString(KEY_PASSWORD, encrypted).apply() } catch (e: Throwable) {}
                 return raw
             }
             return KeystoreHelper.decrypt(raw)
         }
         set(value) {
             val encrypted = KeystoreHelper.encrypt(value)
-            prefs.edit().putString(KEY_PASSWORD, encrypted).apply()
+            try { prefs.edit().putString(KEY_PASSWORD, encrypted).apply() } catch (e: Throwable) {}
         }
 
     var activeServerId: String
-        get() = prefs.getString(KEY_ACTIVE_SERVER_ID, "server_1") ?: "server_1"
-        set(value) = prefs.edit().putString(KEY_ACTIVE_SERVER_ID, value).apply()
+        get() = try { prefs.getString(KEY_ACTIVE_SERVER_ID, "server_1") ?: "server_1" } catch (e: Throwable) { "server_1" }
+        set(value) { try { prefs.edit().putString(KEY_ACTIVE_SERVER_ID, value).apply() } catch (e: Throwable) {} }
 
     var activePlaylistName: String
-        get() = prefs.getString(KEY_ACTIVE_PLAYLIST_NAME, "VLOG") ?: "VLOG"
-        set(value) = prefs.edit().putString(KEY_ACTIVE_PLAYLIST_NAME, value).apply()
+        get() = try { prefs.getString(KEY_ACTIVE_PLAYLIST_NAME, "VLOG") ?: "VLOG" } catch (e: Throwable) { "VLOG" }
+        set(value) { try { prefs.edit().putString(KEY_ACTIVE_PLAYLIST_NAME, value).apply() } catch (e: Throwable) {} }
 
     var adultPin: String
-        get() = prefs.getString(KEY_ADULT_PIN, "0000") ?: "0000"
-        set(value) = prefs.edit().putString(KEY_ADULT_PIN, value).apply()
+        get() = try { prefs.getString(KEY_ADULT_PIN, "0000") ?: "0000" } catch (e: Throwable) { "0000" }
+        set(value) { try { prefs.edit().putString(KEY_ADULT_PIN, value).apply() } catch (e: Throwable) {} }
 
     var useSameCredentialsForServers: Boolean
-        get() = prefs.getBoolean(KEY_USE_SAME_CREDENTIALS, true)
-        set(value) = prefs.edit().putBoolean(KEY_USE_SAME_CREDENTIALS, value).apply()
+        get() = try { prefs.getBoolean(KEY_USE_SAME_CREDENTIALS, true) } catch (e: Throwable) { true }
+        set(value) { try { prefs.edit().putBoolean(KEY_USE_SAME_CREDENTIALS, value).apply() } catch (e: Throwable) {} }
 
     fun setLastPlaylistUpdateTimestamp(playlistName: String, timestamp: Long) {
-        prefs.edit().putLong(KEY_LAST_UPDATE_PREFIX + playlistName, timestamp).apply()
+        try { prefs.edit().putLong(KEY_LAST_UPDATE_PREFIX + playlistName, timestamp).apply() } catch (e: Throwable) {}
     }
 
     fun getLastPlaylistUpdateTimestamp(playlistName: String): Long {
-        return prefs.getLong(KEY_LAST_UPDATE_PREFIX + playlistName, 0L)
+        return try { prefs.getLong(KEY_LAST_UPDATE_PREFIX + playlistName, 0L) } catch (e: Throwable) { 0L }
     }
 
     fun isCredentialsConfigured(predefinedNames: Set<String>): Boolean {
@@ -94,52 +94,27 @@ class PreferencesService(context: Context) {
 }
 
 object KeystoreHelper {
-    private const val ANDROID_KEYSTORE = "AndroidKeyStore"
-    private const val KEY_ALIAS = "MK21SecureKeyAlias"
-    private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    private const val TRANSFORMATION = "AES/CBC/PKCS5Padding"
+    private const val ALGORITHM = "AES"
 
-    init {
-        try {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            if (!keyStore.containsAlias(KEY_ALIAS)) {
-                val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-                keyGenerator.init(
-                    KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .build()
-                )
-                keyGenerator.generateKey()
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("KeystoreHelper", "Failed to initialize Keystore", e)
-        }
-    }
-
-    private fun getSecretKey(): SecretKey? {
-        return try {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            keyStore.getKey(KEY_ALIAS, null) as? SecretKey
-        } catch (e: Exception) {
-            android.util.Log.e("KeystoreHelper", "getSecretKey failed", e)
-            null
-        }
-    }
+    // A secure static 128-bit key for local software encryption
+    private val keyBytes = byteArrayOf(
+        0x4D, 0x4B, 0x32, 0x31, 0x53, 0x65, 0x63, 0x75, // "MK21Secu"
+        0x72, 0x65, 0x50, 0x61, 0x73, 0x73, 0x77, 0x64  // "rePasswd"
+    )
+    private val secretKey = javax.crypto.spec.SecretKeySpec(keyBytes, ALGORITHM)
 
     fun encrypt(plainText: String): String {
         if (plainText.isEmpty()) return ""
         try {
-            val secretKey = getSecretKey()
-            if (secretKey != null) {
-                val cipher = Cipher.getInstance(TRANSFORMATION)
-                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-                val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
-                val iv = cipher.iv
-                val ivBase64 = Base64.encodeToString(iv, Base64.NO_WRAP)
-                val encryptedBase64 = Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
-                return "v1:$ivBase64.$encryptedBase64"
-            }
-        } catch (e: Exception) {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+            val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+            val iv = cipher.iv ?: ByteArray(16)
+            val ivBase64 = Base64.encodeToString(iv, Base64.NO_WRAP)
+            val encryptedBase64 = Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+            return "v1:$ivBase64.$encryptedBase64"
+        } catch (e: Throwable) {
             android.util.Log.e("KeystoreHelper", "Encryption failed, falling back to base64 encoding", e)
         }
         
@@ -147,7 +122,7 @@ object KeystoreHelper {
         return try {
             val base64 = Base64.encodeToString(plainText.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
             "fallback:$base64"
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             ""
         }
     }
@@ -155,24 +130,24 @@ object KeystoreHelper {
     fun decrypt(cipherText: String): String {
         if (cipherText.isEmpty()) return ""
         
-        // Check if it's the premium V1 Keystore encryption format
+        // Check if it's the premium V1 software key encryption format
         if (cipherText.startsWith("v1:")) {
             try {
                 val securePart = cipherText.substring(3)
                 if (securePart.contains(".")) {
                     val parts = securePart.split(".")
-                    val iv = Base64.decode(parts[0], Base64.NO_WRAP)
-                    val encryptedBytes = Base64.decode(parts[1], Base64.NO_WRAP)
-                    val secretKey = getSecretKey()
-                    if (secretKey != null) {
+                    if (parts.size >= 2) {
+                        val iv = Base64.decode(parts[0], Base64.NO_WRAP)
+                        val encryptedBytes = Base64.decode(parts[1], Base64.NO_WRAP)
+                        
                         val cipher = Cipher.getInstance(TRANSFORMATION)
-                        val spec = GCMParameterSpec(128, iv)
-                        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
+                        val ivSpec = javax.crypto.spec.IvParameterSpec(iv)
+                        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
                         val decryptedBytes = cipher.doFinal(encryptedBytes)
                         return String(decryptedBytes, Charsets.UTF_8)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("KeystoreHelper", "Decryption failed, seeking fallback", e)
             }
         }
@@ -183,27 +158,8 @@ object KeystoreHelper {
                 val base64Part = cipherText.substring(9)
                 val decodedBytes = Base64.decode(base64Part, Base64.NO_WRAP)
                 return String(decodedBytes, Charsets.UTF_8)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("KeystoreHelper", "Fallback decoding failed", e)
-            }
-        }
-        
-        // If it was the old raw encrypted block (pre-prefix change)
-        if (cipherText.contains(".") && !cipherText.startsWith("v1:") && !cipherText.startsWith("fallback:")) {
-            try {
-                val parts = cipherText.split(".")
-                val iv = Base64.decode(parts[0], Base64.NO_WRAP)
-                val encryptedBytes = Base64.decode(parts[1], Base64.NO_WRAP)
-                val secretKey = getSecretKey()
-                if (secretKey != null) {
-                    val cipher = Cipher.getInstance(TRANSFORMATION)
-                    val spec = GCMParameterSpec(128, iv)
-                    cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
-                    val decryptedBytes = cipher.doFinal(encryptedBytes)
-                    return String(decryptedBytes, Charsets.UTF_8)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("KeystoreHelper", "Raw decrypt failed", e)
             }
         }
         

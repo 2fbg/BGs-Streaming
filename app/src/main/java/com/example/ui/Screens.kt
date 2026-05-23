@@ -702,7 +702,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
+                            progress = (loadingProgress ?: 0).toFloat() / 100f,
                             modifier = Modifier.size(72.dp),
                             color = NetflixRed,
                             strokeWidth = 6.dp,
@@ -1172,7 +1172,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
+                            progress = (loadingProgress ?: 0).toFloat() / 100f,
                             modifier = Modifier.size(72.dp),
                             color = NetflixRed,
                             strokeWidth = 6.dp,
@@ -1230,6 +1230,7 @@ fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -
     
     // Auto slider looping every 3 seconds
     LaunchedEffect(highlights) {
+        activeIndex = 0 // Reset sliding index when highlights list changes (like changing playlist)
         while (true) {
             delay(3000)
             if (highlights.isNotEmpty()) {
@@ -1239,7 +1240,12 @@ fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -
     }
 
     if (highlights.isEmpty()) return
-    val highlightedItem = highlights[activeIndex]
+    val safeActiveIndex = if (activeIndex >= 0 && activeIndex < highlights.size) {
+        activeIndex
+    } else {
+        0
+    }
+    val highlightedItem = highlights[safeActiveIndex]
 
     Box(
         modifier = Modifier

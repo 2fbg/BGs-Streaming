@@ -10,6 +10,9 @@ interface PlaylistItemDao {
     @Query("SELECT * FROM playlist_items WHERE playlistSource = :source ORDER BY name ASC")
     fun getAllItemsByPlaylist(source: String): Flow<List<PlaylistItem>>
 
+    @Query("SELECT * FROM playlist_items WHERE playlistSource = :source AND logoUrl IS NOT NULL AND logoUrl != '' ORDER BY RANDOM() LIMIT 20")
+    fun getRandomHighlights(source: String): Flow<List<PlaylistItem>>
+
     @Query("SELECT * FROM playlist_items WHERE playlistSource = :source AND contentType = :type ORDER BY name ASC")
     fun getItemsByType(source: String, type: String): Flow<List<PlaylistItem>>
 
@@ -30,6 +33,12 @@ interface PlaylistItemDao {
 
     @Query("DELETE FROM playlist_items WHERE playlistSource = :source")
     suspend fun clearPlaylistItems(source: String)
+
+    @Transaction
+    suspend fun clearAndInsertPlaylistItems(source: String, items: List<PlaylistItem>) {
+        clearPlaylistItems(source)
+        insertItems(items)
+    }
 
     @Query("UPDATE playlist_items SET isFavorite = :favorite WHERE id = :itemId")
     suspend fun setFavorite(itemId: Long, favorite: Boolean)

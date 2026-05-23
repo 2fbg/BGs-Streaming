@@ -32,9 +32,22 @@ class ExampleRobolectricTest {
     prefs.password = "mypassword123"
     val retrievedPassword = prefs.password
     
-    // In Robolectric, the AndroidKeyStore might not fully function,
-    // let's verify if it catches exceptions securely or saves/restores as empty/original
+    // Verify that retrieved password successfully decrypted and equals original plaintext
+    assertEquals("mypassword123", retrievedPassword)
     println("Retrieved Secure Password in Robolectric: '$retrievedPassword'")
+  }
+
+  @Test
+  fun `test preferences service with email dot username`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val prefs = PreferencesService(context)
+    
+    val testEmail = "FabioGuarniere@gmail.com"
+    prefs.username = testEmail
+    val retrieved = prefs.username
+    
+    assertEquals(testEmail, retrieved)
+    println("Retrieved Secure Email username in Robolectric: '$retrieved'")
   }
 
   @Test
