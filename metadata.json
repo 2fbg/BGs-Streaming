@@ -1,0 +1,6 @@
+{
+  "name": "MK21 MultiServidor",
+  "description": "Premium IPTV Client & Media Center for Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
