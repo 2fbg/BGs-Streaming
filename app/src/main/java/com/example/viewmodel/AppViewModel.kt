@@ -34,10 +34,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val preferencesService = PreferencesService(application)
     
     val predefinedServers = listOf(
-        ServerProfile("server_1", "Servidor MK21 Ultra", "http://mk21ultra.xyz:80"),
-        ServerProfile("server_2", "Servidor MK21 Gold", "http://mk21gold.vip:80"),
-        ServerProfile("server_3", "Servidor MK21 VIP", "http://vipmk.net:8080")
+        ServerProfile("server_1", "VLOG", "http://vlogmk.de"),
+        ServerProfile("server_2", "LUB TV", "http://redeinternadestiny.top"),
+        ServerProfile("server_3", "CINELON21", "http://cinelontv.work"),
+        ServerProfile("server_4", "TANNIX", "http://tannix.fun"),
+        ServerProfile("server_5", "CB6000", "http://cb6.fun"),
+        ServerProfile("server_6", "MK21 TV", "http://mk21.uk"),
+        ServerProfile("server_7", "NOVA+", "http://novamk21.win")
     )
+
+    private val predefinedNames = predefinedServers.map { it.name }.toSet()
 
     private val _username = MutableStateFlow(preferencesService.username)
     val username = _username.asStateFlow()
@@ -142,7 +148,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     init {
         // Autoload current configurations or do silent caching check
         viewModelScope.launch {
-            if (preferencesService.isCredentialsConfigured()) {
+            if (isCredentialsConfigured()) {
                 val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(preferencesService.activePlaylistName)
                 val oneDayMs = 24 * 60 * 60 * 1000L
                 val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdate
@@ -160,13 +166,52 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                
+                // Prefetch the remaining predefined servers silently in background
+                prefetchOtherPlaylistsInBackground()
             }
         }
     }
 
+    private fun prefetchOtherPlaylistsInBackground() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Give 8 seconds delay on initial boot to ensure active layout is buttery smooth
+            kotlinx.coroutines.delay(8000)
+            
+            val user = _username.value.trim()
+            val pass = _password.value.trim()
+            if (user.isEmpty() || pass.isEmpty()) return@launch
+            
+            predefinedServers.forEach { server ->
+                val serverName = server.name
+                if (serverName != _activePlaylistName.value) {
+                    try {
+                        val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(serverName)
+                        val oneDayMs = 24 * 60 * 60 * 1000L
+                        val isFresh = (System.currentTimeMillis() - lastUpdate) < oneDayMs
+                        
+                        // Prefetch if never cached or if the cache is older than 24 hours
+                        if (lastUpdate == 0L || !isFresh) {
+                            Log.d("MK21_VM", "Silently pre-fetching background cache for: $serverName")
+                            downloadAndParsePlaylistSilently(serverName)
+                            // Pause 3 seconds between servers to avoid heavy connection spike
+                            kotlinx.coroutines.delay(3000)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MK21_VM", "Failed prefetching $serverName in background", e)
+                    }
+                }
+            }
+        }
+    }
+
+    fun isCredentialsConfigured(): Boolean {
+        return preferencesService.isCredentialsConfigured(predefinedNames)
+    }
+
     fun setCredentials(usernameInput: String, passwordInput: String) {
-        _username.value = usernameInput.take(15)
-        _password.value = passwordInput.take(15)
+        _username.value = usernameInput
+        _password.value = passwordInput
         preferencesService.username = usernameInput
         preferencesService.password = passwordInput
     }
@@ -325,9 +370,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun downloadAndParsePlaylistSilently() {
-        val targetPlaylist = _activePlaylistName.value
-        val downloadUrl = getActivePlaylistDownloadUrl()
+    private fun downloadAndParsePlaylistSilently(targetPlaylist: String = _activePlaylistName.value) {
+        val downloadUrl = getActivePlaylistDownloadUrl(targetPlaylist)
         if (downloadUrl.isEmpty()) return
 
         val request = Request.Builder().url(downloadUrl).build()
@@ -348,8 +392,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun getActivePlaylistDownloadUrl(): String {
-        val currentPlaylist = _activePlaylistName.value
+    private fun getActivePlaylistDownloadUrl(targetPlaylist: String = _activePlaylistName.value): String {
+        val currentPlaylist = targetPlaylist
         
         // Is it a predefined server?
         val predefinedServer = predefinedServers.find { it.name == currentPlaylist }
@@ -359,16 +403,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             if (user.isEmpty() || pass.isEmpty()) {
                 return ""
             }
-            return "${predefinedServer.baseUrl}/get.php?username=$user&password=$pass&output=m3u_plus"
+            // Construct HTTP url always, force http:// instead of https://
+            var base = predefinedServer.baseUrl
+            if (base.startsWith("https://", ignoreCase = true)) {
+                base = "http://" + base.substring(8)
+            } else if (!base.startsWith("http://", ignoreCase = true)) {
+                base = "http://$base"
+            }
+            return "$base/get.php?username=$user&password=$pass&type=m3u_plus&output=mpegts"
         }
         
         // Is it a manual list?
-        // Let's get url from saved manual list
-        // Since Flow might contain list, we query manual playlist record directly
         var manualUrl = ""
         val matched = manualPlaylists.value.find { it.name == currentPlaylist }
         if (matched != null) {
             manualUrl = matched.url
+            // Force http:// instead of https:// for manual lists too if pasted as https
+            if (manualUrl.startsWith("https://", ignoreCase = true)) {
+                manualUrl = "http://" + manualUrl.substring(8)
+            }
         }
         return manualUrl
     }

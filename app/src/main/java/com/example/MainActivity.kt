@@ -13,6 +13,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Enforce horizontal landscape orientation layout
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        
         // Proper edgeToEdge execution to extend views elegantly under notches
         enableEdgeToEdge()
         

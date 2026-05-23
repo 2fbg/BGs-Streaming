@@ -80,7 +80,7 @@ fun AppNavigation(viewModel: AppViewModel) {
     
     // Check which screen to show on bootup
     LaunchedEffect(Unit) {
-        if (viewModel.preferencesService.isCredentialsConfigured()) {
+        if (viewModel.isCredentialsConfigured()) {
             currentScreen = Routes.HOME
         } else {
             currentScreen = Routes.SERVER_CONFIG
@@ -301,11 +301,10 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // USERNAME & PASSWORD IN THE EXACT SAME ROW WITHOUT EYE BUTTON!
-                        // limited to 15 characters
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedTextField(
                                 value = username,
-                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(it, password) },
+                                onValueChange = { viewModel.setCredentials(it, password) },
                                 label = { Text("Usuário", fontSize = 12.sp, color = Color.Gray) },
                                 maxLines = 1,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -325,7 +324,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                             // No eye button / raw Password input
                             OutlinedTextField(
                                 value = password,
-                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(username, it) },
+                                onValueChange = { viewModel.setCredentials(username, it) },
                                 label = { Text("Senha", fontSize = 12.sp, color = Color.Gray) },
                                 maxLines = 1,
                                 visualTransformation = PasswordVisualTransformation(),
@@ -348,51 +347,97 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
 
                         Text(
                             text = "Selecione o Servidor",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
                             color = Color.Gray,
                             letterSpacing = 1.sp
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        // Servidors Dropdown selections
-                        viewModel.predefinedServers.forEach { server ->
-                            val isSelected = activePlaylist == server.name
+                        var serverExpanded by remember { mutableStateOf(false) }
+                        val selectedServer = viewModel.predefinedServers.find { it.name == activePlaylist } ?: viewModel.predefinedServers.first()
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("server_combo_box")
+                        ) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clickable { viewModel.selectPlaylist(server.name) },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) Color(0xFF1F0B0E) else Color(0xFF111115)
-                                ),
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.White.copy(alpha = 0.05f)
-                                )
+                                    .clickable { serverExpanded = !serverExpanded },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF09090C)),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                                shape = RoundedCornerShape(10.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(14.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Dns,
                                         contentDescription = "Server icon",
-                                        tint = if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Gray,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = com.example.ui.theme.SophisticatedRedStart,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = server.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f)
-                                    )
+                                    Column {
+                                        Text(
+                                            text = "CONEXÃO SELECIONADA",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = com.example.ui.theme.GoldPremium,
+                                            letterSpacing = 1.sp
+                                        )
+                                        Text(
+                                            text = selectedServer.name,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.weight(1f))
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = { viewModel.selectPlaylist(server.name) },
-                                        colors = RadioButtonDefaults.colors(selectedColor = com.example.ui.theme.SophisticatedRedStart)
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Dropdown icon",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = serverExpanded,
+                                onDismissRequest = { serverExpanded = false },
+                                modifier = Modifier
+                                    .width(260.dp)
+                                    .background(Color(0xFF0C0C0F))
+                                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(10.dp))
+                            ) {
+                                viewModel.predefinedServers.forEach { server ->
+                                    val isSelected = activePlaylist == server.name
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Dns,
+                                                    contentDescription = null,
+                                                    tint = if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Gray,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text(
+                                                    text = server.name,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f)
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.selectPlaylist(server.name)
+                                            serverExpanded = false
+                                        }
                                     )
                                 }
                             }

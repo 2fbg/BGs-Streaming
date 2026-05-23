@@ -21,18 +21,18 @@ class PreferencesService(context: Context) {
 
     var username: String
         get() = prefs.getString(KEY_USERNAME, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_USERNAME, value.take(15)).apply()
+        set(value) = prefs.edit().putString(KEY_USERNAME, value).apply()
 
     var password: String
         get() = prefs.getString(KEY_PASSWORD, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_PASSWORD, value.take(15)).apply()
+        set(value) = prefs.edit().putString(KEY_PASSWORD, value).apply()
 
     var activeServerId: String
         get() = prefs.getString(KEY_ACTIVE_SERVER_ID, "server_1") ?: "server_1"
         set(value) = prefs.edit().putString(KEY_ACTIVE_SERVER_ID, value).apply()
 
     var activePlaylistName: String
-        get() = prefs.getString(KEY_ACTIVE_PLAYLIST_NAME, "Servidor 1") ?: "Servidor 1"
+        get() = prefs.getString(KEY_ACTIVE_PLAYLIST_NAME, "VLOG") ?: "VLOG"
         set(value) = prefs.edit().putString(KEY_ACTIVE_PLAYLIST_NAME, value).apply()
 
     var adultPin: String
@@ -51,12 +51,10 @@ class PreferencesService(context: Context) {
         return prefs.getLong(KEY_LAST_UPDATE_PREFIX + playlistName, 0L)
     }
 
-    fun isCredentialsConfigured(): Boolean {
-        // Yes, if we have server 1 selected, we require username & password.
-        // If a manual playlist is selected, it doesn't need username & pass if url already has them,
-        // but we require at least an active playlist.
+    fun isCredentialsConfigured(predefinedNames: Set<String>): Boolean {
+        val isPredefined = predefinedNames.contains(activePlaylistName)
         return activePlaylistName.isNotEmpty() && (
-            !activePlaylistName.startsWith("Servidor") || (username.isNotEmpty() && password.isNotEmpty())
+            !isPredefined || (username.isNotEmpty() && password.isNotEmpty())
         )
     }
 }
