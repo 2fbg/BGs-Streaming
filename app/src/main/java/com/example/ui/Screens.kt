@@ -1676,6 +1676,17 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         }
     }
 
+    // Remembered PlayerView to guarantee order of synchronization upon disposal
+    val playerView = remember {
+        PlayerView(context).apply {
+            useController = false // Use custom beautiful overlay controls instead of native slop!
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+    }
+
     LaunchedEffect(playlistItem) {
         errorMessage = null
         val url = playlistItem.url.trim()
@@ -1714,6 +1725,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         exoPlayer.addListener(listener)
 
         onDispose {
+            playerView.player = null // DETACH FIRST to prevent native surface / crash thread race condition
             exoPlayer.removeListener(listener)
             exoPlayer.stop()
             exoPlayer.release()
@@ -1739,15 +1751,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         // Player Surface Component using AndroidView binding
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false // Use custom beautiful overlay controls instead of native slop!
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            },
+            factory = { playerView },
             update = { view ->
                 if (view.player != exoPlayer) {
                     view.player = exoPlayer
