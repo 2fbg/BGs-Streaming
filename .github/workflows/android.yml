@@ -12,11 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  # ✅ força as actions JavaScript a rodarem em Node 24
-  # recomendado pelo GitHub durante a transição do Node 20 -> Node 24
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-  # ✅ ajuda a reduzir ruído de UI/AWT em ambiente headless
   JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
 
 jobs:
@@ -39,18 +35,47 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Locate Gradle Wrapper
+        id: locate_gradle
+        shell: bash
+        run: |
+          set -e
+
+          GRADLEW_PATH=$(find . -type f -name "gradlew" \
+            -not -path "*/build/*" \
+            -not -path "*/.gradle/*" \
+            | head -n 1)
+
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "❌ Arquivo gradlew não encontrado no repositório."
+            echo "Conteúdo encontrado:"
+            find . -maxdepth 3 -type f | sort | sed -n '1,200p'
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+
+          echo "✅ gradlew encontrado em: $GRADLEW_PATH"
+          echo "✅ diretório do projeto: $PROJECT_DIR"
+
+          echo "gradlew_path=$GRADLEW_PATH" >> "$GITHUB_OUTPUT"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
       - name: Make gradlew executable
-        run: chmod +x ./gradlew
+        run: chmod +x "${{ steps.locate_gradle.outputs.gradlew_path }}"
 
       - name: Show Java / Gradle versions
+        working-directory: ${{ steps.locate_gradle.outputs.project_dir }}
         run: |
           java -version
           ./gradlew --version
 
       - name: Build debug APK
+        working-directory: ${{ steps.locate_gradle.outputs.project_dir }}
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Run unit tests
+        working-directory: ${{ steps.locate_gradle.outputs.project_dir }}
         run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
       - name: Upload unit test reports
@@ -59,5 +84,5 @@ jobs:
         with:
           name: android-test-reports
           path: |
-            app/build/reports/tests/
-            app/build/test-results/
+            ${{ steps.locate_gradle.outputs.project_dir }}/app/build/reports/tests/
+            ${{ steps.locate_gradle.outputs.project_dir }}/app/build/test-results/
