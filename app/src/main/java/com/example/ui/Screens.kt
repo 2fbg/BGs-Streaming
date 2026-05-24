@@ -63,6 +63,63 @@ import com.example.ui.theme.NetflixRed
 import com.example.viewmodel.AppViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import android.media.AudioManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.input.pointer.positionChange
+
+/**
+ * TV Series Episodes Grouping Data Classes & Heuristics
+ */
+data class GroupedSeries(
+    val title: String,
+    val logoUrl: String?,
+    val category: String,
+    val episodes: List<PlaylistItem>
+)
+
+fun groupSeriesItems(items: List<PlaylistItem>): List<GroupedSeries> {
+    val regex = Regex("(?i)\\b(s\\d{1,2}e\\d{1,2}|\\d{1,2}x\\d{1,2}|t\\d{1,2}e\\d{1,2}|season\\s*\\d+\\s*episode\\s*\\d+|temp\\.\\s*\\d+\\s*ep\\.\\s*\\d+|capitulo\\s*\\d+|capí?tulo\\s*\\d+)\\b")
+    
+    val groups = items.groupBy { item ->
+        val matchResult = regex.find(item.name)
+        if (matchResult != null) {
+            val idx = matchResult.range.first
+            var seriesName = item.name.substring(0, idx).trim()
+            seriesName = seriesName.trimEnd('-', '_', ',', '/', ':', ' ')
+            if (seriesName.isEmpty()) item.name else seriesName
+        } else {
+            // Check for EP.xx or Episode xx
+            val epRegex = Regex("(?i)\\bep\\.?\\s*\\d+\\b|\\bepisod[io|io|o]\\s*\\d+\\b")
+            val epMatch = epRegex.find(item.name)
+            if (epMatch != null) {
+                val idx = epMatch.range.first
+                var seriesName = item.name.substring(0, idx).trim()
+                seriesName = seriesName.trimEnd('-', '_', ',', '/', ':', ' ')
+                if (seriesName.isEmpty()) item.name else seriesName
+            } else {
+                item.name
+            }
+        }
+    }
+
+    return groups.map { (seriesTitle, episodes) ->
+        GroupedSeries(
+            title = seriesTitle,
+            logoUrl = episodes.firstOrNull { !it.logoUrl.isNullOrEmpty() }?.logoUrl ?: episodes.firstOrNull()?.logoUrl,
+            category = episodes.firstOrNull()?.category ?: "Séries",
+            episodes = episodes.sortedWith(compareBy<PlaylistItem> { it.name })
+        )
+    }.sortedBy { it.title }
+}
 
 /**
  * Navigation routes
@@ -860,6 +917,10 @@ fun HomeScreen(
     val errorMsg by viewModel.errorMessage.collectAsState()
 
     var showPlaylistMenu by remember { mutableStateOf(false) }
+    var selectedSeriesForDetail by remember { mutableStateOf<GroupedSeries?>(null) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Box(
         modifier = Modifier
@@ -870,161 +931,303 @@ fun HomeScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             
-            // Header bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Sophisticated Brand Logo
-                SophisticatedBrandHeader(
-                    compact = true,
-                    modifier = Modifier.clickable { onNavigateToConfig() }
-                )
-                
-                Spacer(modifier = Modifier.width(14.dp))
-                
-                // Integrated Server selector Dropdown Combo
-                Box {
-                    Button(
-                        onClick = { showPlaylistMenu = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111115)),
+            if (isLandscape) {
+                // Squeezed Premium Landscape Header Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SophisticatedBrandHeader(
+                        compact = true,
+                        modifier = Modifier.clickable { onNavigateToConfig() }
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    // Connected Dropdown combo
+                    Box {
+                        Button(
+                            onClick = { showPlaylistMenu = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111115)),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Cloud, contentDescription = "Playlist selector", tint = GoldPremium, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = activePlaylist.take(12) + if (activePlaylist.length > 12) ".." else "",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown indicators", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showPlaylistMenu,
+                            onDismissRequest = { showPlaylistMenu = false },
+                            modifier = Modifier.background(Color(0xFF0C0C0F))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Predefinidos Oficial", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                                onClick = {},
+                                enabled = false
+                            )
+                            viewModel.predefinedServers.forEach { server ->
+                                DropdownMenuItem(
+                                    text = { Text(server.name, color = Color.White, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.selectPlaylist(server.name)
+                                        showPlaylistMenu = false
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Listas Customizadas", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                                onClick = {},
+                                enabled = false
+                            )
+                            manualLists.forEach { manual ->
+                                DropdownMenuItem(
+                                    text = { Text(manual.name, color = Color.White, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.selectPlaylist(manual.name)
+                                        showPlaylistMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // ContentType pill tabs
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            ContentType.LIVE to "Ao Vivo",
+                            ContentType.MOVIE to "Filmes",
+                            ContentType.SERIES to "Séries"
+                        ).forEach { (type, label) ->
+                            val isSelected = contentType == type
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color(0xFF111115))
+                                    .clickable { viewModel.changeContentType(type) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Consolidated Search box
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.setSearchQuery(it) },
+                        placeholder = { Text("Buscar...", fontSize = 12.sp, color = Color.Gray) },
+                        maxLines = 1,
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray, modifier = Modifier.size(16.dp)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setSearchQuery("") }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp),
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Cloud, contentDescription = "Playlist selector", tint = GoldPremium, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                            focusedContainerColor = Color(0xFF09090C),
+                            unfocusedContainerColor = Color(0xFF09090C)
+                        ),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color.White)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(onClick = { viewModel.refreshActivePlaylist() }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh list", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            } else {
+                // Portrait Original Column
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SophisticatedBrandHeader(
+                        compact = true,
+                        modifier = Modifier.clickable { onNavigateToConfig() }
+                    )
+                    
+                    Spacer(modifier = Modifier.width(14.dp))
+                    
+                    Box {
+                        Button(
+                            onClick = { showPlaylistMenu = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111115)),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Cloud, contentDescription = "Playlist selector", tint = GoldPremium, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = activePlaylist.take(12) + if (activePlaylist.length > 12) ".." else "",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown indicators", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showPlaylistMenu,
+                            onDismissRequest = { showPlaylistMenu = false },
+                            modifier = Modifier.background(Color(0xFF0C0C0F))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Predefinidos Oficial", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                                onClick = {},
+                                enabled = false
+                            )
+                            viewModel.predefinedServers.forEach { server ->
+                                DropdownMenuItem(
+                                    text = { Text(server.name, color = Color.White, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.selectPlaylist(server.name)
+                                        showPlaylistMenu = false
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Listas Customizadas", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                                onClick = {},
+                                enabled = false
+                            )
+                            manualLists.forEach { manual ->
+                                DropdownMenuItem(
+                                    text = { Text(manual.name, color = Color.White, fontSize = 13.sp) },
+                                    onClick = {
+                                        viewModel.selectPlaylist(manual.name)
+                                        showPlaylistMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    IconButton(onClick = { viewModel.refreshActivePlaylist() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh content list",
+                            tint = Color.White
+                        )
+                    }
+
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Open preferences settings page",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                // Categories Selector Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    listOf(
+                        ContentType.LIVE to "Ao Vivo",
+                        ContentType.MOVIE to "Filmes",
+                        ContentType.SERIES to "Séries"
+                    ).forEach { (type, label) ->
+                        val isSelected = contentType == type
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable { viewModel.changeContentType(type) }
+                        ) {
                             Text(
-                                text = activePlaylist.take(12) + if (activePlaylist.length > 12) ".." else "",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                text = label,
+                                color = if (isSelected) Color.White else Color.Gray,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(bottom = 6.dp)
                             )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown indicators", tint = Color.LightGray, modifier = Modifier.size(16.dp))
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = showPlaylistMenu,
-                        onDismissRequest = { showPlaylistMenu = false },
-                        modifier = Modifier.background(Color(0xFF0C0C0F))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Predefinidos Oficial", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                            onClick = {},
-                            enabled = false
-                        )
-                        viewModel.predefinedServers.forEach { server ->
-                            DropdownMenuItem(
-                                text = { Text(server.name, color = Color.White, fontSize = 13.sp) },
-                                onClick = {
-                                    viewModel.selectPlaylist(server.name)
-                                    showPlaylistMenu = false
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Listas Customizadas", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                            onClick = {},
-                            enabled = false
-                        )
-                        manualLists.forEach { manual ->
-                            DropdownMenuItem(
-                                text = { Text(manual.name, color = Color.White, fontSize = 13.sp) },
-                                onClick = {
-                                    viewModel.selectPlaylist(manual.name)
-                                    showPlaylistMenu = false
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .height(3.dp)
+                                    .width(28.dp)
+                                    .background(if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Transparent)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Action controls: Refresh & Settings
-                IconButton(onClick = { viewModel.refreshActivePlaylist() }) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh content list",
-                        tint = Color.White
+                // Search Bar Input
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    placeholder = { Text("Buscar canais, filmes ou séries...", fontSize = 13.sp, color = Color.Gray) },
+                    maxLines = 1,
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color.Gray)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color(0xFF09090C),
+                        unfocusedContainerColor = Color(0xFF09090C)
                     )
-                }
-
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Open preferences settings page",
-                        tint = Color.White
-                    )
-                }
-            }
-
-            // Categories Selector Navigation TabRow
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                listOf(
-                    ContentType.LIVE to "Ao Vivo",
-                    ContentType.MOVIE to "Filmes",
-                    ContentType.SERIES to "Séries"
-                ).forEach { (type, label) ->
-                    val isSelected = contentType == type
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { viewModel.changeContentType(type) }
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) Color.White else Color.Gray,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .height(3.dp)
-                                .width(28.dp)
-                                .background(if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Transparent)
-                        )
-                    }
-                }
-            }
-
-            // Search Bar Input
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                placeholder = { Text("Buscar canais, filmes ou séries...", fontSize = 13.sp, color = Color.Gray) },
-                maxLines = 1,
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color.Gray)
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
-                    focusedContainerColor = Color(0xFF09090C),
-                    unfocusedContainerColor = Color(0xFF09090C)
                 )
-            )
+            }
 
             // Category submenu selection Row (using REAL data)
             Spacer(modifier = Modifier.height(10.dp))
@@ -1125,9 +1328,41 @@ fun HomeScreen(
                             }
                         }
                     }
+                } else if (contentType == ContentType.SERIES) {
+                    // Smart Netflix-style Series Grouping layout!
+                    val groupedSeriesList = groupSeriesItems(itemsList)
+                    val gridColumnsCount = if (isLandscape) 4 else 3
+                    val chunkedGroupedList = groupedSeriesList.chunked(gridColumnsCount)
+
+                    items(chunkedGroupedList) { rowSeries ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (series in rowSeries) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    GroupedSeriesCard(
+                                        series = series,
+                                        onClick = { selectedSeriesForDetail = series }
+                                    )
+                                }
+                            }
+                            if (rowSeries.size < gridColumnsCount) {
+                                for (i in 0 until (gridColumnsCount - rowSeries.size)) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // Optimized Grid Layout using custom grouping chunk loops inside LazyColumn
-                    val gridColumnsCount = if (contentType == ContentType.LIVE) 2 else 3
+                    val gridColumnsCount = if (contentType == ContentType.LIVE) {
+                        if (isLandscape) 3 else 2
+                    } else {
+                        if (isLandscape) 4 else 3
+                    }
                     val chunkedList = itemsList.chunked(gridColumnsCount)
                     
                     items(chunkedList) { rowItems ->
@@ -1158,40 +1393,173 @@ fun HomeScreen(
             }
         }
 
-        // Percentage-based Load HUD Overlay
+        // Percentage-based Load HUD Overlay with progressive state labels
         if (loadingProgress != null && loadingProgress!! < 100) {
+            val statusText = when {
+                loadingProgress!! <= 15 -> "Conectando ao servidor..."
+                loadingProgress!! <= 45 -> "Baixando canais e mídias..."
+                loadingProgress!! <= 80 -> "Processando mídias recebidas..."
+                loadingProgress!! <= 95 -> "Salvando dados no banco..."
+                else -> "Finalizando sincronização..."
+            }
+
             Dialog(onDismissRequest = {}) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414)),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
-                    modifier = Modifier.width(280.dp)
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F12)),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    modifier = Modifier.width(290.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(
-                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
-                            modifier = Modifier.size(72.dp),
-                            color = NetflixRed,
-                            strokeWidth = 6.dp,
-                            trackColor = Color.White.copy(alpha = 0.1f)
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Box(contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                progress = { (loadingProgress ?: 0).toFloat() / 100f },
+                                modifier = Modifier.size(80.dp),
+                                color = NetflixRed,
+                                strokeWidth = 5.dp,
+                                trackColor = Color.White.copy(alpha = 0.05f)
+                            )
+                            Text(
+                                text = "$loadingProgress%",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
                         Text(
-                            text = "Atualizando Lista",
+                            text = "Buscando Playlist",
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            fontSize = 16.sp
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Spacer(modifier = Modifier.height(6.dp))
+                        
                         Text(
-                            text = "$loadingProgress%",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = NetflixRed
+                            text = statusText,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
                         )
+                    }
+                }
+            }
+        }
+
+        // Series Detail and Episode picker dialog
+        if (selectedSeriesForDetail != null) {
+            val series = selectedSeriesForDetail!!
+            Dialog(onDismissRequest = { selectedSeriesForDetail = null }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0E)),
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.85f)
+                        .padding(vertical = 12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(18.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(enhancedLogoFallback(series.logoUrl, series.title))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = series.title,
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(10.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = series.title,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${series.episodes.size} episódios • ${series.category}",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            IconButton(onClick = { selectedSeriesForDetail = null }) {
+                                Icon(Icons.Default.Close, contentDescription = "Close episodes list", tint = Color.White)
+                            }
+                        }
+                        
+                        HorizontalDivider(
+                            color = Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier.padding(vertical = 14.dp)
+                        )
+                        
+                        Text(
+                            text = "Episódios Disponíveis",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GoldPremium,
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        )
+                        
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(series.episodes) { episode ->
+                                Card(
+                                    onClick = {
+                                        viewModel.playContent(episode)
+                                        selectedSeriesForDetail = null
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play episode",
+                                            tint = NetflixRed,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = episode.name,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1389,6 +1757,67 @@ fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -
                         modifier = Modifier.size(18.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * GROUPED SERIES GRID CARD COMPOSABLE
+ */
+@Composable
+fun GroupedSeriesCard(series: GroupedSeries, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(146.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0C0C0F)),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)) {
+                
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(enhancedLogoFallback(series.logoUrl, series.title))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = series.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                
+                // Episode Count Badge
+                Box(modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${series.episodes.size} Eps", 
+                        fontSize = 8.sp, 
+                        fontWeight = FontWeight.Bold, 
+                        color = GoldPremium
+                    )
+                }
+            }
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF09090C))
+                .padding(horizontal = 8.dp, vertical = 6.dp)) {
+                Text(
+                    text = series.title,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -1664,9 +2093,58 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBuffering by remember { mutableStateOf(true) }
     
-    // Gestures states
-    var brightnessValue by remember { mutableFloatStateOf(1f) }
-    var volumeValue by remember { mutableFloatStateOf(1f) }
+    // Gestures and control states
+    var brightnessValue by remember { mutableFloatStateOf(1.0f) }
+    var volumeValue by remember { mutableFloatStateOf(1.0f) }
+    var showBrightnessOverlay by remember { mutableStateOf(false) }
+    var showVolumeOverlay by remember { mutableStateOf(false) }
+    
+    var controlsVisible by remember { mutableStateOf(true) }
+    var currentSpeed by remember { mutableFloatStateOf(1.0f) }
+    var showSpeedMenu by remember { mutableStateOf(false) }
+    
+    var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val activity = context as? Activity
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    // Edge-to-edge / Immersive Fullscreen Mode management
+    DisposableEffect(Unit) {
+        val window = activity?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            
+            // Auto initialize system brightness matching
+            val lp = window.attributes
+            if (lp.screenBrightness > 0f) {
+                brightnessValue = lp.screenBrightness
+            }
+        }
+        
+        // Auto initialize volume percentage matching
+        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        if (maxVol > 0) {
+            volumeValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol.toFloat()
+        }
+
+        onDispose {
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+    }
+
+    // Auto-hide playback controls after 5 seconds of inactivity
+    LaunchedEffect(controlsVisible) {
+        if (controlsVisible) {
+            delay(5000)
+            controlsVisible = false
+            showSpeedMenu = false
+        }
+    }
 
     // Standard media3 ExoPlayer controller setup with proper scopes
     val exoPlayer = remember {
@@ -1701,7 +2179,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
 
     DisposableEffect(exoPlayer) {
         // Apply Wakelock equivalent flag on creation to keep screen active
-        val window = (context as? Activity)?.window
+        val window = activity?.window
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
         val listener = object : Player.Listener {
@@ -1736,8 +2214,67 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    // Gesture support modifying brightness/volume on drags optionally
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var dragSide = if (down.position.x < size.width / 2f) 1 else 2 // 1: Left (Brightness), 2: Right (Volume)
+                    var totalDragY = 0f
+                    var isDrag = false
+                    
+                    drag(down.id) { change ->
+                        val dragAmount = change.positionChange()
+                        totalDragY += Math.abs(dragAmount.y)
+                        
+                        // Drag threshold
+                        if (totalDragY > 15f) {
+                            isDrag = true
+                        }
+                        
+                        if (isDrag) {
+                            change.consume()
+                            val delta = -dragAmount.y / size.height.toFloat() * 1.5f
+                            
+                            if (dragSide == 1) {
+                                // Left-side Swipe: Screen Brightness
+                                brightnessValue = (brightnessValue + delta).coerceIn(0.01f, 1.0f)
+                                activity?.runOnUiThread {
+                                    val lp = activity.window.attributes
+                                    lp.screenBrightness = brightnessValue
+                                    activity.window.attributes = lp
+                                }
+                                showBrightnessOverlay = true
+                                showVolumeOverlay = false
+                            } else {
+                                // Right-side Swipe: Audio volume
+                                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                val currVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                var volPercent = currVol.toFloat() / maxVol.toFloat()
+                                volPercent = (volPercent + delta).coerceIn(0f, 1.0f)
+                                
+                                val targetVol = (volPercent * maxVol).toInt().coerceIn(0, maxVol)
+                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                                volumeValue = volPercent
+                                
+                                showVolumeOverlay = true
+                                showBrightnessOverlay = false
+                            }
+                            
+                            // Visual overlay auto-dismiss timer
+                            overlayDismissJob?.cancel()
+                            overlayDismissJob = coroutineScope.launch {
+                                delay(1500)
+                                showBrightnessOverlay = false
+                                showVolumeOverlay = false
+                            }
+                        }
+                    }
+                    
+                    // Tap toggle controls if it was a tap (not drag)
+                    if (!isDrag) {
+                        controlsVisible = !controlsVisible
+                        if (!controlsVisible) {
+                            showSpeedMenu = false
+                        }
+                    }
                 }
             }
     ) {
@@ -1767,139 +2304,318 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
             }
         )
 
-        // Bottom cinematic bar overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.7f)
+        // Custom Visual Sidebar Overlays (Swipe Brightness & Volume)
+        // Brightness sidebar (Left)
+        AnimatedVisibility(
+            visible = showBrightnessOverlay,
+            enter = fadeIn() + slideInHorizontally { -it },
+            exit = fadeOut() + slideOutHorizontally { -it },
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 32.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Brightness5,
+                    contentDescription = "Brightness Indicator",
+                    tint = GoldPremium,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(brightnessValue)
+                            .align(Alignment.BottomStart)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(GoldPremium)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "${(brightnessValue * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Volume sidebar (Right)
+        AnimatedVisibility(
+            visible = showVolumeOverlay,
+            enter = fadeIn() + slideInHorizontally { it },
+            exit = fadeOut() + slideOutHorizontally { it },
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VolumeUp,
+                    contentDescription = "Volume Indicator",
+                    tint = NetflixRed,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(volumeValue)
+                            .align(Alignment.BottomStart)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(NetflixRed)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "${(volumeValue * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Cinematic Dark transparent gradient vignette overlay behind controls
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.6f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.75f)
+                            )
                         )
                     )
-                )
-        )
+            )
+        }
 
-        // Custom Overlay Panels and Info text
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
+        // Animated Interactive Control Center HUD
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn() + slideInVertically { it / 3 },
+            exit = fadeOut() + slideOutVertically { it / 3 },
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Header bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
             ) {
-                IconButton(
-                    onClick = onClosePlayback,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Close player screen", tint = Color.White)
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = playlistItem.name,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Categoria: ${playlistItem.category}",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Loading state indicator
-            if (isBuffering && errorMessage == null) {
-                Box(
+                // Header bar
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = NetflixRed, strokeWidth = 3.dp)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text("Carregando stream...", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                    IconButton(
+                        onClick = onClosePlayback,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Close player screen", tint = Color.White)
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column {
+                        Text(
+                            text = playlistItem.name,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Categoria: ${playlistItem.category}",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-            }
 
-            // Error and retry indicator
-            if (errorMessage != null) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xCC3E1215)),
-                        border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Loading state indicator
+                if (isBuffering && errorMessage == null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = NetflixRed, strokeWidth = 3.dp)
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Carregando stream...", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                // Error and retry indicator
+                if (errorMessage != null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xCC3E1215)),
+                            border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f))
                         ) {
-                            Text(
-                                text = errorMessage!!,
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    errorMessage = null
-                                    isBuffering = true
-                                    exoPlayer.prepare()
-                                    exoPlayer.play()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed)
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Tentar Novamente")
+                                Text(
+                                    text = errorMessage!!,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        errorMessage = null
+                                        isBuffering = true
+                                        exoPlayer.prepare()
+                                        exoPlayer.play()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NetflixRed)
+                                ) {
+                                    Text("Tentar Novamente")
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
 
-            // Bottom Player bar controllers
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                IconButton(
-                    onClick = {
-                        isPlaying = !isPlaying
-                        exoPlayer.playWhenReady = isPlaying
-                    },
+                // Playback speed selection bar popup
+                AnimatedVisibility(
+                    visible = showSpeedMenu,
+                    enter = fadeIn() + slideInVertically { it },
+                    exit = fadeOut() + slideOutVertically { it },
                     modifier = Modifier
-                        .size(54.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play button indicator",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(1.0f, 1.25f, 1.5f, 2.0f, 3.0f, 4.0f).forEach { speed ->
+                            val isSelected = currentSpeed == speed
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) NetflixRed else Color.Transparent)
+                                    .clickable {
+                                        currentSpeed = speed
+                                        exoPlayer.setPlaybackSpeed(speed)
+                                        showSpeedMenu = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "${speed}x",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Bottom Player bar controllers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Playback Speed Controller Button
+                    Box {
+                        TextButton(
+                            onClick = { showSpeedMenu = !showSpeedMenu },
+                            colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = "Playback Speed Options",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Velocidade: ${currentSpeed}x",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Centered Larger Play / Pause Circle
+                    IconButton(
+                        onClick = {
+                            isPlaying = !isPlaying
+                            exoPlayer.playWhenReady = isPlaying
+                        },
+                        modifier = Modifier
+                            .size(54.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play button indicator",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    // Symmetry spacer placeholder matching button layout bounds
+                    Spacer(modifier = Modifier.width(135.dp))
                 }
             }
         }
