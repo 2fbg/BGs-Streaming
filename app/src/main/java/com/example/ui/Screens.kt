@@ -1676,16 +1676,8 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         }
     }
 
-    // Remembered PlayerView to guarantee order of synchronization upon disposal
-    val playerView = remember {
-        PlayerView(context).apply {
-            useController = false // Use custom beautiful overlay controls instead of native slop!
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-    }
+    // Remembered PlayerView reference to guarantee order of synchronization upon disposal without leaking context
+    var playerViewInstance by remember { mutableStateOf<PlayerView?>(null) }
 
     LaunchedEffect(playlistItem) {
         errorMessage = null
@@ -1725,7 +1717,8 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         exoPlayer.addListener(listener)
 
         onDispose {
-            playerView.player = null // DETACH FIRST to prevent native surface / crash thread race condition
+            playerViewInstance?.player = null // DETACH FIRST to prevent native surface / crash thread race condition
+            playerViewInstance = null
             exoPlayer.removeListener(listener)
             exoPlayer.stop()
             exoPlayer.release()
@@ -1751,7 +1744,16 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         // Player Surface Component using AndroidView binding
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { playerView },
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = false // Use custom beautiful overlay controls instead of native slop!
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    playerViewInstance = this
+                }
+            },
             update = { view ->
                 if (view.player != exoPlayer) {
                     view.player = exoPlayer
@@ -1759,6 +1761,9 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
             },
             onRelease = { view ->
                 view.player = null
+                if (playerViewInstance == view) {
+                    playerViewInstance = null
+                }
             }
         )
 
