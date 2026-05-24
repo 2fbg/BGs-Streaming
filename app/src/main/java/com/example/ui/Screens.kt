@@ -702,7 +702,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            progress = (loadingProgress ?: 0).toFloat() / 100f,
+                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
                             modifier = Modifier.size(72.dp),
                             color = NetflixRed,
                             strokeWidth = 6.dp,
@@ -1172,7 +1172,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            progress = (loadingProgress ?: 0).toFloat() / 100f,
+                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
                             modifier = Modifier.size(72.dp),
                             color = NetflixRed,
                             strokeWidth = 6.dp,
@@ -1676,20 +1676,6 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         }
     }
 
-    val playerView = remember {
-        PlayerView(context).apply {
-            useController = false // Use custom beautiful overlay controls instead of native slop!
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-    }
-
-    LaunchedEffect(exoPlayer) {
-        playerView.player = exoPlayer
-    }
-
     LaunchedEffect(playlistItem) {
         errorMessage = null
         val url = playlistItem.url.trim()
@@ -1710,7 +1696,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         // Apply Wakelock equivalent flag on creation to keep screen active
         val window = (context as? Activity)?.window
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1728,7 +1714,6 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         exoPlayer.addListener(listener)
 
         onDispose {
-            playerView.player = null
             exoPlayer.removeListener(listener)
             exoPlayer.stop()
             exoPlayer.release()
@@ -1754,7 +1739,23 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         // Player Surface Component using AndroidView binding
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { playerView }
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = false // Use custom beautiful overlay controls instead of native slop!
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            update = { view ->
+                if (view.player != exoPlayer) {
+                    view.player = exoPlayer
+                }
+            },
+            onRelease = { view ->
+                view.player = null
+            }
         )
 
         // Bottom cinematic bar overlay
