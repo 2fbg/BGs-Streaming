@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!-- Declare attribution tags for audited data/audio access on strict security environments -->
+    <attribution android:tag="media" android:label="@string/app_name" />
+    <attribution android:tag="play" android:label="@string/app_name" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

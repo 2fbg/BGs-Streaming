@@ -37,7 +37,10 @@ interface PlaylistItemDao {
     @Transaction
     suspend fun clearAndInsertPlaylistItems(source: String, items: List<PlaylistItem>) {
         clearPlaylistItems(source)
-        insertItems(items)
+        // Chunk inserting to prevent SQLite binder transaction limit / variable limit violations on big lists
+        items.chunked(50).forEach { chunk ->
+            insertItems(chunk)
+        }
     }
 
     @Query("UPDATE playlist_items SET isFavorite = :favorite WHERE id = :itemId")

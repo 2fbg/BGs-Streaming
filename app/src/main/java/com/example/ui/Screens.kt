@@ -1676,13 +1676,38 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         }
     }
 
+    val playerView = remember {
+        PlayerView(context).apply {
+            useController = false // Use custom beautiful overlay controls instead of native slop!
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+    }
+
+    LaunchedEffect(exoPlayer) {
+        playerView.player = exoPlayer
+    }
+
     LaunchedEffect(playlistItem) {
         errorMessage = null
-        isBuffering = true
-        val item = MediaItem.fromUri(playlistItem.url)
-        exoPlayer.setMediaItem(item)
-        exoPlayer.prepare()
-        exoPlayer.play()
+        val url = playlistItem.url.trim()
+        if (url.isEmpty()) {
+            errorMessage = "A URL de transmissão está vazia."
+            isBuffering = false
+            return@LaunchedEffect
+        }
+        try {
+            isBuffering = true
+            val item = MediaItem.fromUri(url)
+            exoPlayer.setMediaItem(item)
+            exoPlayer.prepare()
+            exoPlayer.play()
+        } catch (e: Exception) {
+            errorMessage = "Erro ao carregar mídia: ${e.localizedMessage ?: "Causa desconhecida"}"
+            isBuffering = false
+        }
     }
 
     DisposableEffect(Unit) {
@@ -1703,6 +1728,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         exoPlayer.addListener(listener)
 
         onDispose {
+            playerView.player = null
             exoPlayer.removeListener(listener)
             exoPlayer.stop()
             exoPlayer.release()
@@ -1728,16 +1754,7 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
         // Player Surface Component using AndroidView binding
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false // Use custom beautiful overlay controls instead of native slop!
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            }
+            factory = { playerView }
         )
 
         // Bottom cinematic bar overlay
