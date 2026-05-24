@@ -20,7 +20,6 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
-  // ✅ SOMENTE RELEASE (debug usa padrão automático do Gradle)
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
@@ -42,9 +41,8 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
 
-    // ✅ NÃO DEFINIR signing no debug (corrige o erro do CI)
     debug {
-      // usa debug.keystore automático (~/.android/debug.keystore)
+      // usa keystore automático do Gradle
     }
   }
 
@@ -58,9 +56,18 @@ android {
     buildConfig = true
   }
 
+  // ✅ CORREÇÃO AQUI (IMPORTANTE)
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
+
+      all {
+        // ✅ força SDK compatível com Robolectric
+        it.systemProperty("robolectric.enabledSdks", "33")
+
+        // ✅ evita erro com Java moderno no CI
+        it.jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
+      }
     }
   }
 }
