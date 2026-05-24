@@ -1,37 +1,63 @@
-name: Android CI/CD Workflow
+name: Build & Test Android App
 
 on:
   push:
-    branches: [ "main", "master", "develop" ]
+    branches:
+      - main
+      - master
+      - develop
+      - dev
+      - '**'
   pull_request:
-    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+
+env:
+  # ✅ força as actions JavaScript a rodarem em Node 24
+  # recomendado pelo GitHub durante a transição do Node 20 -> Node 24
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+  # ✅ ajuda a reduzir ruído de UI/AWT em ambiente headless
+  JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
 
 jobs:
-  build:
+  build-test:
     name: Build & Test Android App
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
+          distribution: temurin
           java-version: '17'
-          distribution: 'temurin'
+          cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Show Java / Gradle versions
+        run: |
+          java -version
+          ./gradlew --version
 
-      - name: Run Local Unit & Robolectric Tests
-        run: gradle testDebugUnitTest --no-daemon
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload Debug APK
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Upload unit test reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: android-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
