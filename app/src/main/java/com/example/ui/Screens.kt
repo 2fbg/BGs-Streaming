@@ -2969,8 +2969,70 @@ fun VideoPlayerUI(
                     }
 
                     if (showAudioSubDialog) {
-                        var selectedAudio by remember { mutableStateOf("por") }
+                        var selectedAudio by remember { mutableStateOf("") }
                         var selectedSub by remember { mutableStateOf("des") }
+
+                        val currentTracks = exoPlayer.currentTracks
+                        val audioTracks = remember(currentTracks) {
+                            val list = mutableListOf<Pair<String, String>>()
+                            for (group in currentTracks.groups) {
+                                if (group.type == 1) { // 1 = C.TRACK_TYPE_AUDIO
+                                    for (i in 0 until group.length) {
+                                        if (group.isTrackSupported(i)) {
+                                            val format = group.getTrackFormat(i)
+                                            val lang = format.language ?: ""
+                                            val label = format.label ?: ""
+                                            val friendlyName = when (lang.lowercase()) {
+                                                "por", "pt", "pt-br" -> "Português"
+                                                "eng", "en" -> "Inglês"
+                                                "spa", "es" -> "Espanhol"
+                                                "fra", "fr" -> "Francês"
+                                                "ita", "it" -> "Italiano"
+                                                "deu", "de" -> "Alemão"
+                                                else -> label.ifEmpty { lang.uppercase().ifEmpty { "Áudio ${i + 1}" } }
+                                            }
+                                            if (list.none { it.first == lang }) {
+                                                list.add(lang to friendlyName)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            list
+                        }
+
+                        val subtitleTracks = remember(currentTracks) {
+                            val list = mutableListOf<Pair<String, String>>()
+                            for (group in currentTracks.groups) {
+                                if (group.type == 3) { // 3 = C.TRACK_TYPE_TEXT
+                                    for (i in 0 until group.length) {
+                                        if (group.isTrackSupported(i)) {
+                                            val format = group.getTrackFormat(i)
+                                            val lang = format.language ?: ""
+                                            val label = format.label ?: ""
+                                            val friendlyName = when (lang.lowercase()) {
+                                                "por", "pt", "pt-br" -> "Português"
+                                                "eng", "en" -> "Inglês"
+                                                "spa", "es" -> "Espanhol"
+                                                "fra", "fr" -> "Francês"
+                                                "ita", "it" -> "Italiano"
+                                                "deu", "de" -> "Alemão"
+                                                else -> label.ifEmpty { lang.uppercase().ifEmpty { "Legenda ${i + 1}" } }
+                                            }
+                                            if (list.none { it.first == lang }) {
+                                                list.add(lang to friendlyName)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            list
+                        }
+
+                        LaunchedEffect(currentTracks) {
+                            selectedAudio = exoPlayer.trackSelectionParameters.preferredAudioLanguages.firstOrNull() ?: ""
+                            selectedSub = exoPlayer.trackSelectionParameters.preferredTextLanguages.firstOrNull() ?: "des"
+                        }
 
                         Dialog(onDismissRequest = { showAudioSubDialog = false }) {
                             Card(
@@ -2995,37 +3057,46 @@ fun VideoPlayerUI(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text("ÁUDIO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            listOf(
-                                                "por" to "Português",
-                                                "eng" to "Inglês (Original)",
-                                                "spa" to "Espanhol"
-                                            ).forEach { (code, label) ->
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
+                                            // Se não houver mais de uma opção para trocar o áudio, aparece vazio
+                                            if (audioTracks.size > 1) {
+                                                audioTracks.forEach { (code, label) ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable {
+                                                                selectedAudio = code
+                                                                exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                                    .buildUpon()
+                                                                    .setPreferredAudioLanguage(code)
+                                                                    .build()
+                                                            }
+                                                            .padding(vertical = 6.dp)
+                                                    ) {
+                                                        RadioButton(
+                                                            selected = selectedAudio == code,
+                                                            onClick = {
+                                                                selectedAudio = code
+                                                                exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                                    .buildUpon()
+                                                                    .setPreferredAudioLanguage(code)
+                                                                    .build()
+                                                            },
+                                                            colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(label, color = Color.White, fontSize = 12.sp)
+                                                    }
+                                                }
+                                            } else {
+                                                // Aparece vazio conforme solicitado pelo usuário
+                                                Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .clickable {
-                                                            selectedAudio = code
-                                                            exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                                                                .buildUpon()
-                                                                .setPreferredAudioLanguage(code)
-                                                                .build()
-                                                        }
-                                                        .padding(vertical = 6.dp)
+                                                        .height(80.dp),
+                                                    contentAlignment = Alignment.Center
                                                 ) {
-                                                    RadioButton(
-                                                        selected = selectedAudio == code,
-                                                        onClick = {
-                                                            selectedAudio = code
-                                                            exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                                                                .buildUpon()
-                                                                .setPreferredAudioLanguage(code)
-                                                                .build()
-                                                        },
-                                                        colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text(label, color = Color.White, fontSize = 12.sp)
+                                                    Text("Único áudio disponível", color = Color.Gray, fontSize = 11.sp)
                                                 }
                                             }
                                         }
@@ -3036,43 +3107,53 @@ fun VideoPlayerUI(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text("LEGENDAS", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            listOf(
-                                                "des" to "Desativado",
-                                                "por" to "Português",
-                                                "eng" to "Inglês"
-                                            ).forEach { (code, label) ->
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
+                                            // Se não houver opções de legenda para trocar, aparece vazio
+                                            if (subtitleTracks.isNotEmpty()) {
+                                                val subsWithDisable = listOf("des" to "Desativado") + subtitleTracks
+                                                subsWithDisable.forEach { (code, label) ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable {
+                                                                selectedSub = code
+                                                                val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                                if (code == "des") {
+                                                                    builder.setPreferredTextLanguage(null)
+                                                                } else {
+                                                                    builder.setPreferredTextLanguage(code)
+                                                                }
+                                                                exoPlayer.trackSelectionParameters = builder.build()
+                                                            }
+                                                            .padding(vertical = 6.dp)
+                                                    ) {
+                                                        RadioButton(
+                                                            selected = selectedSub == code,
+                                                            onClick = {
+                                                                selectedSub = code
+                                                                val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                                if (code == "des") {
+                                                                    builder.setPreferredTextLanguage(null)
+                                                                } else {
+                                                                    builder.setPreferredTextLanguage(code)
+                                                                }
+                                                                exoPlayer.trackSelectionParameters = builder.build()
+                                                            },
+                                                            colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(label, color = Color.White, fontSize = 12.sp)
+                                                    }
+                                                }
+                                            } else {
+                                                // Aparece vazio conforme solicitado pelo usuário
+                                                Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .clickable {
-                                                            selectedSub = code
-                                                            val builder = exoPlayer.trackSelectionParameters.buildUpon()
-                                                            if (code == "des") {
-                                                                builder.setPreferredTextLanguage(null)
-                                                            } else {
-                                                                builder.setPreferredTextLanguage(code)
-                                                            }
-                                                            exoPlayer.trackSelectionParameters = builder.build()
-                                                        }
-                                                        .padding(vertical = 6.dp)
+                                                        .height(80.dp),
+                                                    contentAlignment = Alignment.Center
                                                 ) {
-                                                    RadioButton(
-                                                        selected = selectedSub == code,
-                                                        onClick = {
-                                                            selectedSub = code
-                                                            val builder = exoPlayer.trackSelectionParameters.buildUpon()
-                                                            if (code == "des") {
-                                                                builder.setPreferredTextLanguage(null)
-                                                            } else {
-                                                                builder.setPreferredTextLanguage(code)
-                                                            }
-                                                            exoPlayer.trackSelectionParameters = builder.build()
-                                                        },
-                                                        colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text(label, color = Color.White, fontSize = 12.sp)
+                                                    Text("Sem legendas", color = Color.Gray, fontSize = 11.sp)
                                                 }
                                             }
                                         }
@@ -3108,7 +3189,21 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     val adultPin = viewModel.preferencesService.adultPin
     
     var snackbarVisible by remember { mutableStateOf(false) }
+    var snackbarMessage by remember { mutableStateOf("Configurações atualizadas com sucesso!") }
+    
     var showParentalControlDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var showTimeFormatDialog by remember { mutableStateOf(false) }
+    var showLayoutDialog by remember { mutableStateOf(false) }
+    var showLiveStreamFormatDialog by remember { mutableStateOf(false) }
+    var showSubtitleSizeDialog by remember { mutableStateOf(false) }
+    var showDeviceTypeDialog by remember { mutableStateOf(false) }
+    var showHideLiveCategoriesDialog by remember { mutableStateOf(false) }
+    var showExternalPlayerDialog by remember { mutableStateOf(false) }
+    var showClearMoviesHistoryDialog by remember { mutableStateOf(false) }
+    var showClearLiveHistoryDialog by remember { mutableStateOf(false) }
+    var showPlaylistsDialog by remember { mutableStateOf(false) }
+    var showUpdateNowDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3205,10 +3300,20 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         pair.forEach { (title, icon) ->
                             Card(
                                 onClick = {
-                                    if (title == "Controle dos pais") {
-                                        showParentalControlDialog = true
-                                    } else {
-                                        snackbarVisible = true
+                                    when (title) {
+                                        "Controle dos pais" -> showParentalControlDialog = true
+                                        "Ocultar categorias ao vivo" -> showHideLiveCategoriesDialog = true
+                                        "Limpar histórico de filmes" -> showClearMoviesHistoryDialog = true
+                                        "Leitor externo" -> showExternalPlayerDialog = true
+                                        "Select Device Type" -> showDeviceTypeDialog = true
+                                        "Listas" -> showPlaylistsDialog = true
+                                        "Mudar idioma" -> showLanguageDialog = true
+                                        "Formato de hora" -> showTimeFormatDialog = true
+                                        "Atualizar agora" -> showUpdateNowDialog = true
+                                        "Change Layout" -> showLayoutDialog = true
+                                        "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
+                                        "Live Stream Format" -> showLiveStreamFormatDialog = true
+                                        "Configurações de legenda" -> showSubtitleSizeDialog = true
                                     }
                                 },
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
@@ -3216,7 +3321,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(64.dp)
+                                    .height(72.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -3228,17 +3333,48 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         imageVector = icon,
                                         contentDescription = title,
                                         tint = GoldPremium,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = title,
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = title,
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        
+                                        // Dynamic interactive value descriptor display below title
+                                        val subtext = when (title) {
+                                            "Controle dos pais" -> "Segurança ativa"
+                                            "Ocultar categorias ao vivo" -> if (viewModel.preferencesService.hideLiveCategories) "Oculto" else "Visível"
+                                            "Limpar histórico de filmes" -> "Apagar Continue Assistindo"
+                                            "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
+                                            "Select Device Type" -> viewModel.preferencesService.deviceType
+                                            "Listas" -> "MK21 MultiServidores"
+                                            "Mudar idioma" -> viewModel.preferencesService.appLanguage
+                                            "Formato de hora" -> viewModel.preferencesService.timeFormat
+                                            "Atualizar agora" -> "Sincronizar m3u"
+                                            "Change Layout" -> viewModel.preferencesService.appLayout
+                                            "Limpar canais de histórico" -> "Apagar histórico canais"
+                                            "Live Stream Format" -> viewModel.preferencesService.liveStreamFormat
+                                            "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
+                                            else -> ""
+                                        }
+                                        
+                                        if (subtext.isNotEmpty()) {
+                                            Text(
+                                                text = subtext,
+                                                color = Color.Gray,
+                                                fontSize = 9.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3384,6 +3520,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                     } else {
                                         viewModel.setAdultPin(newInput)
                                         showParentalControlDialog = false
+                                        snackbarMessage = "Senha parental atualizada com sucesso!"
                                         snackbarVisible = true
                                     }
                                 },
@@ -3392,6 +3529,358 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text("OK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Language dialogue
+        if (showLanguageDialog) {
+            SettingsSelectionDialog(
+                title = "Mudar Idioma",
+                options = listOf("Português", "English", "Español"),
+                currentValue = viewModel.preferencesService.appLanguage,
+                onDismiss = { showLanguageDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.appLanguage = it
+                    snackbarMessage = "Idioma alterado para $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Time format dialogue
+        if (showTimeFormatDialog) {
+            SettingsSelectionDialog(
+                title = "Formato de Hora",
+                options = listOf("12 horas (AM/PM)", "24 horas"),
+                currentValue = viewModel.preferencesService.timeFormat,
+                onDismiss = { showTimeFormatDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.timeFormat = it
+                    snackbarMessage = "Formato de hora alterado para $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Layout choice dialogue
+        if (showLayoutDialog) {
+            SettingsSelectionDialog(
+                title = "Layout do Aplicativo",
+                options = listOf("Grid Clássico", "Lista Moderna", "Grade Compacta"),
+                currentValue = viewModel.preferencesService.appLayout,
+                onDismiss = { showLayoutDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.appLayout = it
+                    snackbarMessage = "Layout do aplicativo definido como: $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Live stream format dialogue
+        if (showLiveStreamFormatDialog) {
+            SettingsSelectionDialog(
+                title = "Formato da Transmissão (MPEG/HLS)",
+                options = listOf("MPEG-TS (.ts)", "HLS (.m3u8)"),
+                currentValue = viewModel.preferencesService.liveStreamFormat,
+                onDismiss = { showLiveStreamFormatDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.liveStreamFormat = it
+                    snackbarMessage = "Formato de transmissão definido para $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Subtitles configuration dialogue
+        if (showSubtitleSizeDialog) {
+            SettingsSelectionDialog(
+                title = "Tamanho das Legendas",
+                options = listOf("Pequena", "Média (Padrão)", "Grande"),
+                currentValue = viewModel.preferencesService.subtitleConfig,
+                onDismiss = { showSubtitleSizeDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.subtitleConfig = it
+                    snackbarMessage = "Legendas definidas para: $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Device Type dialogue
+        if (showDeviceTypeDialog) {
+            SettingsSelectionDialog(
+                title = "Tipo de Dispositivo",
+                options = listOf("Celular / Tablet", "TV Box / Android TV"),
+                currentValue = viewModel.preferencesService.deviceType,
+                onDismiss = { showDeviceTypeDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.deviceType = it
+                    snackbarMessage = "Modo de dispositivo definido como: $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Hide Live TV categories dialogue
+        if (showHideLiveCategoriesDialog) {
+            SettingsSelectionDialog(
+                title = "Exibir Categorias Ao Vivo",
+                options = listOf("Mostrar Categorias Ao Vivo", "Ocultar Categorias Ao Vivo"),
+                currentValue = if (viewModel.preferencesService.hideLiveCategories) "Ocultar Categorias Ao Vivo" else "Mostrar Categorias Ao Vivo",
+                onDismiss = { showHideLiveCategoriesDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.hideLiveCategories = (it == "Ocultar Categorias Ao Vivo")
+                    snackbarMessage = "Categorias Ao Vivo foram configuradas como: $it"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Video Player options dialogue
+        if (showExternalPlayerDialog) {
+            SettingsSelectionDialog(
+                title = "Escolher Leitor de Vídeo",
+                options = listOf("Usar Player Interno (Padrão)", "Usar Player Externo"),
+                currentValue = if (viewModel.preferencesService.useExternalPlayer) "Usar Player Externo" else "Usar Player Interno (Padrão)",
+                onDismiss = { showExternalPlayerDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.useExternalPlayer = (it == "Usar Player Externo")
+                    snackbarMessage = "Configuração salva: $it"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Dialog for Playlists Info
+        if (showPlaylistsDialog) {
+            Dialog(onDismissRequest = { showPlaylistsDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Listas de Canais",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        Text(
+                            text = "Playlist Ativa:\n$activePlaylist",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = "Usuário conectado: $username\nServidores conectados ao portal de multisservidor MK21.",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+                        Button(
+                            onClick = { showPlaylistsDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("ENTENDIDO", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog for Clear Movie History
+        if (showClearMoviesHistoryDialog) {
+            Dialog(onDismissRequest = { showClearMoviesHistoryDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(300.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Limpar Histórico",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        Text(
+                            text = "Deseja realmente apagar o seu histórico de filmes e séries assistidos (Continue Assistindo)?",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showClearMoviesHistoryDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("NÃO", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.clearMoviesAndSeriesHistory()
+                                    showClearMoviesHistoryDialog = false
+                                    snackbarMessage = "Histórico de filmes e séries apagado!"
+                                    snackbarVisible = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("SIM", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog for Clear Live TV History
+        if (showClearLiveHistoryDialog) {
+            Dialog(onDismissRequest = { showClearLiveHistoryDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(300.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Limpar Canais Assistidos",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        Text(
+                            text = "Deseja realmente apagar o histórico dos canais ao vivo assistidos ultimamente?",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showClearLiveHistoryDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("NÃO", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.clearLiveHistory()
+                                    showClearLiveHistoryDialog = false
+                                    snackbarMessage = "Histórico de canais ao vivo apagado!"
+                                    snackbarVisible = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("SIM", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog for Update Playlist from Server
+        if (showUpdateNowDialog) {
+            Dialog(onDismissRequest = {}) { // non-dismissable during update
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(300.dp)
+                ) {
+                    var isUpdating by remember { mutableStateOf(true) }
+                    LaunchedEffect(Unit) {
+                        viewModel.refreshActivePlaylist()
+                        delay(1200)
+                        isUpdating = false
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Sincronização",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        if (isUpdating) {
+                            CircularProgressIndicator(color = NetflixRed, modifier = Modifier.size(36.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Buscando e indexando dados de $activePlaylist...",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.Green, modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Playlist atualizada com sucesso no banco local!",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                            Button(
+                                onClick = { showUpdateNowDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("FECHAR", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -3419,11 +3908,89 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = "OK", tint = Color.Green, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Configurações atualizadas com sucesso!", color = Color.White, fontSize = 13.sp)
+                    Text(snackbarMessage, color = Color.White, fontSize = 13.sp)
                     Spacer(modifier = Modifier.width(16.dp))
                     TextButton(onClick = { snackbarVisible = false }) {
                         Text("FECHAR", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Universal selection Dialog helper for premium responsive settings
+ */
+@Composable
+fun SettingsSelectionDialog(
+    title: String,
+    options: List<String>,
+    currentValue: String,
+    onDismiss: () -> Unit,
+    onOptionSelected: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            modifier = Modifier.width(300.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = title,
+                    color = GoldPremium,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    options.forEach { option ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOptionSelected(option)
+                                    onDismiss()
+                                }
+                                .padding(vertical = 8.dp, horizontal = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = option == currentValue,
+                                onClick = {
+                                    onOptionSelected(option)
+                                    onDismiss()
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(option, color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 }
             }
         }

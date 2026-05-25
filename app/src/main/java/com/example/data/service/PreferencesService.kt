@@ -77,6 +77,39 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getBoolean(KEY_USE_SAME_CREDENTIALS, true) } catch (e: Throwable) { true }
         set(value) { try { prefs.edit().putBoolean(KEY_USE_SAME_CREDENTIALS, value).apply() } catch (e: Throwable) {} }
 
+    // New configuration properties for fully functional settings screen
+    var hideLiveCategories: Boolean
+        get() = try { prefs.getBoolean("hide_live_categories", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("hide_live_categories", value).apply() } catch (e: Throwable) {} }
+
+    var useExternalPlayer: Boolean
+        get() = try { prefs.getBoolean("use_external_player", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("use_external_player", value).apply() } catch (e: Throwable) {} }
+
+    var deviceType: String
+        get() = try { prefs.getString("device_type", "Celular / Tablet") ?: "Celular / Tablet" } catch (e: Throwable) { "Celular / Tablet" }
+        set(value) { try { prefs.edit().putString("device_type", value).apply() } catch (e: Throwable) {} }
+
+    var appLanguage: String
+        get() = try { prefs.getString("app_language", "Português") ?: "Português" } catch (e: Throwable) { "Português" }
+        set(value) { try { prefs.edit().putString("app_language", value).apply() } catch (e: Throwable) {} }
+
+    var timeFormat: String
+        get() = try { prefs.getString("time_format", "24 horas") ?: "24 horas" } catch (e: Throwable) { "24 horas" }
+        set(value) { try { prefs.edit().putString("time_format", value).apply() } catch (e: Throwable) {} }
+
+    var appLayout: String
+        get() = try { prefs.getString("app_layout", "Grid Clássico") ?: "Grid Clássico" } catch (e: Throwable) { "Grid Clássico" }
+        set(value) { try { prefs.edit().putString("app_layout", value).apply() } catch (e: Throwable) {} }
+
+    var liveStreamFormat: String
+        get() = try { prefs.getString("live_stream_format", "MPEG-TS (.ts)") ?: "MPEG-TS (.ts)" } catch (e: Throwable) { "MPEG-TS (.ts)" }
+        set(value) { try { prefs.edit().putString("live_stream_format", value).apply() } catch (e: Throwable) {} }
+
+    var subtitleConfig: String
+        get() = try { prefs.getString("subtitle_config", "Média (Padrão)") ?: "Média (Padrão)" } catch (e: Throwable) { "Média (Padrão)" }
+        set(value) { try { prefs.edit().putString("subtitle_config", value).apply() } catch (e: Throwable) {} }
+
     fun setLastPlaylistUpdateTimestamp(playlistName: String, timestamp: Long) {
         try { prefs.edit().putLong(KEY_LAST_UPDATE_PREFIX + playlistName, timestamp).apply() } catch (e: Throwable) {}
     }

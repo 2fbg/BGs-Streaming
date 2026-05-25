@@ -276,6 +276,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearMoviesAndSeriesHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playlistItemDao.clearMoviesAndSeriesHistory(_activePlaylistName.value)
+        }
+    }
+
+    fun clearLiveHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playlistItemDao.clearLiveHistory(_activePlaylistName.value)
+        }
+    }
+
     fun closePlayback() {
         _currentPlayingItem.value = null
     }
@@ -330,6 +342,190 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFavorite(item: PlaylistItem) {
         viewModelScope.launch(Dispatchers.IO) {
             playlistItemDao.setFavorite(item.id, !item.isFavorite)
+        }
+    }
+
+    fun loadDemoData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _loadingProgress.value = 10
+            _errorMessage.value = null
+            try {
+                val demoPlaylist = "DEMO MK21"
+                _activePlaylistName.value = demoPlaylist
+                preferencesService.activePlaylistName = demoPlaylist
+                preferencesService.username = "demo"
+                preferencesService.password = "demo"
+                _username.value = "demo"
+                _password.value = "demo"
+
+                _loadingProgress.value = 40
+                
+                val items = listOf(
+                    // LIVE CHANNELS
+                    PlaylistItem(
+                        name = "Globo RJ HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                        logoUrl = null,
+                        category = "Canais Abertos",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Record TV HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                        logoUrl = null,
+                        category = "Canais Abertos",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "SBT HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                        logoUrl = null,
+                        category = "Canais Abertos",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Band HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                        logoUrl = null,
+                        category = "Canais Abertos",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "ESPN 1 Brasil HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+                        logoUrl = null,
+                        category = "Esportes",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "SporTV HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+                        logoUrl = null,
+                        category = "Esportes",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "HBO Premium FHD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+                        logoUrl = null,
+                        category = "Filmes & Séries",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Telecine Action HD",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+                        logoUrl = null,
+                        category = "Filmes & Séries",
+                        contentType = "LIVE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Playboy TV (Adulto 18+)",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+                        logoUrl = null,
+                        category = "Canais Adultos 18+",
+                        contentType = "LIVE",
+                        isAdult = true,
+                        playlistSource = demoPlaylist
+                    ),
+                    
+                    // MOVIES
+                    PlaylistItem(
+                        name = "Batman - O Cavaleiro das Trevas",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                        logoUrl = null,
+                        category = "Ação / Blockbusters",
+                        contentType = "MOVIE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Duna Parte 2 (2024)",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                        logoUrl = null,
+                        category = "Ficção Científica",
+                        contentType = "MOVIE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Oppenheimer (2023)",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                        logoUrl = null,
+                        category = "Drama / Biográfico",
+                        contentType = "MOVIE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Matrix Resurrections",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                        logoUrl = null,
+                        category = "Ação / Blockbusters",
+                        contentType = "MOVIE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Coringa (2019)",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+                        logoUrl = null,
+                        category = "Drama / Biográfico",
+                        contentType = "MOVIE",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Segredos do Passado (Adulto 18+)",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+                        logoUrl = null,
+                        category = "Conteúdo Adulto 18+",
+                        contentType = "MOVIE",
+                        isAdult = true,
+                        playlistSource = demoPlaylist
+                    ),
+
+                    // SERIES
+                    PlaylistItem(
+                        name = "House of the Dragon - Temporada 2 Ep 01",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+                        logoUrl = null,
+                        category = "Fantasias / Drama",
+                        contentType = "SERIES",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Breaking Bad - S01E01 Pilot",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                        logoUrl = null,
+                        category = "Drama / Policial",
+                        contentType = "SERIES",
+                        playlistSource = demoPlaylist
+                    ),
+                    PlaylistItem(
+                        name = "Stranger Things - Temporada 4 Ep 01",
+                        url = "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+                        logoUrl = null,
+                        category = "Mistério / Suspense",
+                        contentType = "SERIES",
+                        playlistSource = demoPlaylist
+                    )
+                )
+
+                _loadingProgress.value = 75
+                playlistItemDao.clearAndInsertPlaylistItems(demoPlaylist, items)
+                
+                preferencesService.setLastPlaylistUpdateTimestamp(demoPlaylist, System.currentTimeMillis())
+                _loadingProgress.value = 100
+                _loginSuccess.emit(Unit)
+                kotlinx.coroutines.delay(800)
+                _loadingProgress.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Erro no demo: ${e.message}"
+                _loadingProgress.value = null
+            }
         }
     }
 
