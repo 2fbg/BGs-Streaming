@@ -3090,14 +3090,7 @@ fun VideoPlayerUI(
                                                 }
                                             } else {
                                                 // Aparece vazio conforme solicitado pelo usuário
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(80.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("Único áudio disponível", color = Color.Gray, fontSize = 11.sp)
-                                                }
+                                                Spacer(modifier = Modifier.height(80.dp))
                                             }
                                         }
 
@@ -3147,14 +3140,7 @@ fun VideoPlayerUI(
                                                 }
                                             } else {
                                                 // Aparece vazio conforme solicitado pelo usuário
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(80.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("Sem legendas", color = Color.Gray, fontSize = 11.sp)
-                                                }
+                                                Spacer(modifier = Modifier.height(80.dp))
                                             }
                                         }
                                     }
