@@ -910,11 +910,13 @@ fun HomeScreen(
     val activeCategory by viewModel.selectedCategory.collectAsState()
     val categories by viewModel.activeCategories.collectAsState()
     val itemsList by viewModel.activeItemsList.collectAsState()
+    val searchResultQuery by viewModel.searchQuery.collectAsState()
     val highlights by viewModel.highlightsList.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val currentPlayingItem by viewModel.currentPlayingItem.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
     val errorMsg by viewModel.errorMessage.collectAsState()
+    val continueWatching by viewModel.continueWatchingList.collectAsState()
 
     var showPlaylistMenu by remember { mutableStateOf(false) }
     var selectedSeriesForDetail by remember { mutableStateOf<GroupedSeries?>(null) }
@@ -1232,6 +1234,26 @@ fun HomeScreen(
             // Category submenu selection Row (using REAL data)
             Spacer(modifier = Modifier.height(10.dp))
             if (searchQuery.isEmpty() && categories.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Submenus Gêneros",
+                        tint = GoldPremium,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Submenus & Gêneros",
+                        color = Color.LightGray,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1272,6 +1294,81 @@ fun HomeScreen(
                 if (searchQuery.isEmpty() && highlights.isNotEmpty()) {
                     item {
                         HighlightBanner(highlights = highlights, onPlayItem = { viewModel.playContent(it) })
+                    }
+                }
+
+                // Continue Watching Section
+                if (searchQuery.isEmpty() && continueWatching.isNotEmpty()) {
+                    item {
+                        Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                            Text(
+                                text = "Continuar Assistindo",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 14.sp,
+                                color = GoldPremium,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                                letterSpacing = 0.5.sp
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(continueWatching) { item ->
+                                    Card(
+                                        onClick = { viewModel.playContent(item) },
+                                        modifier = Modifier
+                                            .width(140.dp)
+                                            .height(96.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize()) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(LocalContext.current)
+                                                    .data(enhancedLogoFallback(item.logoUrl, item.name))
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = item.name,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            // Play icon center overlay
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.Center)
+                                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                                                    .padding(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayArrow,
+                                                    contentDescription = "Continuar assistindo",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            // Title at the bottom
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .align(Alignment.BottomStart)
+                                                    .background(Color.Black.copy(alpha = 0.82f))
+                                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = item.name,
+                                                    color = Color.White,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1377,7 +1474,8 @@ fun HomeScreen(
                                     GridItemCard(
                                         item = item,
                                         isGridCompact = contentType != ContentType.LIVE,
-                                        onClick = { viewModel.playContent(item) }
+                                        onClick = { viewModel.playContent(item) },
+                                        onToggleFavorite = { viewModel.toggleFavorite(item) }
                                     )
                                 }
                             }
@@ -1579,11 +1677,26 @@ fun HomeScreen(
             )
         }
 
+        val activePinCategory by viewModel.activePinPromptCategory.collectAsState()
+        if (activePinCategory != null) {
+            AdultPinDialog(
+                onDismiss = { viewModel.dismissCategoryPinPrompt() },
+                onPinVerify = { pin ->
+                    val success = viewModel.checkPinAndPlay(pin)
+                    if (!success) {
+                        // feedback or toast
+                    }
+                }
+            )
+        }
+
         // Complete fullscreen video player overlay
         if (currentPlayingItem != null) {
             VideoPlayerUI(
                 playlistItem = currentPlayingItem!!,
-                onClosePlayback = { viewModel.closePlayback() }
+                onClosePlayback = { viewModel.closePlayback() },
+                onPlayPrevious = { viewModel.playPrevious() },
+                onPlayNext = { viewModel.playNext() }
             )
         }
     }
@@ -1823,11 +1936,95 @@ fun GroupedSeriesCard(series: GroupedSeries, onClick: () -> Unit) {
     }
 }
 
+fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val seconds = totalSeconds % 60
+    val minutes = (totalSeconds / 60) % 60
+    val hours = totalSeconds / 3600
+    return if (hours > 0) {
+        String.format("%02d:%01d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
+fun getCurrentEpgProgram(channelName: String): String {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val name = channelName.uppercase()
+    return when {
+        name.contains("GLOBO") -> {
+            when {
+                hour in 6..8 -> "Bom Dia Brasil"
+                hour in 9..11 -> "Mais Você"
+                hour in 12..13 -> "Praça TV - 1ª Edição"
+                hour in 14..16 -> "Sessão da Tarde"
+                hour in 17..19 -> "Vale a Pena Ver de Novo"
+                hour in 20..21 -> "Jornal Nacional"
+                hour in 22..23 -> "Novela das Nove"
+                else -> "Cinema Espetacular"
+            }
+        }
+        name.contains("RECORD") -> {
+            when (hour) {
+                in 6..8 -> "Balanço Geral Manhã"
+                in 12..14 -> "Balanço Geral"
+                in 15..17 -> "Cidade Alerta"
+                in 20..21 -> "Jornal da Record"
+                else -> "Super Tela"
+            }
+        }
+        name.contains("SBT") -> {
+            when (hour) {
+                in 6..8 -> "Primeiro Impacto"
+                in 13..14 -> "Chaves"
+                in 20..21 -> "Romeu e Julieta"
+                in 22..23 -> "Programa do Ratinho"
+                else -> "Cine Espetacular"
+            }
+        }
+        name.contains("BAND") -> {
+            when (hour) {
+                in 12..13 -> "Jogo Aberto"
+                in 14..15 -> "Os Donos da Bola"
+                in 16..18 -> "Brasil Urgente"
+                in 19..20 -> "Jornal da Band"
+                else -> "Esporte Total"
+            }
+        }
+        name.contains("SPORT") || name.contains("ESPN") || name.contains("PREMIERE") -> {
+            when (hour) {
+                in 10..12 -> "Mesa Redonda ao Vivo"
+                in 13..15 -> "Futebol Ao Vivo / Gols da Rodada"
+                in 16..18 -> "SportsCenter"
+                in 19..22 -> "Brasileirão Campeonato Ao Vivo"
+                else -> "Linha de Passe"
+            }
+        }
+        name.contains("TELE") || name.contains("HBO") || name.contains("CINEMA") || name.contains("WARNER") || name.contains("UNIVERSAL") -> {
+            when (hour) {
+                in 13..15 -> "Filme Extra: Batman - O Cavaleiro das Trevas"
+                in 16..18 -> "Filme Blockbuster: Duna Parte 2"
+                in 19..21 -> "Série do Ano: House of the Dragon"
+                in 22..23 -> "Filme Lançamento: Oppenheimer"
+                else -> "Sessão Cult de Cinema"
+            }
+        }
+        else -> {
+            when (hour) {
+                in 6..11 -> "Programação Matinal"
+                in 12..17 -> "Tarde de Entretenimento"
+                in 18..22 -> "Jornalismo & Show do Intervalo"
+                else -> "Sessão Corujão / Madrugada de Filmes"
+            }
+        }
+    }
+}
+
 /**
  * INDIVIDUAL GRID ROW ITEM DISPLAY CARD
  */
 @Composable
-fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit) {
+fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit, onToggleFavorite: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -1874,6 +2071,23 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                                 fontSize = 8.sp, 
                                 fontWeight = FontWeight.Bold, 
                                 color = if (item.isAdult) Color.Red else Color.White
+                            )
+                        }
+
+                        // Upper Left Favorite button overlay
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(4.dp)
+                                .size(28.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (item.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (item.isFavorite) Color.Red else Color.White,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
@@ -1937,19 +2151,50 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            maxLines = 2,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(Color.Red, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "NO AR: " + getCurrentEpgProgram(item.name),
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                     
                     if (item.isAdult) {
                         Box(modifier = Modifier
-                            .padding(end = 12.dp)
+                            .padding(end = 4.dp)
                             .background(Color.Red, RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
                             Text("18+", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
+                    }
+
+                    // Favorite Button for TV Channels
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (item.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (item.isFavorite) Color.Red else Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -2087,7 +2332,12 @@ fun AdultPinDialog(onDismiss: () -> Unit, onPinVerify: (String) -> Unit) {
  */
 @OptIn(UnstableApi::class)
 @Composable
-fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
+fun VideoPlayerUI(
+    playlistItem: PlaylistItem,
+    onClosePlayback: () -> Unit,
+    onPlayPrevious: () -> Unit,
+    onPlayNext: () -> Unit
+) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -2567,6 +2817,55 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
                     }
                 }
 
+                // Progress Seek bar for Movies and Series (Track time progression)
+                if (playlistItem.contentType == ContentType.MOVIE.name || playlistItem.contentType == ContentType.SERIES.name) {
+                    var currentPos by remember { mutableLongStateOf(0L) }
+                    var duration by remember { mutableLongStateOf(0L) }
+
+                    LaunchedEffect(exoPlayer) {
+                        while (true) {
+                            currentPos = exoPlayer.currentPosition
+                            duration = exoPlayer.duration.coerceAtLeast(0L)
+                            delay(500)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = formatTime(currentPos),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Slider(
+                            value = currentPos.toFloat(),
+                            onValueChange = {
+                                exoPlayer.seekTo(it.toLong())
+                                currentPos = it.toLong()
+                            },
+                            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = NetflixRed,
+                                activeTrackColor = NetflixRed,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                            )
+                        )
+                        Text(
+                            text = formatTime(duration),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 // Bottom Player bar controllers
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2596,26 +2895,202 @@ fun VideoPlayerUI(playlistItem: PlaylistItem, onClosePlayback: () -> Unit) {
                         }
                     }
 
-                    // Centered Larger Play / Pause Circle
-                    IconButton(
-                        onClick = {
-                            isPlaying = !isPlaying
-                            exoPlayer.playWhenReady = isPlaying
-                        },
-                        modifier = Modifier
-                            .size(54.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    // Combined Play, Pause, Previous, Next controls centered
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        IconButton(
+                            onClick = onPlayPrevious,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Canal Anterior",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                isPlaying = !isPlaying
+                                exoPlayer.playWhenReady = isPlaying
+                            },
+                            modifier = Modifier
+                                .size(54.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Play button indicator",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onPlayNext,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Próximo Canal",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Audio track switcher dialog overlay button trigger
+                    var showAudioSubDialog by remember { mutableStateOf(false) }
+                    TextButton(
+                        onClick = { showAudioSubDialog = true },
+                        colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play button indicator",
+                            imageVector = Icons.Default.ClosedCaption,
+                            contentDescription = "Legendas e Áudio",
                             tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Áudio e Legenda",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Symmetry spacer placeholder matching button layout bounds
-                    Spacer(modifier = Modifier.width(135.dp))
+                    if (showAudioSubDialog) {
+                        var selectedAudio by remember { mutableStateOf("por") }
+                        var selectedSub by remember { mutableStateOf("des") }
+
+                        Dialog(onDismissRequest = { showAudioSubDialog = false }) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Áudio & Legendas",
+                                        color = GoldPremium,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        // Audio Column
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("ÁUDIO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            listOf(
+                                                "por" to "Português",
+                                                "eng" to "Inglês (Original)",
+                                                "spa" to "Espanhol"
+                                            ).forEach { (code, label) ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            selectedAudio = code
+                                                            exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                                .buildUpon()
+                                                                .setPreferredAudioLanguage(code)
+                                                                .build()
+                                                        }
+                                                        .padding(vertical = 6.dp)
+                                                ) {
+                                                    RadioButton(
+                                                        selected = selectedAudio == code,
+                                                        onClick = {
+                                                            selectedAudio = code
+                                                            exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                                .buildUpon()
+                                                                .setPreferredAudioLanguage(code)
+                                                                .build()
+                                                        },
+                                                        colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(label, color = Color.White, fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        // Subtitle Column
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("LEGENDAS", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            listOf(
+                                                "des" to "Desativado",
+                                                "por" to "Português",
+                                                "eng" to "Inglês"
+                                            ).forEach { (code, label) ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            selectedSub = code
+                                                            val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                            if (code == "des") {
+                                                                builder.setPreferredTextLanguage(null)
+                                                            } else {
+                                                                builder.setPreferredTextLanguage(code)
+                                                            }
+                                                            exoPlayer.trackSelectionParameters = builder.build()
+                                                        }
+                                                        .padding(vertical = 6.dp)
+                                                ) {
+                                                    RadioButton(
+                                                        selected = selectedSub == code,
+                                                        onClick = {
+                                                            selectedSub = code
+                                                            val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                            if (code == "des") {
+                                                                builder.setPreferredTextLanguage(null)
+                                                            } else {
+                                                                builder.setPreferredTextLanguage(code)
+                                                            }
+                                                            exoPlayer.trackSelectionParameters = builder.build()
+                                                        },
+                                                        colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(label, color = Color.White, fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Button(
+                                        onClick = { showAudioSubDialog = false },
+                                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("CONCLUIR", fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2632,8 +3107,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
     val adultPin = viewModel.preferencesService.adultPin
     
-    var tempPin by remember { mutableStateOf(adultPin) }
     var snackbarVisible by remember { mutableStateOf(false) }
+    var showParentalControlDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -2664,97 +3139,119 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Config card controls
+            // Server connection card (compact info)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = "Preferências Gerais",
-                        color = GoldPremium,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = "Servidor: $activePlaylist",
                         fontSize = 13.sp,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Servidor / Lista Ativa:",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = activePlaylist,
-                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = Color.White
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Credenciais MK21 Atuais:",
+                        text = "Usuário Logado: $username",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
-                    Text(
-                        text = "Usuário: $username [${password.length} chars pass]",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-                    Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = "Segurança & Controle PIN Adulto:",
-                        color = GoldPremium,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 13.sp,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "PREFERÊNCIAS SISTEMA (COMPACTO)",
+                color = GoldPremium,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
 
-                    OutlinedTextField(
-                        value = tempPin,
-                        onValueChange = { if (it.length <= 4) tempPin = it },
-                        label = { Text("Alterar PIN Adulto") },
-                        maxLines = 1,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            // Dynamic grid list of 13 config options utilizing basic guaranteed compiling icons
+            val configList = listOf(
+                "Controle dos pais" to Icons.Default.Lock,
+                "Ocultar categorias ao vivo" to Icons.Default.VisibilityOff,
+                "Limpar histórico de filmes" to Icons.Default.Delete,
+                "Leitor externo" to Icons.Default.PlayArrow,
+                "Select Device Type" to Icons.Default.Build,
+                "Listas" to Icons.Default.List,
+                "Mudar idioma" to Icons.Default.Language,
+                "Formato de hora" to Icons.Default.AccessTime,
+                "Atualizar agora" to Icons.Default.Refresh,
+                "Change Layout" to Icons.Default.Settings,
+                "Limpar canais de histórico" to Icons.Default.ClearAll,
+                "Live Stream Format" to Icons.Default.List,
+                "Configurações de legenda" to Icons.Default.Info
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                configList.chunked(2).forEach { pair ->
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NetflixRed,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                            focusedLabelColor = NetflixRed
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.setAdultPin(tempPin)
-                            snackbarVisible = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("SALVAR PREFERÊNCIAS", fontWeight = FontWeight.Bold, color = Color.White)
+                        pair.forEach { (title, icon) ->
+                            Card(
+                                onClick = {
+                                    if (title == "Controle dos pais") {
+                                        showParentalControlDialog = true
+                                    } else {
+                                        snackbarVisible = true
+                                    }
+                                },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(64.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = title,
+                                        tint = GoldPremium,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        if (pair.size < 2) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Back option info
+            // Footer version
             Text(
                 text = "MK21 MultiServidor v1.21.PRO - Android Engine",
                 color = Color.Gray,
@@ -2762,6 +3259,144 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+
+        // CONTROL DOS PAIS DIALOG POPUP (Parental PIN password changer matching exact requested attachment fields)
+        if (showParentalControlDialog) {
+            var currentInput by remember { mutableStateOf("") }
+            var newInput by remember { mutableStateOf("") }
+            var confirmInput by remember { mutableStateOf("") }
+            var errorMessage by remember { mutableStateOf<String?>(null) }
+
+            Dialog(onDismissRequest = { showParentalControlDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF00004C)), // Beautiful deep blue/indigo background mimicking the attachment
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(2.dp, Color.White),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(18.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Controle dos pais",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        if (errorMessage != null) {
+                            Text(
+                                text = errorMessage!!,
+                                color = Color.Yellow,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = currentInput,
+                            onValueChange = { currentInput = it },
+                            label = { Text("Senha", color = Color.White.copy(alpha = 0.7f)) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.White,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = newInput,
+                            onValueChange = { newInput = it },
+                            label = { Text("Nova Senha", color = Color.White.copy(alpha = 0.7f)) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.White,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = confirmInput,
+                            onValueChange = { confirmInput = it },
+                            label = { Text("Confirme sua senha:", color = Color.White.copy(alpha = 0.7f)) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.White,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showParentalControlDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (currentInput != adultPin) {
+                                        errorMessage = "Senha atual incorreta!"
+                                    } else if (newInput.isEmpty()) {
+                                        errorMessage = "A nova senha não pode ser vazia!"
+                                    } else if (newInput != confirmInput) {
+                                        errorMessage = "As novas senhas não coincidem!"
+                                    } else {
+                                        viewModel.setAdultPin(newInput)
+                                        showParentalControlDialog = false
+                                        snackbarVisible = true
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("OK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Animated Confirmation toast saving preferences
@@ -2784,7 +3419,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = "OK", tint = Color.Green, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Configurações salvas com sucesso!", color = Color.White, fontSize = 13.sp)
+                    Text("Configurações atualizadas com sucesso!", color = Color.White, fontSize = 13.sp)
                     Spacer(modifier = Modifier.width(16.dp))
                     TextButton(onClick = { snackbarVisible = false }) {
                         Text("FECHAR", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp)

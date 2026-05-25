@@ -93,6 +93,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _activePinPromptItem = MutableStateFlow<PlaylistItem?>(null)
     val activePinPromptItem = _activePinPromptItem.asStateFlow()
 
+    private val _activePinPromptCategory = MutableStateFlow<String?>(null)
+    val activePinPromptCategory = _activePinPromptCategory.asStateFlow()
+
     // Live state bindings based on currently active list selection
     val activeItemsList = combine(
         _activePlaylistName,
@@ -105,6 +108,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val (category, query) = catQuery
         if (query.isNotEmpty()) {
             playlistItemDao.searchItems(playlist, "%$query%")
+        } else if (category == "★ Favoritos") {
+            playlistItemDao.getFavorites(playlist).map { list ->
+                list.filter { it.contentType == type.name }
+            }
         } else if (category == "Todas" || category == "Todos") {
             playlistItemDao.getItemsByType(playlist, type.name)
         } else {
@@ -124,12 +131,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         Pair(playlistName, contentType)
     }.flatMapLatest { (playlist, type) ->
         playlistItemDao.getCategoriesByType(playlist, type.name).map { list ->
-            listOf("Todas") + list
+            listOf("Todas", "★ Favoritos") + list
         }
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = listOf("Todas")
+    )
+
+    // Continue Watching Section Flow based on last watched items
+    val continueWatchingList = combine(
+        _activePlaylistName,
+        _selectedContentType
+    ) { playlistName, contentType ->
+        Pair(playlistName, contentType)
+    }.flatMapLatest { (playlist, type) ->
+        playlistItemDao.getItemsByType(playlist, type.name).map { list ->
+            list.filter { it.lastWatchedTime > 0 }
+                .sortedByDescending { it.lastWatchedTime }
+                .take(15)
+        }
+    }.flowOn(Dispatchers.IO).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
     )
 
     // Highlights selection (Randomly gets 5 items of ACTIVE playlist)
@@ -222,8 +247,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _selectedCategory.value = "Todas"
     }
 
+    fun isAdultCategory(category: String): Boolean {
+        val uppercase = category.uppercase()
+        val pattern = listOf("18+", "ADULTO", "ADULT", "XXX", "SEXY", "PLAYBOY", "PENTHOUSE", "VENUS", "HOT ", "HUSTLER", "FORBIDDEN", "FORA DA LEI", "S0X")
+        return pattern.any { uppercase.contains(it) }
+    }
+
     fun selectCategory(category: String) {
-        _selectedCategory.value = category
+        if (isAdultCategory(category) && !_adultPinGranted.value) {
+            _activePinPromptCategory.value = category
+        } else {
+            _selectedCategory.value = category
+        }
     }
 
     fun setSearchQuery(query: String) {
@@ -249,6 +284,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _activePinPromptItem.value = null
     }
 
+    fun dismissCategoryPinPrompt() {
+        _activePinPromptCategory.value = null
+    }
+
     fun checkPinAndPlay(pinAttempt: String): Boolean {
         if (pinAttempt == preferencesService.adultPin) {
             _adultPinGranted.value = true
@@ -260,9 +299,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     playlistItemDao.updateLastWatched(item.id, System.currentTimeMillis())
                 }
             }
+            val cat = _activePinPromptCategory.value
+            if (cat != null) {
+                _selectedCategory.value = cat
+                _activePinPromptCategory.value = null
+            }
             return true
         }
         return false
+    }
+
+    fun playNext() {
+        val current = _currentPlayingItem.value ?: return
+        val list = activeItemsList.value
+        val index = list.indexOfFirst { it.id == current.id }
+        if (index != -1 && index < list.size - 1) {
+            playContent(list[index + 1])
+        }
+    }
+
+    fun playPrevious() {
+        val current = _currentPlayingItem.value ?: return
+        val list = activeItemsList.value
+        val index = list.indexOfFirst { it.id == current.id }
+        if (index > 0) {
+            playContent(list[index - 1])
+        }
     }
 
     fun toggleFavorite(item: PlaylistItem) {
