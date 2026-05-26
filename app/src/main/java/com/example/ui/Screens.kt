@@ -2824,8 +2824,12 @@ fun VideoPlayerUI(
 
                     LaunchedEffect(exoPlayer) {
                         while (true) {
-                            currentPos = exoPlayer.currentPosition
-                            duration = exoPlayer.duration.coerceAtLeast(0L)
+                            try {
+                                currentPos = exoPlayer.currentPosition
+                                duration = exoPlayer.duration.coerceAtLeast(0L)
+                            } catch (e: Exception) {
+                                // Ignore if player is released or in error state
+                            }
                             delay(500)
                         }
                     }
@@ -2846,8 +2850,12 @@ fun VideoPlayerUI(
                         Slider(
                             value = currentPos.toFloat(),
                             onValueChange = {
-                                exoPlayer.seekTo(it.toLong())
-                                currentPos = it.toLong()
+                                try {
+                                    exoPlayer.seekTo(it.toLong())
+                                    currentPos = it.toLong()
+                                } catch (e: Exception) {
+                                    // Ignore if player is stopped or released
+                                }
                             },
                             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                             modifier = Modifier.weight(1f),
