@@ -5,21 +5,33 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Red futuristic glowing shield centered in the safe zone -->
+    <!-- Red glowing outer ring for luxury TV integration style -->
     <path
-        android:pathData="M32,26h44c3.3,0 6,2.7 6,6v44c0,3.3 -2.7,6 -6,6h-44c-3.3,0 -6,-2.7 -6,-6v-44c0,-3.3 2.7,-6 6,-6z"
-        android:fillColor="#E50914" />
-        
-    <!-- Stylized modern white geometric M and K letter combination symbols -->
+        android:pathData="M54,12C30.8,12 12,30.8 12,54s18.8,42 42,42s42,-18.8 42,-42S77.2,12 54,12z"
+        android:fillColor="#151214"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF1E1E"/>
+
+    <!-- Dynamic M letter in white/silver -->
     <path
-        android:pathData="M38,36h6v36h-6z"
+        android:pathData="M 17 40 L 23 40 L 28 52 L 33 40 L 39 40 L 39 72 L 34 72 L 34 49 L 29 60 L 27 60 L 22 49 L 22 72 L 17 72 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Dynamic K letter in white/silver -->
+    <path
+        android:pathData="M 42 40 L 47 40 L 47 72 L 42 72 Z"
         android:fillColor="#FFFFFF" />
     <path
-        android:pathData="M44,51l11,-15h6l-9,12l10,24h-6l-8,-18z"
+        android:pathData="M 47 56 L 55 40 L 61 40 L 51 54 L 61 72 L 55 72 L 47 59 Z"
         android:fillColor="#FFFFFF" />
-        
-    <!-- Outer accent glowing ring -->
+
+    <!-- Dynamic '2' number in Netflix-style gradient red -->
     <path
-        android:pathData="M54,14C32.0,14 14,32.0 14,54s18.0,40 40,40s40,-18.0 40,-40S76.0,14 54,14zM54,88C35.2,88 20,72.8 20,54s15.2,-34 34,-34s34,15.2 34,34S72.8,88 54,88z"
-        android:fillColor="#BF1515" />
+        android:pathData="M 64 43 C 64 36, 77 36, 77 45 C 77 52, 67 56, 67 63 L 77 63 L 77 69 L 64 69 L 64 59 C 68 53, 72 50, 72 45 C 72 41, 68 41, 68 43 Z"
+        android:fillColor="#FF1E1E" />
+
+    <!-- Dynamic '1' number in Netflix-style gradient red -->
+    <path
+        android:pathData="M 79 45 L 83 40 L 88 40 L 88 69 L 83 69 L 83 45 Z"
+        android:fillColor="#FF1E1E" />
 </vector>

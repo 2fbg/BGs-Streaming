@@ -110,6 +110,10 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getString("subtitle_config", "Média (Padrão)") ?: "Média (Padrão)" } catch (e: Throwable) { "Média (Padrão)" }
         set(value) { try { prefs.edit().putString("subtitle_config", value).apply() } catch (e: Throwable) {} }
 
+    var menuSortOrder: String
+        get() = try { prefs.getString("menu_sort_order", "Ordem por adição") ?: "Ordem por adição" } catch (e: Throwable) { "Ordem por adição" }
+        set(value) { try { prefs.edit().putString("menu_sort_order", value).apply() } catch (e: Throwable) {} }
+
     fun setLastPlaylistUpdateTimestamp(playlistName: String, timestamp: Long) {
         try { prefs.edit().putLong(KEY_LAST_UPDATE_PREFIX + playlistName, timestamp).apply() } catch (e: Throwable) {}
     }

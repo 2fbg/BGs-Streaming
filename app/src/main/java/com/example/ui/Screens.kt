@@ -1269,28 +1269,8 @@ fun HomeScreen(
             }
 
             // Category submenu selection Row (using REAL data)
-            Spacer(modifier = Modifier.height(10.dp))
             if (searchQuery.isEmpty() && categories.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = "Submenus Gêneros",
-                        tint = GoldPremium,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Submenus & Gêneros",
-                        color = Color.LightGray,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1585,6 +1565,16 @@ fun HomeScreen(
         // Series Detail and Episode picker dialog
         if (selectedSeriesForDetail != null) {
             val series = selectedSeriesForDetail!!
+            val groupedSeasons = remember(series.episodes) {
+                groupEpisodesBySeason(series.episodes)
+            }
+            val seasonList = remember(groupedSeasons) { groupedSeasons.keys.toList() }
+            var selectedSeason by remember(seasonList) {
+                mutableStateOf(seasonList.firstOrNull() ?: "")
+            }
+            val episodesInSeason = remember(selectedSeason, groupedSeasons) {
+                groupedSeasons[selectedSeason] ?: emptyList()
+            }
             Dialog(onDismissRequest = { selectedSeriesForDetail = null }) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0E)),
@@ -1639,11 +1629,44 @@ fun HomeScreen(
                         
                         HorizontalDivider(
                             color = Color.White.copy(alpha = 0.08f),
-                            modifier = Modifier.padding(vertical = 14.dp)
+                            modifier = Modifier.padding(vertical = 12.dp)
                         )
+
+                        // Seasons Horizontal Chips Selector if more than 1 season exists
+                        if (seasonList.size > 1) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                items(seasonList) { season ->
+                                    val isCurrent = season == selectedSeason
+                                    Card(
+                                        onClick = { selectedSeason = season },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isCurrent) com.example.ui.theme.SophisticatedRedStart else Color(0xFF1B1A1E)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            color = if (isCurrent) Color.Transparent else Color.White.copy(alpha = 0.08f)
+                                        )
+                                    ) {
+                                        Text(
+                                            text = season,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         
                         Text(
-                            text = "Episódios Disponíveis",
+                            text = if (selectedSeason.isNotEmpty()) "$selectedSeason - Episódios Disponíveis" else "Episódios Disponíveis",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = GoldPremium,
@@ -1654,7 +1677,7 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            items(series.episodes) { episode ->
+                            items(episodesInSeason) { episode ->
                                 Card(
                                     onClick = {
                                         viewModel.playContent(episode)
@@ -1826,7 +1849,7 @@ fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = highlightedItem.name,
-                fontSize = 20.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.White,
                 maxLines = 1,
@@ -1835,7 +1858,7 @@ fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -
             Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = "IPTV Especial • 2026 • 4K Ultra HD • Estéreo",
-                fontSize = 11.sp,
+                fontSize = 9.5.sp,
                 color = com.example.ui.theme.SlateTextMuted,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 10.dp)
@@ -2122,7 +2145,7 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                         .padding(horizontal = 8.dp, vertical = 6.dp)) {
                         Text(
                             text = item.name,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             maxLines = 1,
@@ -2165,7 +2188,7 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                     ) {
                         Text(
                             text = item.category.uppercase(),
-                            fontSize = 9.sp,
+                            fontSize = 8.sp,
                             color = com.example.ui.theme.GoldPremium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
@@ -2173,7 +2196,7 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = item.name,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             maxLines = 1,
@@ -2189,7 +2212,7 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "NO AR: " + getCurrentEpgProgram(item.name),
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 color = Color.Gray,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -2377,6 +2400,9 @@ fun VideoPlayerUI(
     // Gestures and control states
     var brightnessValue by remember { mutableFloatStateOf(1.0f) }
     var volumeValue by remember { mutableFloatStateOf(1.0f) }
+    var isMuted by remember { mutableStateOf(false) }
+    var lastVolumeBeforeMute by remember { mutableFloatStateOf(0.5f) }
+    
     var showBrightnessOverlay by remember { mutableStateOf(false) }
     var showVolumeOverlay by remember { mutableStateOf(false) }
     
@@ -2389,6 +2415,21 @@ fun VideoPlayerUI(
     val coroutineScope = rememberCoroutineScope()
     val activity = context as? Activity
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    val toggleMute: () -> Unit = {
+        if (isMuted) {
+            isMuted = false
+            volumeValue = lastVolumeBeforeMute.coerceAtLeast(0.1f)
+            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val targetVol = (volumeValue * maxVol).toInt().coerceIn(0, maxVol)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+        } else {
+            isMuted = true
+            lastVolumeBeforeMute = volumeValue
+            volumeValue = 0f
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+        }
+    }
 
     // Edge-to-edge / Immersive Fullscreen Mode management
     DisposableEffect(Unit) {
@@ -2562,9 +2603,15 @@ fun VideoPlayerUI(
                             } else {
                                 // Right-side Swipe: Audio volume
                                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                val currVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                var volPercent = currVol.toFloat() / maxVol.toFloat()
+                                var volPercent = volumeValue
+                                if (isMuted && delta > 0) {
+                                    isMuted = false
+                                    volPercent = lastVolumeBeforeMute
+                                }
                                 volPercent = (volPercent + delta).coerceIn(0f, 1.0f)
+                                if (volPercent > 0.01f) {
+                                    isMuted = false
+                                }
                                 
                                 val targetVol = (volPercent * maxVol).toInt().coerceIn(0, maxVol)
                                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
@@ -2687,12 +2734,17 @@ fun VideoPlayerUI(
                     .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
                     .padding(vertical = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.VolumeUp,
-                    contentDescription = "Volume Indicator",
-                    tint = NetflixRed,
-                    modifier = Modifier.size(18.dp)
-                )
+                IconButton(
+                    onClick = { toggleMute() },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = "Mute or Unmute Indicator",
+                        tint = NetflixRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
@@ -2995,6 +3047,18 @@ fun VideoPlayerUI(
                             Icon(
                                 imageVector = if (resizeModeState == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) Icons.Default.FullscreenExit else Icons.Default.AspectRatio,
                                 contentDescription = "Toggle Screen Aspect Ratio",
+                                tint = GoldPremium,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { toggleMute() },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                contentDescription = "Toggle Mute volume",
                                 tint = GoldPremium,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -3310,6 +3374,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showClearLiveHistoryDialog by remember { mutableStateOf(false) }
     var showPlaylistsDialog by remember { mutableStateOf(false) }
     var showUpdateNowDialog by remember { mutableStateOf(false) }
+    var showSortOrderDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3375,18 +3440,15 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Dynamic grid list of 10 clean config options utilizing basic guaranteed compiling icons
+            // Dynamic grid list of 7 clean config options utilizing basic guaranteed compiling icons
             val configList = listOf(
                 "Controle dos pais" to Icons.Default.Lock,
-                "Ocultar categorias ao vivo" to Icons.Default.VisibilityOff,
                 "Limpar histórico de filmes" to Icons.Default.Delete,
                 "Leitor externo" to Icons.Default.PlayArrow,
-                "Listas" to Icons.Default.List,
-                "Mudar idioma" to Icons.Default.Language,
-                "Formato de hora" to Icons.Default.AccessTime,
                 "Atualizar agora" to Icons.Default.Refresh,
                 "Limpar canais de histórico" to Icons.Default.ClearAll,
-                "Configurações de legenda" to Icons.Default.Info
+                "Configurações de legenda" to Icons.Default.Info,
+                "Ordenação do menu" to Icons.Default.Sort
             )
 
             Column(
@@ -3405,18 +3467,12 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                 onClick = {
                                     when (title) {
                                         "Controle dos pais" -> showParentalControlDialog = true
-                                        "Ocultar categorias ao vivo" -> showHideLiveCategoriesDialog = true
                                         "Limpar histórico de filmes" -> showClearMoviesHistoryDialog = true
                                         "Leitor externo" -> showExternalPlayerDialog = true
-                                        "Select Device Type" -> showDeviceTypeDialog = true
-                                        "Listas" -> showPlaylistsDialog = true
-                                        "Mudar idioma" -> showLanguageDialog = true
-                                        "Formato de hora" -> showTimeFormatDialog = true
                                         "Atualizar agora" -> showUpdateNowDialog = true
-                                        "Change Layout" -> showLayoutDialog = true
                                         "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
-                                        "Live Stream Format" -> showLiveStreamFormatDialog = true
                                         "Configurações de legenda" -> showSubtitleSizeDialog = true
+                                        "Ordenação do menu" -> showSortOrderDialog = true
                                     }
                                 },
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
@@ -3452,18 +3508,12 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         // Dynamic interactive value descriptor display below title
                                         val subtext = when (title) {
                                             "Controle dos pais" -> "Segurança ativa"
-                                            "Ocultar categorias ao vivo" -> if (viewModel.preferencesService.hideLiveCategories) "Oculto" else "Visível"
                                             "Limpar histórico de filmes" -> "Apagar Continue Assistindo"
                                             "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
-                                            "Select Device Type" -> viewModel.preferencesService.deviceType
-                                            "Listas" -> "MK21 MultiServidores"
-                                            "Mudar idioma" -> viewModel.preferencesService.appLanguage
-                                            "Formato de hora" -> viewModel.preferencesService.timeFormat
                                             "Atualizar agora" -> "Sincronizar m3u"
-                                            "Change Layout" -> viewModel.preferencesService.appLayout
                                             "Limpar canais de histórico" -> "Apagar histórico canais"
-                                            "Live Stream Format" -> viewModel.preferencesService.liveStreamFormat
                                             "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
+                                            "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
                                             else -> ""
                                         }
                                         
@@ -3709,6 +3759,27 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 onOptionSelected = {
                     viewModel.preferencesService.subtitleConfig = it
                     snackbarMessage = "Legendas definidas para: $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Menu/Channel Sorting configuration dialogue
+        if (showSortOrderDialog) {
+            SettingsSelectionDialog(
+                title = "Ordenação dos Menus/Canais",
+                options = listOf(
+                    "Ordem por número",
+                    "Ordem por adição",
+                    "Ordem por qualificação",
+                    "Ordem por A-Z",
+                    "Ordem por Z-A"
+                ),
+                currentValue = viewModel.preferencesService.menuSortOrder,
+                onDismiss = { showSortOrderDialog = false },
+                onOptionSelected = {
+                    viewModel.updateMenuSortOrder(it)
+                    snackbarMessage = "Ordenação definida para: $it!"
                     snackbarVisible = true
                 }
             )
@@ -4003,17 +4074,30 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 340.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = "OK", tint = Color.Green, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.CheckCircle, contentDescription = "OK", tint = Color.Green, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = snackbarMessage,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(snackbarMessage, color = Color.White, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    TextButton(onClick = { snackbarVisible = false }) {
+                    TextButton(
+                        onClick = { snackbarVisible = false },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
                         Text("FECHAR", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
@@ -4120,4 +4204,31 @@ fun enhancedLogoFallback(logoUrl: String?, name: String): Any {
     }
     // Return high quality visual label generator URL for flawless display integration!
     return "https://dummyimage.com/300x200/$placeholderColorHex/ffffff.png&text=${name.take(12)}"
+}
+
+fun groupEpisodesBySeason(episodes: List<com.example.data.model.PlaylistItem>): Map<String, List<com.example.data.model.PlaylistItem>> {
+    val regexes = listOf(
+        Regex("(?i)S(\\d+)"),
+        Regex("(?i)T(\\d+)"),
+        Regex("(?i)Temporada\\s*(\\d+)"),
+        Regex("(?i)Temp\\.?\\s*(\\d+)")
+    )
+    val grouped = mutableMapOf<String, MutableList<com.example.data.model.PlaylistItem>>()
+    for (episode in episodes) {
+        var foundSeason = "Temporada 1"
+        for (regex in regexes) {
+            val match = regex.find(episode.name)
+            if (match != null) {
+                val numStr = match.groupValues[1]
+                val num = numStr.toIntOrNull() ?: 1
+                foundSeason = "Temporada $num"
+                break
+            }
+        }
+        grouped.getOrPut(foundSeason) { mutableListOf() }.add(episode)
+    }
+    return grouped.toSortedMap(compareBy { key ->
+        val num = Regex("\\d+").find(key)?.value?.toIntOrNull() ?: 0
+        num
+    })
 }

@@ -93,11 +93,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ALPHABETICAL_DESC
     }
 
-    private val _sortOrder = MutableStateFlow(SortOrder.DEFAULT)
+    private val _sortOrder = MutableStateFlow(
+        when (preferencesService.menuSortOrder) {
+            "Ordem por A-Z" -> SortOrder.ALPHABETICAL
+            "Ordem por Z-A" -> SortOrder.ALPHABETICAL_DESC
+            else -> SortOrder.DEFAULT
+        }
+    )
     val sortOrder = _sortOrder.asStateFlow()
 
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
+    }
+
+    fun updateMenuSortOrder(stringOrder: String) {
+        preferencesService.menuSortOrder = stringOrder
+        _sortOrder.value = when (stringOrder) {
+            "Ordem por A-Z" -> SortOrder.ALPHABETICAL
+            "Ordem por Z-A" -> SortOrder.ALPHABETICAL_DESC
+            else -> SortOrder.DEFAULT
+        }
     }
 
     private val _adultPinGranted = MutableStateFlow(false)
