@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -957,9 +959,35 @@ fun HomeScreen(
 
     var showPlaylistMenu by remember { mutableStateOf(false) }
     var selectedSeriesForDetail by remember { mutableStateOf<GroupedSeries?>(null) }
+    var showSortOrderDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val gridColumnsCount = remember(contentType, isLandscape) {
+        if (contentType == ContentType.LIVE) {
+            if (isLandscape) 3 else 2
+        } else {
+            if (isLandscape) 4 else 3
+        }
+    }
+
+    val processedSeriesChunks = remember(itemsList, contentType, isLandscape, gridColumnsCount) {
+        if (contentType == ContentType.SERIES) {
+            val grouped = groupSeriesItems(itemsList)
+            grouped.chunked(gridColumnsCount)
+        } else {
+            emptyList()
+        }
+    }
+
+    val processedNormalChunks = remember(itemsList, contentType, isLandscape, gridColumnsCount) {
+        if (contentType != ContentType.SERIES) {
+            itemsList.chunked(gridColumnsCount)
+        } else {
+            emptyList()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -1076,33 +1104,75 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // Consolidated Search box
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("Buscar...", fontSize = 12.sp, color = Color.Gray) },
-                        maxLines = 1,
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray, modifier = Modifier.size(16.dp)) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.setSearchQuery("") }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
+                    // Consolidated Search box (BasicTextField - centers content and never crops vertically!)
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
-                            focusedContainerColor = Color(0xFF09090C),
-                            unfocusedContainerColor = Color(0xFF09090C)
-                        ),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color.White)
-                    )
+                            .height(36.dp)
+                    ) {
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF09090C), RoundedCornerShape(10.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp)),
+                            singleLine = true,
+                            maxLines = 1,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Start
+                            ),
+                            cursorBrush = SolidColor(Color.White),
+                            decorationBox = { innerTextField ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                        if (searchQuery.isEmpty()) {
+                                            Text(
+                                                text = "Buscar...",
+                                                color = Color.Gray,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { viewModel.setSearchQuery("") },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = Color.Gray,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Direct Quick Sort Button on Home Screen
+                    IconButton(onClick = { showSortOrderDialog = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Sort, contentDescription = "Ordenação", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
@@ -1205,67 +1275,128 @@ fun HomeScreen(
                     }
                 }
 
-                // Categories Selector Row
+                // Categories Selector Row and Search Bar on the SAME line!
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf(
-                        ContentType.LIVE to "Ao Vivo",
-                        ContentType.MOVIE to "Filmes",
-                        ContentType.SERIES to "Séries"
-                    ).forEach { (type, label) ->
-                        val isSelected = contentType == type
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { viewModel.changeContentType(type) }
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) Color.White else Color.Gray,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                fontSize = 15.sp,
-                                modifier = Modifier.padding(bottom = 6.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .height(3.dp)
-                                    .width(28.dp)
-                                    .background(if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Transparent)
-                            )
-                        }
-                    }
-                }
-
-                // Search Bar Input
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("Buscar canais, filmes ou séries...", fontSize = 13.sp, color = Color.Gray) },
-                    maxLines = 1,
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color.Gray)
+                    // Left: ContentType tabs
+                    Row(
+                        modifier = Modifier.weight(1.4f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            ContentType.LIVE to "Ao Vivo",
+                            ContentType.MOVIE to "Filmes",
+                            ContentType.SERIES to "Séries"
+                        ).forEach { (type, label) ->
+                            val isSelected = contentType == type
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { viewModel.changeContentType(type) }
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.White else Color.Gray,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .height(3.dp)
+                                        .width(24.dp)
+                                        .background(if (isSelected) com.example.ui.theme.SophisticatedRedStart else Color.Transparent)
+                                )
                             }
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
-                        focusedContainerColor = Color(0xFF09090C),
-                        unfocusedContainerColor = Color(0xFF09090C)
-                    )
-                )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Right: Compact legible Search Bar (Using BasicTextField to prevent vertical cut-off completely!)
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(36.dp)
+                    ) {
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF09090C), RoundedCornerShape(10.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp)),
+                            singleLine = true,
+                            maxLines = 1,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Start
+                            ),
+                            cursorBrush = SolidColor(Color.White),
+                            decorationBox = { innerTextField ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                        if (searchQuery.isEmpty()) {
+                                            Text(
+                                                text = "Buscar...",
+                                                color = Color.Gray,
+                                                fontSize = 11.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { viewModel.setSearchQuery("") },
+                                            modifier = Modifier.size(18.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = Color.Gray,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Direct Quick Sort Button on Home Screen (Portrait)
+                    IconButton(
+                        onClick = { showSortOrderDialog = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sort,
+                            contentDescription = "Classificar",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
 
             // Category submenu selection Row (using REAL data)
@@ -1443,12 +1574,8 @@ fun HomeScreen(
                         }
                     }
                 } else if (contentType == ContentType.SERIES) {
-                    // Smart Netflix-style Series Grouping layout!
-                    val groupedSeriesList = groupSeriesItems(itemsList)
-                    val gridColumnsCount = if (isLandscape) 4 else 3
-                    val chunkedGroupedList = groupedSeriesList.chunked(gridColumnsCount)
-
-                    items(chunkedGroupedList) { rowSeries ->
+                    // Smart Netflix-style Series Grouping layout using optimized remembered chunks!
+                    items(processedSeriesChunks) { rowSeries ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1471,15 +1598,8 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    // Optimized Grid Layout using custom grouping chunk loops inside LazyColumn
-                    val gridColumnsCount = if (contentType == ContentType.LIVE) {
-                        if (isLandscape) 3 else 2
-                    } else {
-                        if (isLandscape) 4 else 3
-                    }
-                    val chunkedList = itemsList.chunked(gridColumnsCount)
-                    
-                    items(chunkedList) { rowItems ->
+                    // Optimized Grid Layout using custom grouping chunk loops and remembered list processing!
+                    items(processedNormalChunks) { rowItems ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1745,6 +1865,25 @@ fun HomeScreen(
                 onClosePlayback = { viewModel.closePlayback() },
                 onPlayPrevious = { viewModel.playPrevious() },
                 onPlayNext = { viewModel.playNext() }
+            )
+        }
+
+        if (showSortOrderDialog) {
+            SettingsSelectionDialog(
+                title = "Ordenação dos Menus/Canais",
+                options = listOf(
+                    "Ordem por número",
+                    "Ordem por adição",
+                    "Ordem por qualificação",
+                    "Ordem por A-Z",
+                    "Ordem por Z-A"
+                ),
+                currentValue = viewModel.preferencesService.menuSortOrder,
+                onDismiss = { showSortOrderDialog = false },
+                onOptionSelected = {
+                    viewModel.updateMenuSortOrder(it)
+                    showSortOrderDialog = false
+                }
             )
         }
     }

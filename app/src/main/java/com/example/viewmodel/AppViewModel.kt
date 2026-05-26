@@ -198,11 +198,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ) { playlistName, contentType ->
         Pair(playlistName, contentType)
     }.flatMapLatest { (playlist, type) ->
-        playlistItemDao.getItemsByType(playlist, type.name).map { list ->
-            list.filter { it.lastWatchedTime > 0 }
-                .sortedByDescending { it.lastWatchedTime }
-                .take(15)
-        }
+        playlistItemDao.getContinueWatching(playlist, type.name)
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

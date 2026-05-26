@@ -28,6 +28,9 @@ interface PlaylistItemDao {
     @Query("SELECT * FROM playlist_items WHERE playlistSource = :source AND isFavorite = 1 ORDER BY name ASC")
     fun getFavorites(source: String): Flow<List<PlaylistItem>>
 
+    @Query("SELECT * FROM playlist_items WHERE playlistSource = :source AND contentType = :type AND lastWatchedTime > 0 ORDER BY lastWatchedTime DESC LIMIT 15")
+    fun getContinueWatching(source: String, type: String): Flow<List<PlaylistItem>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<PlaylistItem>)
 
