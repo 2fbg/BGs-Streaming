@@ -1,7 +1,9 @@
 package com.example.ui
 
 import android.app.Activity
+import android.os.Build
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -2576,12 +2578,21 @@ fun VideoPlayerUI(
     // Edge-to-edge / Immersive Fullscreen Mode management
     DisposableEffect(Unit) {
         val window = activity?.window
+        var originalCutoutMode: Int? = null
         if (window != null && activity?.isFinishing == false && activity?.isDestroyed == false) {
             try {
                 val controller = WindowCompat.getInsetsController(window, window.decorView)
                 controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 
+                // Draw under camera cutout and notches for seamless fullscreen across all brands (Xiaomi, Samsung, etc.)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val lp = window.attributes
+                    originalCutoutMode = lp.layoutInDisplayCutoutMode
+                    lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    window.attributes = lp
+                }
+
                 // Auto initialize system brightness matching
                 val lp = window.attributes
                 if (lp.screenBrightness > 0f) {
@@ -2607,6 +2618,12 @@ fun VideoPlayerUI(
                 try {
                     val controller = WindowCompat.getInsetsController(window, window.decorView)
                     controller.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                    
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && originalCutoutMode != null) {
+                        val lp = window.attributes
+                        lp.layoutInDisplayCutoutMode = originalCutoutMode
+                        window.attributes = lp
+                    }
                 } catch (e: Exception) {
                     // Prevent any detached window / decorView crashes during cleanup
                 }
