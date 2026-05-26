@@ -46,6 +46,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val predefinedNames = predefinedServers.map { it.name }.toSet()
 
+    // Real-time Licencing State Flows
+    private val _isPremiumActive = MutableStateFlow(preferencesService.isLicenseValid())
+    val isPremiumActive = _isPremiumActive.asStateFlow()
+
+    private val _trialDaysLeft = MutableStateFlow(preferencesService.getTrialDaysRemaining())
+    val trialDaysLeft = _trialDaysLeft.asStateFlow()
+
+    val virtualMacAddress: String
+        get() = preferencesService.virtualMac
+
+    fun activateLicense(key: String): Boolean {
+        preferencesService.activationKey = key
+        val isValid = preferencesService.isLicenseValid()
+        _isPremiumActive.value = isValid
+        _trialDaysLeft.value = preferencesService.getTrialDaysRemaining()
+        return isValid
+    }
+
     private val _username = MutableStateFlow(preferencesService.username)
     val username = _username.asStateFlow()
 
@@ -222,6 +240,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         .build()
 
     init {
+        // Initialize trial period if first bootup
+        if (preferencesService.trialStartDate == 0L) {
+            preferencesService.trialStartDate = System.currentTimeMillis()
+        }
+        
         // Autoload current configurations or do silent caching check
         viewModelScope.launch {
             try {

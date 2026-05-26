@@ -140,39 +140,231 @@ object Routes {
 
 @Composable
 fun AppNavigation(viewModel: AppViewModel) {
-    var currentScreen by remember { mutableStateOf(Routes.STARTUP_GATE) }
+    val isPremiumActive by viewModel.isPremiumActive.collectAsState()
+    val trialDaysLeft by viewModel.trialDaysLeft.collectAsState()
     
-    // Check which screen to show on bootup
-    LaunchedEffect(Unit) {
-        if (viewModel.isCredentialsConfigured()) {
-            currentScreen = Routes.HOME
-        } else {
-            currentScreen = Routes.SERVER_CONFIG
+    val isTrialExpired = trialDaysLeft <= 0 && !isPremiumActive
+    
+    if (isTrialExpired) {
+        TrialExpiredScreen(viewModel = viewModel)
+    } else {
+        var currentScreen by remember { mutableStateOf(Routes.STARTUP_GATE) }
+        
+        // Check which screen to show on bootup
+        LaunchedEffect(Unit) {
+            if (viewModel.isCredentialsConfigured()) {
+                currentScreen = Routes.HOME
+            } else {
+                currentScreen = Routes.SERVER_CONFIG
+            }
+        }
+
+        Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
+            when (screen) {
+                Routes.STARTUP_GATE -> {
+                    StartupGateScreen()
+                }
+                Routes.SERVER_CONFIG -> {
+                    ServerConfigScreen(
+                        viewModel = viewModel,
+                        onNavigateToHome = { currentScreen = Routes.HOME }
+                    )
+                }
+                Routes.HOME -> {
+                    HomeScreen(
+                        viewModel = viewModel,
+                        onNavigateToSettings = { currentScreen = Routes.SETTINGS },
+                        onNavigateToConfig = { currentScreen = Routes.SERVER_CONFIG }
+                    )
+                }
+                Routes.SETTINGS -> {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { currentScreen = Routes.HOME }
+                    )
+                }
+            }
         }
     }
+}
 
-    Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
-        when (screen) {
-            Routes.STARTUP_GATE -> {
-                StartupGateScreen()
-            }
-            Routes.SERVER_CONFIG -> {
-                ServerConfigScreen(
-                    viewModel = viewModel,
-                    onNavigateToHome = { currentScreen = Routes.HOME }
+@Composable
+fun TrialExpiredScreen(viewModel: AppViewModel) {
+    val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val virtualMac = viewModel.virtualMacAddress
+    
+    var activationCodeInput by remember { mutableStateOf("") }
+    var activationError by remember { mutableStateOf<String?>(null) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0C0A0A))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 480.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF131111))
+                .border(1.5.dp, GoldPremium.copy(alpha = 0.25f), RoundedCornerShape(24.dp))
+                .padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Lock Icon with premium gold aura
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(GoldPremium.copy(alpha = 0.1f))
+                    .border(1.dp, GoldPremium.copy(alpha = 0.4f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VpnKey,
+                    contentDescription = "Licença Requerida",
+                    tint = GoldPremium,
+                    modifier = Modifier.size(32.dp)
                 )
             }
-            Routes.HOME -> {
-                HomeScreen(
-                    viewModel = viewModel,
-                    onNavigateToSettings = { currentScreen = Routes.SETTINGS },
-                    onNavigateToConfig = { currentScreen = Routes.SERVER_CONFIG }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Title
+            Text(
+                text = "Período de Testes Expirado",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Explanation
+            Text(
+                text = "Seus 5 dias de avaliação gratuita terminaram. Para continuar a testar e utilizar todas as funções exclusivas do aplicativo, entre em contato com o desenvolvedor e envie a chave abaixo para ativação rápida do seu aparelho.",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // MAC Key Display Card with copy button
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1D1B1B)),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "CHAVE DO DISPOSITIVO (VIRTUAL MAC)",
+                            color = GoldPremium,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = virtualMac,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(virtualMac))
+                            android.widget.Toast.makeText(context, "Chave copiada para a área de transferência!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.05f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copiar chave",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (activationError != null) {
+                Text(
+                    text = activationError!!,
+                    color = Color.Red,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
-            Routes.SETTINGS -> {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { currentScreen = Routes.HOME }
+
+            // Code input field
+            OutlinedTextField(
+                value = activationCodeInput,
+                onValueChange = { 
+                    activationCodeInput = it
+                    activationError = null
+                },
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp),
+                label = { Text("Código de Ativação / Licença", color = Color.Gray) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = GoldPremium,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                    focusedLabelColor = GoldPremium
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Action button
+            Button(
+                onClick = {
+                    if (activationCodeInput.isEmpty()) {
+                        activationError = "Por favor, digite seu código de ativação"
+                    } else {
+                        val success = viewModel.activateLicense(activationCodeInput)
+                        if (success) {
+                            android.widget.Toast.makeText(context, "Dispositivo ativado com sucesso! Aproveite!", android.widget.Toast.LENGTH_LONG).show()
+                        } else {
+                            activationError = "Código inválido para este dispositivo!"
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = GoldPremium),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "ATIVAR DISPOSITIVO",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    fontSize = 14.sp
                 )
             }
         }
@@ -3569,6 +3761,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     val username by viewModel.username.collectAsState()
     val password by viewModel.password.collectAsState()
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
+    val isPremiumActive by viewModel.isPremiumActive.collectAsState()
+    val trialDaysLeft by viewModel.trialDaysLeft.collectAsState()
     val adultPin = viewModel.preferencesService.adultPin
     
     var snackbarVisible by remember { mutableStateOf(false) }
@@ -3588,6 +3782,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showPlaylistsDialog by remember { mutableStateOf(false) }
     var showUpdateNowDialog by remember { mutableStateOf(false) }
     var showSortOrderDialog by remember { mutableStateOf(false) }
+    var showLicenseDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3653,7 +3848,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Dynamic grid list of 7 clean config options utilizing basic guaranteed compiling icons
+            // Dynamic grid list of 8 clean config options utilizing basic guaranteed compiling icons
             val configList = listOf(
                 "Controle dos pais" to Icons.Default.Lock,
                 "Limpar histórico de filmes" to Icons.Default.Delete,
@@ -3661,9 +3856,10 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 "Atualizar agora" to Icons.Default.Refresh,
                 "Limpar canais de histórico" to Icons.Default.ClearAll,
                 "Configurações de legenda" to Icons.Default.Info,
-                "Ordenação do menu" to Icons.Default.Sort
+                "Ordenação do menu" to Icons.Default.Sort,
+                "Licença e Ativação" to Icons.Default.VpnKey
             )
-
+ 
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -3686,6 +3882,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
                                         "Configurações de legenda" -> showSubtitleSizeDialog = true
                                         "Ordenação do menu" -> showSortOrderDialog = true
+                                        "Licença e Ativação" -> showLicenseDialog = true
                                     }
                                 },
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
@@ -3727,6 +3924,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                             "Limpar canais de histórico" -> "Apagar histórico canais"
                                             "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
                                             "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
+                                            "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias restantes"
                                             else -> ""
                                         }
                                         
@@ -4087,6 +4285,169 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("ENTENDIDO", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog for License & Activation
+        if (showLicenseDialog) {
+            var localKeyInput by remember { mutableStateOf("") }
+            var licenseStatusMsg by remember { mutableStateOf<String?>(null) }
+            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+            val context = LocalContext.current
+            val virtualMac = viewModel.virtualMacAddress
+
+            Dialog(onDismissRequest = { showLicenseDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131111)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.5.dp, GoldPremium.copy(alpha = 0.3f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Licença & Ativação",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        // Status Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isPremiumActive) Color(0xFF1B5E20) else Color(0xFFE65100))
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (isPremiumActive) "PREMIUM ATIVO" else "MODO AVALIAÇÃO: $trialDaysLeft DIAS",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Device Key with Copy Button
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1D1B1B)),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "CHAVE DO DISPOSITIVO (VIRTUAL MAC):",
+                                    color = Color.Gray,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = virtualMac,
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(virtualMac))
+                                            android.widget.Toast.makeText(context, "Chave copiada!", android.widget.Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Copiar",
+                                            tint = GoldPremium,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (licenseStatusMsg != null) {
+                            Text(
+                                text = licenseStatusMsg!!,
+                                color = if (isPremiumActive) Color.Green else Color.Red,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                        }
+
+                        // Input field to enter license
+                        OutlinedTextField(
+                            value = localKeyInput,
+                            onValueChange = {
+                                localKeyInput = it
+                                licenseStatusMsg = null
+                            },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                            label = { Text("Código de Ativação", color = Color.Gray, fontSize = 11.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = GoldPremium,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                focusedLabelColor = GoldPremium
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showLicenseDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("FECHAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (localKeyInput.isEmpty()) {
+                                        licenseStatusMsg = "Insira um código válido"
+                                    } else {
+                                        val success = viewModel.activateLicense(localKeyInput)
+                                        if (success) {
+                                            licenseStatusMsg = "Premium Ativado!"
+                                            android.widget.Toast.makeText(context, "Chave ativada com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            licenseStatusMsg = "Código inválido para este ID"
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = GoldPremium),
+                                modifier = Modifier.weight(1.2f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("ATIVAR", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
                         }
                     }
                 }

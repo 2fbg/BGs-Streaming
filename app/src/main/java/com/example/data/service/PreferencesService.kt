@@ -114,6 +114,67 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getString("menu_sort_order", "Ordem por adição") ?: "Ordem por adição" } catch (e: Throwable) { "Ordem por adição" }
         set(value) { try { prefs.edit().putString("menu_sort_order", value).apply() } catch (e: Throwable) {} }
 
+    // Offline Licensing & 5-Day Trial Control properties
+    var trialStartDate: Long
+        get() = try { prefs.getLong("trial_start_date", 0L) } catch (e: Throwable) { 0L }
+        set(value) { try { prefs.edit().putLong("trial_start_date", value).apply() } catch (e: Throwable) {} }
+
+    var activationKey: String
+        get() = try { prefs.getString("activation_key", "") ?: "" } catch (e: Throwable) { "" }
+        set(value) { try { prefs.edit().putString("activation_key", value).apply() } catch (e: Throwable) {} }
+
+    val deviceId: String by lazy {
+        try {
+            val androidId = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            ) ?: "MK21DEVICEID"
+            androidId
+        } catch (e: Throwable) {
+            "MK21DEVICEID"
+        }
+    }
+
+    val virtualMac: String by lazy {
+        val cleanId = deviceId.replace("[^A-Fa-f0-9]".toRegex(), "").padEnd(12, 'F').take(12).uppercase()
+        cleanId.chunked(2).joinToString(":")
+    }
+
+    fun generateValidKeyForDevice(deviceMac: String): String {
+        val salt = "MK21_GOLDEN_SALT_2026"
+        val rawInput = deviceMac.uppercase().trim() + salt
+        val md5 = java.security.MessageDigest.getInstance("MD5")
+        val hashBytes = md5.digest(rawInput.toByteArray(Charsets.UTF_8))
+        val sb = StringBuilder()
+        for (b in hashBytes) {
+            sb.append(String.format("%02X", b))
+        }
+        val fullHash = sb.toString()
+        val p1 = fullHash.take(4)
+        val p2 = fullHash.substring(4, 8)
+        val p3 = fullHash.substring(8, 12)
+        return "MK-$p1-$p2-$p3"
+    }
+
+    fun isLicenseValid(): Boolean {
+        val key = activationKey
+        if (key.isEmpty()) return false
+        val expected = generateValidKeyForDevice(virtualMac)
+        return key.uppercase().trim() == expected
+    }
+
+    fun getTrialDaysRemaining(): Int {
+        if (isLicenseValid()) return 9999
+        val start = trialStartDate
+        if (start == 0L) return 5
+        val now = System.currentTimeMillis()
+        val elapsedMs = now - start
+        val fiveDaysMs = 5 * 24 * 60 * 60 * 1000L
+        val remainingMs = fiveDaysMs - elapsedMs
+        if (remainingMs <= 0) return 0
+        return (remainingMs / (24 * 60 * 60 * 1000L)).toInt().coerceIn(0, 5)
+    }
+
     fun setLastPlaylistUpdateTimestamp(playlistName: String, timestamp: Long) {
         try { prefs.edit().putLong(KEY_LAST_UPDATE_PREFIX + playlistName, timestamp).apply() } catch (e: Throwable) {}
     }
