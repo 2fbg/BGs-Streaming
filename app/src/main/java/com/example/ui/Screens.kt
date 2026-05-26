@@ -2548,7 +2548,10 @@ fun VideoPlayerUI(
     var controlsVisible by remember { mutableStateOf(true) }
     var currentSpeed by remember { mutableFloatStateOf(1.0f) }
     var showSpeedMenu by remember { mutableStateOf(false) }
-    var resizeModeState by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_ZOOM) }
+    var resizeModeState by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    var showAspectOverlay by remember { mutableStateOf(false) }
+    var aspectOverlayText by remember { mutableStateOf("Ajustar (Original)") }
+    var aspectOverlayJob by remember { mutableStateOf<Job?>(null) }
     
     var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -2911,6 +2914,41 @@ fun VideoPlayerUI(
             }
         }
 
+        // Transient Aspect Ratio Overlay (Animated Center Badge)
+        AnimatedVisibility(
+            visible = showAspectOverlay,
+            enter = fadeIn() + scaleIn(initialScale = 0.85f),
+            exit = fadeOut() + scaleOut(targetScale = 0.85f),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .border(1.dp, GoldPremium.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Icon(
+                    imageVector = when (resizeModeState) {
+                        AspectRatioFrameLayout.RESIZE_MODE_FIT -> Icons.Default.AspectRatio
+                        AspectRatioFrameLayout.RESIZE_MODE_FILL -> Icons.Default.Fullscreen
+                        else -> Icons.Default.FullscreenExit
+                    },
+                    contentDescription = null,
+                    tint = GoldPremium,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = aspectOverlayText,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
         // Cinematic Dark transparent gradient vignette overlay behind controls
         AnimatedVisibility(
             visible = controlsVisible,
@@ -3175,17 +3213,36 @@ fun VideoPlayerUI(
 
                         IconButton(
                             onClick = {
-                                resizeModeState = if (resizeModeState == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) {
-                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                } else {
-                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                resizeModeState = when (resizeModeState) {
+                                    AspectRatioFrameLayout.RESIZE_MODE_FIT -> {
+                                        aspectOverlayText = "Esticar (Preencher)"
+                                        AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                    }
+                                    AspectRatioFrameLayout.RESIZE_MODE_FILL -> {
+                                        aspectOverlayText = "Zoom (Cortar)"
+                                        AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                    }
+                                    else -> {
+                                        aspectOverlayText = "Ajustar (Original)"
+                                        AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    }
+                                }
+                                showAspectOverlay = true
+                                aspectOverlayJob?.cancel()
+                                aspectOverlayJob = coroutineScope.launch {
+                                    delay(1500)
+                                    showAspectOverlay = false
                                 }
                             },
                             modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(
-                                imageVector = if (resizeModeState == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) Icons.Default.FullscreenExit else Icons.Default.AspectRatio,
-                                contentDescription = "Toggle Screen Aspect Ratio",
+                                imageVector = when (resizeModeState) {
+                                    AspectRatioFrameLayout.RESIZE_MODE_FIT -> Icons.Default.AspectRatio
+                                    AspectRatioFrameLayout.RESIZE_MODE_FILL -> Icons.Default.Fullscreen
+                                    else -> Icons.Default.FullscreenExit
+                                },
+                                contentDescription = "Alternar Modo de Proporção",
                                 tint = GoldPremium,
                                 modifier = Modifier.size(20.dp)
                             )
