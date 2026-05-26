@@ -87,6 +87,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val searchQuery = _searchQuery.asStateFlow()
 
     // PIN Protection dialog triggers
+    enum class SortOrder {
+        DEFAULT,
+        ALPHABETICAL,
+        ALPHABETICAL_DESC
+    }
+
+    private val _sortOrder = MutableStateFlow(SortOrder.DEFAULT)
+    val sortOrder = _sortOrder.asStateFlow()
+
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+    }
+
     private val _adultPinGranted = MutableStateFlow(false)
     val adultPinGranted = _adultPinGranted.asStateFlow()
 
@@ -101,12 +114,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _activePlaylistName,
         _selectedContentType,
         _selectedCategory,
-        _searchQuery
-    ) { playlistName, contentType, category, query ->
-        Triple(playlistName, contentType, Pair(category, query))
-    }.flatMapLatest { (playlist, type, catQuery) ->
-        val (category, query) = catQuery
-        if (query.isNotEmpty()) {
+        _searchQuery,
+        _adultPinGranted,
+        _sortOrder
+    ) { flows ->
+        flows
+    }.flatMapLatest { flows ->
+        val playlist = flows[0] as? String ?: ""
+        val type = flows[1] as? ContentType ?: ContentType.LIVE
+        val category = flows[2] as? String ?: "Todas"
+        val query = flows[3] as? String ?: ""
+        val adultGranted = flows[4] as? Boolean ?: false
+        val sortOrder = flows[5] as? SortOrder ?: SortOrder.DEFAULT
+        
+        val rawFlow = if (query.isNotEmpty()) {
             playlistItemDao.searchItems(playlist, "%$query%")
         } else if (category == "★ Favoritos") {
             playlistItemDao.getFavorites(playlist).map { list ->
@@ -116,6 +137,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             playlistItemDao.getItemsByType(playlist, type.name)
         } else {
             playlistItemDao.getItemsByCategoryAndType(playlist, category, type.name)
+        }
+        
+        rawFlow.map { list ->
+            // 1. Filter out adult items if PIN has not been entered
+            val filtered = if (adultGranted) {
+                list
+            } else {
+                list.filter { !it.isAdult && !isAdultCategory(it.category) }
+            }
+            
+            // 2. Sort the final filtered list
+            when (sortOrder) {
+                SortOrder.ALPHABETICAL -> filtered.sortedBy { it.name }
+                SortOrder.ALPHABETICAL_DESC -> filtered.sortedByDescending { it.name }
+                SortOrder.DEFAULT -> filtered
+            }
         }
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,

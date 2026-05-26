@@ -52,6 +52,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.AspectRatioFrameLayout
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.model.ContentType
@@ -64,6 +65,8 @@ import com.example.viewmodel.AppViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import android.media.AudioManager
 import android.content.Context
 import android.content.res.Configuration
@@ -173,81 +176,90 @@ fun AppNavigation(viewModel: AppViewModel) {
 }
 
 @Composable
-fun SophisticatedBrandHeader(
+fun MK21Logo(
     modifier: Modifier = Modifier,
+    showSubtitle: Boolean = true,
     compact: Boolean = false
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutCirc),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseAlpha"
-    )
-
-    Row(
+    Column(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logo Box with Red Gradient
-        Box(
-            modifier = Modifier
-                .size(if (compact) 36.dp else 44.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFFD72323), Color(0xFF8B0000))
-                    )
-                ),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
+            // "MK" in Silver/White Gradient
             Text(
                 text = "MK",
-                fontSize = if (compact) 16.sp else 21.sp,
+                fontSize = if (compact) 18.sp else 38.sp,
                 fontWeight = FontWeight.Black,
                 style = androidx.compose.ui.text.TextStyle(
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    letterSpacing = (-1.5).sp
-                ),
-                color = Color.White
+                    letterSpacing = (-1).sp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFFFFFFFF), Color(0xFFCCCCCC))
+                    )
+                )
+            )
+            // "21" in Red Gradient
+            Text(
+                text = "21",
+                fontSize = if (compact) 20.sp else 42.sp,
+                fontWeight = FontWeight.Black,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    letterSpacing = (-1).sp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFFFF1E1E), Color(0xFFB30000))
+                    )
+                )
             )
         }
-
-        // Title and Status
-        Column {
-            Text(
-                text = "MULTISERVIDOR",
-                fontSize = if (compact) 10.sp else 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                letterSpacing = if (compact) 2.sp else 4.sp
-            )
+        
+        if (showSubtitle) {
+            Spacer(modifier = Modifier.height(2.dp))
+            // Subtitle: MAIS QUE UM NÚMERO É RESULTADO
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.padding(top = 1.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
-                // Pulse Indicator
+                // Red horizontal line
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(com.example.ui.theme.ActiveGreen.copy(alpha = alpha))
+                        .height(1.dp)
+                        .width(10.dp)
+                        .background(Color(0xFFFF1E1E))
                 )
                 Text(
-                    text = "SERVER-02 ATIVO",
-                    fontSize = 8.sp,
+                    text = " MAIS QUE UM NÚMERO É RESULTADO ",
+                    fontSize = if (compact) 6.sp else 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = com.example.ui.theme.ActiveGreen,
-                    letterSpacing = 0.5.sp
+                    color = Color.LightGray.copy(alpha = 0.8f),
+                    letterSpacing = 0.2.sp
+                )
+                // Red horizontal line
+                Box(
+                    modifier = Modifier
+                        .height(1.dp)
+                        .width(10.dp)
+                        .background(Color(0xFFFF1E1E))
                 )
             }
         }
     }
+}
+
+@Composable
+fun SophisticatedBrandHeader(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    MK21Logo(
+        modifier = modifier,
+        showSubtitle = !compact,
+        compact = compact
+    )
 }
 
 /**
@@ -358,15 +370,18 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // USERNAME & PASSWORD IN A SINGLE CONTIGUOUS MODERN ROW WITH 15-CHAR LIMIT
+                        // USERNAME & PASSWORD IN A SINGLE CONTIGUOUS MODERN ROW WITH WARN ON OVERFLOW
+                        val isUsernameExceeded = username.length > 15
+                        val isPasswordExceeded = password.length > 15
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             OutlinedTextField(
                                 value = username,
-                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(it, password) },
-                                label = { Text("Usuário (máx 15)", fontSize = 10.sp, color = Color.Gray) },
+                                onValueChange = { viewModel.setCredentials(it, password) },
+                                label = { Text("Usuário", fontSize = 11.sp, color = Color.Gray) },
                                 maxLines = 1,
                                 singleLine = true,
                                 leadingIcon = {
@@ -377,15 +392,16 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
+                                isError = isUsernameExceeded,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
                                     .weight(1f)
                                     .testTag("username_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                    focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
+                                    focusedBorderColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
+                                    unfocusedBorderColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.12f),
+                                    focusedLabelColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
                                     unfocusedContainerColor = Color(0xFF09090C),
                                     focusedTextColor = Color.White,
@@ -395,8 +411,8 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
 
                             OutlinedTextField(
                                 value = password,
-                                onValueChange = { if (it.length <= 15) viewModel.setCredentials(username, it) },
-                                label = { Text("Senha (máx 15)", fontSize = 10.sp, color = Color.Gray) },
+                                onValueChange = { viewModel.setCredentials(username, it) },
+                                label = { Text("Senha", fontSize = 11.sp, color = Color.Gray) },
                                 maxLines = 1,
                                 singleLine = true,
                                 leadingIcon = {
@@ -407,6 +423,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
+                                isError = isPasswordExceeded,
                                 visualTransformation = PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                 modifier = Modifier
@@ -414,15 +431,37 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     .testTag("password_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                    focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
+                                    focusedBorderColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
+                                    unfocusedBorderColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.12f),
+                                    focusedLabelColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
                                     unfocusedContainerColor = Color(0xFF09090C),
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White
                                 )
                             )
+                        }
+
+                        if (isUsernameExceeded || isPasswordExceeded) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Warning",
+                                    tint = com.example.ui.theme.NetflixRed,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Aviso: O limite recomendado é 15 caracteres!",
+                                    color = com.example.ui.theme.NetflixRed,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -748,44 +787,42 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
         // Percentage-based Load HUD Overlay
         if (loadingProgress != null && loadingProgress!! < 100) {
             Dialog(onDismissRequest = {}) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414)),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
-                    modifier = Modifier.width(280.dp)
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
                             progress = { (loadingProgress ?: 0).toFloat() / 100f },
-                            modifier = Modifier.size(72.dp),
+                            modifier = Modifier.size(90.dp),
                             color = NetflixRed,
                             strokeWidth = 6.dp,
                             trackColor = Color.White.copy(alpha = 0.1f)
                         )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(
-                            text = "Buscando Playlist",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Por favor, aguarde...",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "$loadingProgress%",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = NetflixRed
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
                         )
                     }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Buscando Playlist",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Por favor, aguarde...",
+                        color = Color.LightGray,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -1502,51 +1539,45 @@ fun HomeScreen(
             }
 
             Dialog(onDismissRequest = {}) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F12)),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-                    modifier = Modifier.width(290.dp)
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(
-                                progress = { (loadingProgress ?: 0).toFloat() / 100f },
-                                modifier = Modifier.size(80.dp),
-                                color = NetflixRed,
-                                strokeWidth = 5.dp,
-                                trackColor = Color.White.copy(alpha = 0.05f)
-                            )
-                            Text(
-                                text = "$loadingProgress%",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        Text(
-                            text = "Buscando Playlist",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { (loadingProgress ?: 0).toFloat() / 100f },
+                            modifier = Modifier.size(90.dp),
+                            color = NetflixRed,
+                            strokeWidth = 6.dp,
+                            trackColor = Color.White.copy(alpha = 0.1f)
                         )
-                        
-                        Spacer(modifier = Modifier.height(6.dp))
-                        
                         Text(
-                            text = statusText,
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center
+                            text = "$loadingProgress%",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
                         )
                     }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text(
+                        text = "Buscando Playlist",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Text(
+                        text = statusText,
+                        fontSize = 13.sp,
+                        color = Color.LightGray,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -1669,10 +1700,7 @@ fun HomeScreen(
             AdultPinDialog(
                 onDismiss = { viewModel.dismissPinPrompt() },
                 onPinVerify = { pin ->
-                    val success = viewModel.checkPinAndPlay(pin)
-                    if (!success) {
-                        // feedback or toast
-                    }
+                    viewModel.checkPinAndPlay(pin)
                 }
             )
         }
@@ -1682,10 +1710,7 @@ fun HomeScreen(
             AdultPinDialog(
                 onDismiss = { viewModel.dismissCategoryPinPrompt() },
                 onPinVerify = { pin ->
-                    val success = viewModel.checkPinAndPlay(pin)
-                    if (!success) {
-                        // feedback or toast
-                    }
+                    viewModel.checkPinAndPlay(pin)
                 }
             )
         }
@@ -2231,7 +2256,7 @@ fun GridItemCard(item: PlaylistItem, isGridCompact: Boolean, onClick: () -> Unit
  * ADULT SECURITY PASSCODE PROMPT
  */
 @Composable
-fun AdultPinDialog(onDismiss: () -> Unit, onPinVerify: (String) -> Unit) {
+fun AdultPinDialog(onDismiss: () -> Unit, onPinVerify: (String) -> Boolean) {
     var pinValue by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf(false) }
 
@@ -2310,8 +2335,11 @@ fun AdultPinDialog(onDismiss: () -> Unit, onPinVerify: (String) -> Unit) {
                     }
                     Button(
                         onClick = {
-                            if (pinValue == "0000" || pinValue.isNotEmpty()) { // standard pass block verify
-                                onPinVerify(pinValue)
+                            if (pinValue.isNotEmpty()) {
+                                val success = onPinVerify(pinValue)
+                                if (!success) {
+                                    pinError = true
+                                }
                             } else {
                                 pinError = true
                             }
@@ -2339,6 +2367,9 @@ fun VideoPlayerUI(
     onPlayNext: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    
     var isPlaying by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBuffering by remember { mutableStateOf(true) }
@@ -2352,6 +2383,7 @@ fun VideoPlayerUI(
     var controlsVisible by remember { mutableStateOf(true) }
     var currentSpeed by remember { mutableFloatStateOf(1.0f) }
     var showSpeedMenu by remember { mutableStateOf(false) }
+    var resizeModeState by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_ZOOM) }
     
     var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -2361,28 +2393,40 @@ fun VideoPlayerUI(
     // Edge-to-edge / Immersive Fullscreen Mode management
     DisposableEffect(Unit) {
         val window = activity?.window
-        if (window != null) {
-            val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            
-            // Auto initialize system brightness matching
-            val lp = window.attributes
-            if (lp.screenBrightness > 0f) {
-                brightnessValue = lp.screenBrightness
+        if (window != null && activity?.isFinishing == false && activity?.isDestroyed == false) {
+            try {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                
+                // Auto initialize system brightness matching
+                val lp = window.attributes
+                if (lp.screenBrightness > 0f) {
+                    brightnessValue = lp.screenBrightness
+                }
+            } catch (e: Exception) {
+                // Prevent crash if layout is in transition
             }
         }
         
         // Auto initialize volume percentage matching
-        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        if (maxVol > 0) {
-            volumeValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol.toFloat()
+        try {
+            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            if (maxVol > 0) {
+                volumeValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol.toFloat()
+            }
+        } catch (e: Exception) {
+            // Audio manager state error safety
         }
 
         onDispose {
-            if (window != null) {
-                val controller = WindowCompat.getInsetsController(window, window.decorView)
-                controller.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            if (window != null && activity?.isFinishing == false && activity?.isDestroyed == false) {
+                try {
+                    val controller = WindowCompat.getInsetsController(window, window.decorView)
+                    controller.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                } catch (e: Exception) {
+                    // Prevent any detached window / decorView crashes during cleanup
+                }
             }
         }
     }
@@ -2430,7 +2474,13 @@ fun VideoPlayerUI(
     DisposableEffect(exoPlayer) {
         // Apply Wakelock equivalent flag on creation to keep screen active
         val window = activity?.window
-        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (activity?.isFinishing == false && activity?.isDestroyed == false) {
+            try {
+                window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } catch (e: Exception) {
+                // Safety catch
+            }
+        }
         
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -2445,12 +2495,22 @@ fun VideoPlayerUI(
         exoPlayer.addListener(listener)
 
         onDispose {
-            playerViewInstance?.player = null // DETACH FIRST to prevent native surface / crash thread race condition
-            playerViewInstance = null
-            exoPlayer.removeListener(listener)
-            exoPlayer.stop()
-            exoPlayer.release()
-            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            try {
+                playerViewInstance?.player = null // DETACH FIRST to prevent native surface / crash thread race condition
+                playerViewInstance = null
+                exoPlayer.removeListener(listener)
+                exoPlayer.stop()
+                exoPlayer.release()
+            } catch (e: Exception) {
+                // Ignore player cleanup errors
+            }
+            if (activity?.isFinishing == false && activity?.isDestroyed == false) {
+                try {
+                    window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } catch (e: Exception) {
+                    // Prevent crash during window detachment
+                }
+            }
         }
     }
 
@@ -2486,10 +2546,16 @@ fun VideoPlayerUI(
                             if (dragSide == 1) {
                                 // Left-side Swipe: Screen Brightness
                                 brightnessValue = (brightnessValue + delta).coerceIn(0.01f, 1.0f)
-                                activity?.runOnUiThread {
-                                    val lp = activity.window.attributes
-                                    lp.screenBrightness = brightnessValue
-                                    activity.window.attributes = lp
+                                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                                    activity.runOnUiThread {
+                                        try {
+                                            val lp = activity.window.attributes
+                                            lp.screenBrightness = brightnessValue
+                                            activity.window.attributes = lp
+                                        } catch (e: Exception) {
+                                            // safety block
+                                        }
+                                    }
                                 }
                                 showBrightnessOverlay = true
                                 showVolumeOverlay = false
@@ -2545,6 +2611,7 @@ fun VideoPlayerUI(
                 if (view.player != exoPlayer) {
                     view.player = exoPlayer
                 }
+                view.resizeMode = resizeModeState
             },
             onRelease = { view ->
                 view.player = null
@@ -2823,12 +2890,18 @@ fun VideoPlayerUI(
                     var duration by remember { mutableLongStateOf(0L) }
 
                     LaunchedEffect(exoPlayer) {
-                        while (true) {
+                        while (isActive) {
                             try {
-                                currentPos = exoPlayer.currentPosition
-                                duration = exoPlayer.duration.coerceAtLeast(0L)
+                                if (exoPlayer.playbackState != Player.STATE_IDLE) {
+                                    currentPos = exoPlayer.currentPosition
+                                    duration = exoPlayer.duration.coerceAtLeast(0L)
+                                }
                             } catch (e: Exception) {
+                                if (e is CancellationException) throw e
                                 // Ignore if player is released or in error state
+                            } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
+                                // Severe native / low level crashes bypass or release safety
                             }
                             delay(500)
                         }
@@ -2880,25 +2953,50 @@ fun VideoPlayerUI(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Playback Speed Controller Button
-                    Box {
-                        TextButton(
-                            onClick = { showSpeedMenu = !showSpeedMenu },
-                            colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(12.dp)
+                    // Playback Speed & Aspect Ratio Controller Buttons
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box {
+                            TextButton(
+                                onClick = { showSpeedMenu = !showSpeedMenu },
+                                colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = "Playback Speed Options",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                if (isLandscape) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${currentSpeed}x",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                resizeModeState = if (resizeModeState == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) {
+                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                } else {
+                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                }
+                            },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Speed,
-                                contentDescription = "Playback Speed Options",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Velocidade: ${currentSpeed}x",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                imageVector = if (resizeModeState == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) Icons.Default.FullscreenExit else Icons.Default.AspectRatio,
+                                contentDescription = "Toggle Screen Aspect Ratio",
+                                tint = GoldPremium,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -2956,24 +3054,38 @@ fun VideoPlayerUI(
 
                     // Audio track switcher dialog overlay button trigger
                     var showAudioSubDialog by remember { mutableStateOf(false) }
-                    TextButton(
-                        onClick = { showAudioSubDialog = true },
-                        colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ClosedCaption,
-                            contentDescription = "Legendas e Áudio",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Áudio e Legenda",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (isLandscape) {
+                        TextButton(
+                            onClick = { showAudioSubDialog = true },
+                            colors = ButtonDefaults.textButtonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ClosedCaption,
+                                contentDescription = "Legendas e Áudio",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Áudio e Legenda",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { showAudioSubDialog = true },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ClosedCaption,
+                                contentDescription = "Legendas e Áudio",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     if (showAudioSubDialog) {
@@ -3263,20 +3375,17 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Dynamic grid list of 13 config options utilizing basic guaranteed compiling icons
+            // Dynamic grid list of 10 clean config options utilizing basic guaranteed compiling icons
             val configList = listOf(
                 "Controle dos pais" to Icons.Default.Lock,
                 "Ocultar categorias ao vivo" to Icons.Default.VisibilityOff,
                 "Limpar histórico de filmes" to Icons.Default.Delete,
                 "Leitor externo" to Icons.Default.PlayArrow,
-                "Select Device Type" to Icons.Default.Build,
                 "Listas" to Icons.Default.List,
                 "Mudar idioma" to Icons.Default.Language,
                 "Formato de hora" to Icons.Default.AccessTime,
                 "Atualizar agora" to Icons.Default.Refresh,
-                "Change Layout" to Icons.Default.Settings,
                 "Limpar canais de histórico" to Icons.Default.ClearAll,
-                "Live Stream Format" to Icons.Default.List,
                 "Configurações de legenda" to Icons.Default.Info
             )
 
