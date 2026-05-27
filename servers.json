@@ -1,0 +1,37 @@
+[
+  {
+    "id": "server_1",
+    "name": "VLOG",
+    "baseUrl": "http://vlogmk.de"
+  },
+  {
+    "id": "server_2",
+    "name": "LUB TV",
+    "baseUrl": "http://triimundial.shop"
+  },
+  {
+    "id": "server_3",
+    "name": "CINELON21",
+    "baseUrl": "http://infinixparcerias.site"
+  },
+  {
+    "id": "server_4",
+    "name": "TANNIX",
+    "baseUrl": "http://unituf.online"
+  },
+  {
+    "id": "server_5",
+    "name": "CB6000",
+    "baseUrl": "http://cb6.fun"
+  },
+  {
+    "id": "server_6",
+    "name": "MK21 TV",
+    "baseUrl": "http://appsmk.org"
+  },
+  {
+    "id": "server_7",
+    "name": "NOVA+",
+    "baseUrl": "http://novamk21.win"
+  }
+]

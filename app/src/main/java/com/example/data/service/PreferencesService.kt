@@ -183,6 +183,10 @@ class PreferencesService(context: Context) {
         return try { prefs.getLong(KEY_LAST_UPDATE_PREFIX + playlistName, 0L) } catch (e: Throwable) { 0L }
     }
 
+    var cachedServersJson: String
+        get() = try { prefs.getString("cached_servers_json", "") ?: "" } catch (e: Throwable) { "" }
+        set(value) { try { prefs.edit().putString("cached_servers_json", value).apply() } catch (e: Throwable) {} }
+
     fun isCredentialsConfigured(predefinedNames: Set<String>): Boolean {
         val isPredefined = predefinedNames.contains(activePlaylistName)
         return activePlaylistName.isNotEmpty() && (

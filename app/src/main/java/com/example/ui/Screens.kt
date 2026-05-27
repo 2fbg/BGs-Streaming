@@ -2853,6 +2853,13 @@ fun VideoPlayerUI(
         }
         try {
             isBuffering = true
+            // Stop and clear previous playback state first to prevent native decoding deadlocks/crashes!
+            try {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+            } catch (e: Exception) {
+                // Ignore player transient reset errors
+            }
             val item = MediaItem.fromUri(url)
             exoPlayer.setMediaItem(item)
             exoPlayer.prepare()
@@ -2882,6 +2889,11 @@ fun VideoPlayerUI(
             override fun onPlayerError(error: PlaybackException) {
                 errorMessage = "Impossível reproduzir canal/mídia. Conexão terminada pelo link."
                 isBuffering = false
+                try {
+                    exoPlayer.stop() // Immediately free hardware decoder and avoid ANR/Main Thread starvation!
+                } catch (e: Exception) {
+                    // safety clean
+                }
             }
         }
         exoPlayer.addListener(listener)
@@ -3267,8 +3279,18 @@ fun VideoPlayerUI(
                                     onClick = {
                                         errorMessage = null
                                         isBuffering = true
-                                        exoPlayer.prepare()
-                                        exoPlayer.play()
+                                        val url = playlistItem.url.trim()
+                                        try {
+                                            exoPlayer.stop()
+                                            exoPlayer.clearMediaItems()
+                                            val item = MediaItem.fromUri(url)
+                                            exoPlayer.setMediaItem(item)
+                                            exoPlayer.prepare()
+                                            exoPlayer.play()
+                                        } catch (e: Exception) {
+                                            errorMessage = "Erro ao carregar mídia: ${e.localizedMessage ?: "Causa desconhecida"}"
+                                            isBuffering = false
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = NetflixRed)
                                 ) {
@@ -4190,6 +4212,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 onDismiss = { showSortOrderDialog = false },
                 onOptionSelected = {
                     viewModel.updateMenuSortOrder(it)
+                    showSortOrderDialog = false
                     snackbarMessage = "Ordenação definida para: $it!"
                     snackbarVisible = true
                 }

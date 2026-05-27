@@ -113,7 +113,10 @@ object M3UParser {
             if (end == -1) {
                 end = line.indexOf(",", start)
             }
-            if (end != -1) {
+            if (end == -1) {
+                end = line.length
+            }
+            if (end > start) {
                 return line.substring(start, end).replace("\"", "").trim()
             }
         }

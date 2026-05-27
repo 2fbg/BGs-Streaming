@@ -34,17 +34,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     
     val preferencesService = PreferencesService(application)
     
-    val predefinedServers = listOf(
+    private val staticDefaultServers = listOf(
         ServerProfile("server_1", "VLOG", "http://vlogmk.de"),
-        ServerProfile("server_2", "LUB TV", "http://redeinternadestiny.top"),
-        ServerProfile("server_3", "CINELON21", "http://cinelontv.work"),
-        ServerProfile("server_4", "TANNIX", "http://tannix.fun"),
+        ServerProfile("server_2", "LUB TV", "http://triimundial.shop"),
+        ServerProfile("server_3", "CINELON21", "http://infinixparcerias.site"),
+        ServerProfile("server_4", "TANNIX", "http://unituf.online"),
         ServerProfile("server_5", "CB6000", "http://cb6.fun"),
-        ServerProfile("server_6", "MK21 TV", "http://mk21.uk"),
+        ServerProfile("server_6", "MK21 TV", "http://appsmk.org"),
         ServerProfile("server_7", "NOVA+", "http://novamk21.win")
     )
 
-    private val predefinedNames = predefinedServers.map { it.name }.toSet()
+    private val _predefinedServersState = MutableStateFlow<List<ServerProfile>>(staticDefaultServers)
+    
+    val predefinedServers: List<ServerProfile>
+        get() = _predefinedServersState.value
+
+    private val predefinedNames: Set<String>
+        get() = _predefinedServersState.value.map { it.name }.toSet()
 
     // Real-time Licencing State Flows
     private val _isPremiumActive = MutableStateFlow(preferencesService.isLicenseValid())
@@ -106,15 +112,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // PIN Protection dialog triggers
     enum class SortOrder {
-        DEFAULT,
-        ALPHABETICAL,
-        ALPHABETICAL_DESC
+        DEFAULT,                // Ordem por número (original order)
+        ALPHABETICAL,           // Ordem por A-Z
+        ALPHABETICAL_DESC,      // Ordem por Z-A
+        BY_ADDITION,            // Ordem por adição (newest / NOVO first)
+        BY_RATING               // Ordem por qualificação (4K -> HD -> others)
     }
 
     private val _sortOrder = MutableStateFlow(
         when (preferencesService.menuSortOrder) {
             "Ordem por A-Z" -> SortOrder.ALPHABETICAL
             "Ordem por Z-A" -> SortOrder.ALPHABETICAL_DESC
+            "Ordem por adição" -> SortOrder.BY_ADDITION
+            "Ordem por qualificação" -> SortOrder.BY_RATING
             else -> SortOrder.DEFAULT
         }
     )
@@ -129,6 +139,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _sortOrder.value = when (stringOrder) {
             "Ordem por A-Z" -> SortOrder.ALPHABETICAL
             "Ordem por Z-A" -> SortOrder.ALPHABETICAL_DESC
+            "Ordem por adição" -> SortOrder.BY_ADDITION
+            "Ordem por qualificação" -> SortOrder.BY_RATING
             else -> SortOrder.DEFAULT
         }
     }
@@ -144,21 +156,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // Live state bindings based on currently active list selection
     val activeItemsList = combine(
-        _activePlaylistName,
-        _selectedContentType,
-        _selectedCategory,
-        _searchQuery,
-        _adultPinGranted,
-        _sortOrder
-    ) { flows ->
-        flows
-    }.flatMapLatest { flows ->
-        val playlist = flows[0] as? String ?: ""
-        val type = flows[1] as? ContentType ?: ContentType.LIVE
-        val category = flows[2] as? String ?: "Todas"
-        val query = flows[3] as? String ?: ""
-        val adultGranted = flows[4] as? Boolean ?: false
-        val sortOrder = flows[5] as? SortOrder ?: SortOrder.DEFAULT
+        combine(_activePlaylistName, _selectedContentType, _selectedCategory) { playlist, type, category ->
+            Triple(playlist, type, category)
+        },
+        combine(_searchQuery, _adultPinGranted, _sortOrder) { query, adultGranted, sort ->
+            Triple(query, adultGranted, sort)
+        }
+    ) { p1, p2 ->
+        Pair(p1, p2)
+    }.flatMapLatest { (p1, p2) ->
+        val (playlist, type, category) = p1
+        val (query, adultGranted, sortOrder) = p2
         
         val rawFlow = if (query.isNotEmpty()) {
             playlistItemDao.searchItems(playlist, "%$query%")
@@ -181,11 +189,40 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             
             // 2. Sort the final filtered list
-            when (sortOrder) {
+            val sorted = when (sortOrder) {
                 SortOrder.ALPHABETICAL -> filtered.sortedBy { it.name }
                 SortOrder.ALPHABETICAL_DESC -> filtered.sortedByDescending { it.name }
-                SortOrder.DEFAULT -> filtered
+                SortOrder.BY_ADDITION -> {
+                    // "Ordem por adição" puts NOVO items (stable remainder of id.hashCode() % 3 is 2) first
+                    val isNovo = { item: PlaylistItem ->
+                        val r = item.id.hashCode() % 3
+                        val positiveR = if (r < 0) r + 3 else r
+                        positiveR == 2
+                    }
+                    filtered.sortedWith(
+                        compareBy<PlaylistItem> { !isNovo(it) } // Put true (isNovo) before false
+                            .thenByDescending { it.id }
+                    )
+                }
+                SortOrder.BY_RATING -> {
+                    // "Ordem por qualificação" sorts 4K (remainder 0) first, HD (remainder 1) second, others/NOVO (remainder 2) third
+                    val ratePriority = { item: PlaylistItem ->
+                        val r = item.id.hashCode() % 3
+                        val positiveR = if (r < 0) r + 3 else r
+                        when (positiveR) {
+                            0 -> 0 // 4K first
+                            1 -> 1 // HD second
+                            else -> 2 // others/NOVO third
+                        }
+                    }
+                    filtered.sortedWith(
+                        compareBy<PlaylistItem> { ratePriority(it) }
+                            .thenBy { it.name }
+                    )
+                }
+                SortOrder.DEFAULT -> filtered.sortedBy { it.id } // "Ordem por número" sorts by raw insertion number (ID ascending)
             }
+            sorted.take(2000)
         }
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,
@@ -239,7 +276,68 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
+    private fun loadCachedServers() {
+        val cachedJson = preferencesService.cachedServersJson
+        if (cachedJson.isNotEmpty()) {
+            val parsed = parseServersJson(cachedJson)
+            if (parsed.isNotEmpty()) {
+                _predefinedServersState.value = parsed
+            }
+        }
+    }
+
+    private fun parseServersJson(jsonStr: String): List<ServerProfile> {
+        val list = mutableListOf<ServerProfile>()
+        try {
+            val array = org.json.JSONArray(jsonStr)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val id = obj.optString("id", "")
+                val name = obj.optString("name", "")
+                val baseUrl = obj.optString("baseUrl", "")
+                if (id.isNotEmpty() && name.isNotEmpty() && baseUrl.isNotEmpty()) {
+                    list.add(ServerProfile(id, name, baseUrl))
+                }
+            }
+        } catch (e: java.lang.Exception) {
+            Log.e("MK21_VM", "Error parsing servers JSON: ", e)
+        }
+        return list
+    }
+
+    private fun fetchDynamicServers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url("https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json")
+                    .build()
+                
+                okHttpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val bodyString = response.body?.string()
+                        if (!bodyString.isNullOrEmpty()) {
+                            val parsed = parseServersJson(bodyString)
+                            if (parsed.isNotEmpty()) {
+                                preferencesService.cachedServersJson = bodyString
+                                _predefinedServersState.value = parsed
+                                Log.d("MK21_VM", "Successfully loaded ${parsed.size} dynamic servers from GitHub raw JSON!")
+                            }
+                        }
+                    } else {
+                        Log.w("MK21_VM", "Failed to load dynamic servers from GitHub: ${response.code}")
+                    }
+                }
+            } catch (e: Throwable) {
+                Log.e("MK21_VM", "Error fetching dynamic servers from GitHub", e)
+            }
+        }
+    }
+
     init {
+        // Load dynamically cached servers immediately, then fetch latest in background
+        loadCachedServers()
+        fetchDynamicServers()
+
         // Initialize trial period if first bootup
         if (preferencesService.trialStartDate == 0L) {
             preferencesService.trialStartDate = System.currentTimeMillis()
