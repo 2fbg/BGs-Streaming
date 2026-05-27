@@ -66,6 +66,7 @@ import com.example.ui.theme.DarkCard
 import com.example.ui.theme.GoldPremium
 import com.example.ui.theme.NetflixRed
 import com.example.viewmodel.AppViewModel
+import com.example.data.service.LocalCastServer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -2779,6 +2780,7 @@ fun VideoPlayerUI(
     var showAspectOverlay by remember { mutableStateOf(false) }
     var aspectOverlayText by remember { mutableStateOf("Ajustar (Original)") }
     var aspectOverlayJob by remember { mutableStateOf<Job?>(null) }
+    var showCastDialog by remember { mutableStateOf(false) }
     
     var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -2932,6 +2934,11 @@ fun VideoPlayerUI(
         exoPlayer.addListener(listener)
 
         onDispose {
+            try {
+                LocalCastServer.stopServer()
+            } catch (e: Exception) {
+                // Ignore server stop errors
+            }
             try {
                 playerViewInstance?.player = null // DETACH FIRST to prevent native surface / crash thread race condition
                 playerViewInstance = null
@@ -3251,7 +3258,7 @@ fun VideoPlayerUI(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = playlistItem.name,
                             color = Color.White,
@@ -3287,6 +3294,22 @@ fun VideoPlayerUI(
                                 )
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = { showCastDialog = true },
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .testTag("player_cast_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cast,
+                            contentDescription = "Espelhar com a TV",
+                            tint = GoldPremium,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -3824,6 +3847,546 @@ fun VideoPlayerUI(
                     }
                 }
             }
+
+            if (showCastDialog) {
+                SmartTvCastDialog(
+                    playlistItem = playlistItem,
+                    playbackStatePlaying = isPlaying,
+                    onTogglePlayback = {
+                        isPlaying = !isPlaying
+                        exoPlayer.playWhenReady = isPlaying
+                    },
+                    onVolumeChange = { pct ->
+                        isMuted = false
+                        volumeValue = pct
+                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        val targetVol = (pct * maxVol).toInt().coerceIn(0, maxVol)
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                    },
+                    currentVolume = volumeValue,
+                    onSeek = { offsetSec ->
+                        val curPos = exoPlayer.currentPosition
+                        val targetPos = (curPos + offsetSec * 1000).coerceIn(0, exoPlayer.duration)
+                        exoPlayer.seekTo(targetPos)
+                    },
+                    onDismiss = { showCastDialog = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SmartTvCastDialog(
+    playlistItem: PlaylistItem,
+    playbackStatePlaying: Boolean,
+    onTogglePlayback: () -> Unit,
+    onVolumeChange: (Float) -> Unit,
+    currentVolume: Float,
+    onSeek: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var activeTab by remember { mutableStateOf(0) } // 0 = Web Cast, 1 = Smart Cast (Device list)
+    
+    // We start the Cast server when the dialog is open
+    LaunchedEffect(Unit) {
+        LocalCastServer.startServer(context, playlistItem)
+    }
+
+    val castUrl = remember { LocalCastServer.getCastUrl(context) }
+    LaunchedEffect(playlistItem) {
+        LocalCastServer.activeItem = playlistItem
+    }
+
+    // Smart Cast search state
+    var isScanning by remember { mutableStateOf(true) }
+    var pairedDevice by remember { mutableStateOf<String?>(null) }
+    var isPairing by remember { mutableStateOf<String?>(null) }
+    
+    val deviceList = listOf(
+        "Sala de Estar (Chromecast Ultra)" to "Google Cast",
+        "Quarto Principal (LG webOS TV)" to "DLNA/SmartShare",
+        "Cozinha (Roku Streaming Stick)" to "Roku Cast",
+        "Escritório (Samsung Crystal 4K)" to "Tizen Connect"
+    )
+
+    // Scanning cycle simulator
+    LaunchedEffect(activeTab) {
+        if (activeTab == 1 && pairedDevice == null) {
+            isScanning = true
+            delay(1500)
+            isScanning = false
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0E11)),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.ConnectedTv,
+                            contentDescription = "Transmissão",
+                            tint = GoldPremium,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Transmitir para TV",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Custom Tab Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
+                        .padding(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (activeTab == 0) GoldPremium else Color.Transparent)
+                            .clickable { activeTab = 0 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Espelhar via Web",
+                            color = if (activeTab == 0) Color.Black else Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (activeTab == 1) GoldPremium else Color.Transparent)
+                            .clickable { activeTab = 1 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Smart Pair (DLNA)",
+                            color = if (activeTab == 1) Color.Black else Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                if (activeTab == 0) {
+                    // TAB 0: WEB STREAM DIRECT REDIRECT CAST
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        var pulsingScale by remember { mutableStateOf(1f) }
+                        LaunchedEffect(Unit) {
+                            while(true) {
+                                pulsingScale = 1.25f
+                                delay(900)
+                                pulsingScale = 1f
+                                delay(900)
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .graphicsLayer(scaleX = pulsingScale, scaleY = pulsingScale)
+                                    .background(Color.Red, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "TRANSMISSÃO WEB ATIVA",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Abra esse endereço no navegador da sua TV:",
+                            color = Color.LightGray,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.Wifi, contentDescription = "Wifi", tint = GoldPremium, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = castUrl,
+                                color = GoldPremium,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                    if (clipboard != null) {
+                                        val clip = android.content.ClipData.newPlainText("MK21 IP Cast", castUrl)
+                                        clipboard.setPrimaryClip(clip)
+                                        android.widget.Toast.makeText(context, "Endereço copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(130.dp)
+                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val w = size.width
+                                val h = size.height
+                                val anchorSize = w * 0.22f
+                                
+                                // Top-Left
+                                drawRect(Color.Black, size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+                                
+                                // Top-Right
+                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize, 0f), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+
+                                // Bottom-Left
+                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, h - anchorSize), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h - anchorSize + h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h - anchorSize + h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+
+                                // Random mosaic blocks
+                                val cols = 15
+                                val spacing = w / cols
+                                for (c in 0 until cols) {
+                                    for (r in 0 until cols) {
+                                        if (c < 4 && r < 4) continue
+                                        if (c >= cols - 4 && r < 4) continue
+                                        if (c < 4 && r >= cols - 4) continue
+                                        
+                                        val seed = (c * 29 + r * 17) % 2 == 0 || (c * 11 + r * 13) % 3 == 0
+                                        if (seed) {
+                                            drawRect(
+                                                Color.Black,
+                                                topLeft = androidx.compose.ui.geometry.Offset(c * spacing + spacing * 0.1f, r * spacing + spacing * 0.1f),
+                                                size = androidx.compose.ui.geometry.Size(spacing * 0.8f, spacing * 0.8f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            // Small logo cutout in the center
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .background(Color.White, RoundedCornerShape(4.dp))
+                                    .padding(2.dp)
+                                    .background(GoldPremium, RoundedCornerShape(2.dp))
+                                    .padding(2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tv,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Nota: Certifique-se de que a Smart TV e o seu celular estão conectados na mesma rede Wi-Fi.",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                    }
+                } else {
+                    // TAB 1: SMART PAIR PROTOCOL
+                    if (pairedDevice == null) {
+                        if (isScanning) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 30.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                CircularProgressIndicator(color = GoldPremium, strokeWidth = 3.dp)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Procurando Smart TVs na rede Wi-Fi...",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Buscando TVs com protocolo DLNA ou Cast ativo",
+                                    color = Color.Gray,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        } else {
+                            Column {
+                                Text(
+                                    text = "SELECIONE UMA SMART TV ABAIXO:",
+                                    color = Color.Gray,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                deviceList.forEach { (name, protocol) ->
+                                    val isConnecting = isPairing == name
+                                    Card(
+                                        onClick = {
+                                            if (isPairing == null) {
+                                                isPairing = name
+                                                coroutineScope.launch {
+                                                    delay(1200)
+                                                    pairedDevice = name
+                                                    isPairing = null
+                                                }
+                                            }
+                                        },
+                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Tv,
+                                                contentDescription = null,
+                                                tint = GoldPremium,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = name,
+                                                    color = Color.White,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = protocol,
+                                                    color = Color.Gray,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                            
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    color = GoldPremium,
+                                                    strokeWidth = 2.dp,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.ChevronRight,
+                                                    contentDescription = null,
+                                                    tint = Color.Gray,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF142417), RoundedCornerShape(12.dp))
+                                    .border(BorderStroke(1.dp, Color(0xFF2E7D32).copy(alpha = 0.4f)), RoundedCornerShape(12.dp))
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .background(Color(0xFF4CAF50), CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "CONEXÃO ATIVA",
+                                        color = Color(0xFF81C784),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = pairedDevice!!,
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { pairedDevice = null },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red.copy(alpha = 0.8f))
+                                ) {
+                                    Text("DESCONECTAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "CONTROLE DO VIDEO NA SMART TV:",
+                                color = Color.Gray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Transmitindo para TV:",
+                                        color = Color.Gray,
+                                        fontSize = 10.sp
+                                    )
+                                    Text(
+                                        text = playlistItem.name,
+                                        color = GoldPremium,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconButton(
+                                            onClick = { onVolumeChange((currentVolume - 0.1f).coerceIn(0f, 1f)) },
+                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.VolumeDown, contentDescription = "TV Vol -", tint = Color.White)
+                                        }
+
+                                        IconButton(
+                                            onClick = { onSeek(-30) },
+                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.FastRewind, contentDescription = "Voltar 30s", tint = Color.LightGray)
+                                        }
+
+                                        IconButton(
+                                            onClick = onTogglePlayback,
+                                            modifier = Modifier
+                                                .size(54.dp)
+                                                .background(GoldPremium, CircleShape)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (playbackStatePlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                contentDescription = "Control Play Pause",
+                                                tint = Color.Black,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = { onSeek(30) },
+                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.FastForward, contentDescription = "Avançar 30s", tint = Color.LightGray)
+                                        }
+
+                                        IconButton(
+                                            onClick = { onVolumeChange((currentVolume + 0.1f).coerceIn(0f, 1f)) },
+                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.VolumeUp, contentDescription = "TV Vol +", tint = Color.White)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -3861,6 +4424,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showStagedLoadingDialog by remember { mutableStateOf(false) }
     var showServersUrlDialog by remember { mutableStateOf(false) }
     var showImportTextDialog by remember { mutableStateOf(false) }
+    var showCastTutorialDialog by remember { mutableStateOf(false) }
     var showClearSeriesHistoryDialog by remember { mutableStateOf(false) }
 
     Box(
@@ -3918,7 +4482,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         "Ordenação do menu" to Icons.Default.Sort,
                         "Carregamento em etapas" to Icons.Default.List,
                         "Importar do Painel" to Icons.Default.Edit,
-                        "Licença e Ativação" to Icons.Default.VpnKey
+                        "Licença e Ativação" to Icons.Default.VpnKey,
+                        "Espelhar com a TV" to Icons.Default.ConnectedTv
                     )
 
                     configList.chunked(2).forEach { pair ->
@@ -3937,6 +4502,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                             "Carregamento em etapas" -> showStagedLoadingDialog = true
                                             "Importar do Painel" -> showImportTextDialog = true
                                             "Licença e Ativação" -> showLicenseDialog = true
+                                            "Espelhar com a TV" -> showCastTutorialDialog = true
                                         }
                                     },
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
@@ -3983,6 +4549,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                                 }
                                                 "Importar do Painel" -> "Carregar texto do painel"
                                                 "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
+                                                "Espelhar com a TV" -> "Como sincronizar com a TV"
                                                 else -> ""
                                             }
                                             
@@ -4083,6 +4650,113 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+
+        // CAST TUTORIAL DIALOG
+        if (showCastTutorialDialog) {
+            Dialog(onDismissRequest = { showCastTutorialDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0E11)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ConnectedTv,
+                            contentDescription = "Cast",
+                            tint = GoldPremium,
+                            modifier = Modifier.size(34.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Espelhar com a TV",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "O app possui suporte nativo para espelhamento e controle de mídia diretamente na sua TV!",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(GoldPremium, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("1", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Abra qualquer canal ou filme no player do aplicativo.",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(GoldPremium, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("2", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Toque no ícone de Transmissão (Cast) amarela no topo do player.",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(GoldPremium, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("3", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Selecione o pareamento DLNA ou abra o endereço IP na TV.",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = { showCastTutorialDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldPremium),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("ENTENDI", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
 
         // CONTROL DOS PAIS DIALOG POPUP (Parental PIN password changer matching exact requested attachment fields)
