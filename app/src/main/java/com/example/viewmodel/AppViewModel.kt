@@ -290,30 +290,135 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun parseServersJson(jsonStr: String): List<ServerProfile> {
+    fun parseServersFromPlainText(text: String): List<ServerProfile> {
         val list = mutableListOf<ServerProfile>()
-        try {
-            val array = org.json.JSONArray(jsonStr)
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-                val id = obj.optString("id", "")
-                val name = obj.optString("name", "")
-                val baseUrl = obj.optString("baseUrl", "")
-                if (id.isNotEmpty() && name.isNotEmpty() && baseUrl.isNotEmpty()) {
-                    list.add(ServerProfile(id, name, baseUrl))
+        val lines = text.split("\n", "\r")
+        var idCounter = 1
+        val baseUrlsAdded = mutableSetOf<String>()
+        
+        for (line in lines) {
+            val trimmedLine = line.trim()
+            if (trimmedLine.isEmpty()) continue
+            
+            val urlIndex = trimmedLine.indexOf("http://")
+            val finalUrlIndex = if (urlIndex != -1) urlIndex else trimmedLine.indexOf("https://")
+            
+            if (finalUrlIndex != -1) {
+                var urlPart = trimmedLine.substring(finalUrlIndex)
+                val spaceIndex = urlPart.indexOf(" ")
+                if (spaceIndex != -1) {
+                    urlPart = urlPart.substring(0, spaceIndex)
                 }
+                
+                var baseUrl = urlPart
+                val phpIndex = baseUrl.indexOf("/get.php")
+                val altPhpIndex = if (phpIndex != -1) phpIndex else baseUrl.indexOf("/player_api.php")
+                val nextSlashIndex = if (altPhpIndex != -1) altPhpIndex else baseUrl.indexOf("/", 8) 
+                
+                if (nextSlashIndex != -1 && nextSlashIndex > 8) {
+                    baseUrl = baseUrl.substring(0, nextSlashIndex)
+                }
+                
+                if (baseUrlsAdded.contains(baseUrl.lowercase())) {
+                    continue
+                }
+                
+                val lowercaseBaseUrl = baseUrl.lowercase()
+                if (lowercaseBaseUrl.contains("apple.com") || 
+                    lowercaseBaseUrl.contains("playstore") || 
+                    lowercaseBaseUrl.contains("painelmk21") || 
+                    lowercaseBaseUrl.contains("is.gd") || 
+                    lowercaseBaseUrl.contains("t.ly") || 
+                    lowercaseBaseUrl.contains("bit.ly") || 
+                    lowercaseBaseUrl.contains("da.gd") || 
+                    lowercaseBaseUrl.contains("assistmaiss.com") || 
+                    lowercaseBaseUrl.contains("vizzionplay.app") || 
+                    lowercaseBaseUrl.contains("appplaysim.com") || 
+                    lowercaseBaseUrl.contains("vocine.appflix.top") || 
+                    lowercaseBaseUrl.contains("ibopro.xyz") || 
+                    lowercaseBaseUrl.contains("addmyplaylist.com") || 
+                    lowercaseBaseUrl.contains("cbbrst.top")) {
+                    continue
+                }
+                
+                var namePart = trimmedLine.replace(urlPart, "")
+                namePart = namePart.replace("[🟢🔴🔵⚪🟠🟣✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
+                namePart = namePart.replace("*", "")
+                namePart = namePart.replace(":", "")
+                namePart = namePart.replace("-", "")
+                namePart = namePart.replace("_", "")
+                namePart = namePart.replace("(", "")
+                namePart = namePart.replace(")", "")
+                
+                namePart = namePart.replace("(?i)Link ".toRegex(), "")
+                namePart = namePart.replace("(?i)M3U".toRegex(), "")
+                namePart = namePart.replace("(?i)URL XCIPTV SERVIDORES".toRegex(), "")
+                namePart = namePart.replace("(?i)URL IPTV SMARTERS".toRegex(), "")
+                namePart = namePart.replace("(?i)CÓDIGOS ASSIST PLUS".toRegex(), "")
+                
+                var name = namePart.trim()
+                if (name.isEmpty()) {
+                    name = "Servidor $idCounter"
+                }
+                
+                list.add(ServerProfile("dynamic_$idCounter", name, baseUrl))
+                baseUrlsAdded.add(baseUrl.lowercase())
+                idCounter++
             }
-        } catch (e: java.lang.Exception) {
-            Log.e("MK21_VM", "Error parsing servers JSON: ", e)
         }
         return list
     }
 
-    private fun fetchDynamicServers() {
+    fun importServersFromPlainText(pastedText: String): Boolean {
+        val parsed = parseServersFromPlainText(pastedText)
+        if (parsed.isNotEmpty()) {
+            val array = org.json.JSONArray()
+            for (profile in parsed) {
+                val obj = org.json.JSONObject()
+                obj.put("id", profile.id)
+                obj.put("name", profile.name)
+                obj.put("baseUrl", profile.baseUrl)
+                array.put(obj)
+            }
+            val jsonStr = array.toString()
+            preferencesService.cachedServersJson = jsonStr
+            _predefinedServersState.value = parsed
+            return true
+        }
+        return false
+    }
+
+    private fun parseServersJson(jsonStr: String): List<ServerProfile> {
+        val list = mutableListOf<ServerProfile>()
+        try {
+            val trimmed = jsonStr.trim()
+            if (trimmed.startsWith("[")) {
+                val array = org.json.JSONArray(trimmed)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val id = obj.optString("id", "")
+                    val name = obj.optString("name", "")
+                    val baseUrl = obj.optString("baseUrl", "")
+                    if (id.isNotEmpty() && name.isNotEmpty() && baseUrl.isNotEmpty()) {
+                        list.add(ServerProfile(id, name, baseUrl))
+                    }
+                }
+            } else {
+                return parseServersFromPlainText(jsonStr)
+            }
+        } catch (e: java.lang.Exception) {
+            Log.w("MK21_VM", "Error parsing servers JSON, interpreting as plain text: " + e.message)
+            return parseServersFromPlainText(jsonStr)
+        }
+        return list
+    }
+
+    fun fetchDynamicServers() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val url = preferencesService.dynamicServersUrl
                 val request = Request.Builder()
-                    .url("https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json")
+                    .url(url)
                     .build()
                 
                 okHttpClient.newCall(request).execute().use { response ->
@@ -324,15 +429,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             if (parsed.isNotEmpty()) {
                                 preferencesService.cachedServersJson = bodyString
                                 _predefinedServersState.value = parsed
-                                Log.d("MK21_VM", "Successfully loaded ${parsed.size} dynamic servers from GitHub raw JSON!")
+                                Log.d("MK21_VM", "Loaded ${parsed.size} dynamic servers dynamically!")
                             }
                         }
                     } else {
-                        Log.w("MK21_VM", "Failed to load dynamic servers from GitHub: ${response.code}")
+                        Log.w("MK21_VM", "Failed to load dynamic servers from web: ${response.code}")
                     }
                 }
             } catch (e: Throwable) {
-                Log.e("MK21_VM", "Error fetching dynamic servers from GitHub", e)
+                Log.e("MK21_VM", "Error fetching dynamic servers", e)
             }
         }
     }

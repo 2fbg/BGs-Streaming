@@ -187,6 +187,10 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getString("cached_servers_json", "") ?: "" } catch (e: Throwable) { "" }
         set(value) { try { prefs.edit().putString("cached_servers_json", value).apply() } catch (e: Throwable) {} }
 
+    var dynamicServersUrl: String
+        get() = try { prefs.getString("dynamic_servers_url", "https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json") ?: "https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json" } catch (e: Throwable) { "https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json" }
+        set(value) { try { prefs.edit().putString("dynamic_servers_url", value).apply() } catch (e: Throwable) {} }
+
     var loadLiveInForeground: Boolean
         get() = try { prefs.getBoolean("load_live_foreground", true) } catch (e: Throwable) { true }
         set(value) { try { prefs.edit().putBoolean("load_live_foreground", value).apply() } catch (e: Throwable) {} }

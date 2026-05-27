@@ -2123,11 +2123,11 @@ fun HomeScreen(
 fun HighlightBanner(highlights: List<PlaylistItem>, onPlayItem: (PlaylistItem) -> Unit) {
     var activeIndex by remember { mutableIntStateOf(0) }
     
-    // Auto slider looping every 3 seconds
+    // Auto slider looping every 4 seconds
     LaunchedEffect(highlights) {
         activeIndex = 0 // Reset sliding index when highlights list changes (like changing playlist)
         while (true) {
-            delay(3000)
+            delay(4000)
             if (highlights.isNotEmpty()) {
                 activeIndex = (activeIndex + 1) % highlights.size
             }
@@ -3839,6 +3839,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showSortOrderDialog by remember { mutableStateOf(false) }
     var showLicenseDialog by remember { mutableStateOf(false) }
     var showStagedLoadingDialog by remember { mutableStateOf(false) }
+    var showServersUrlDialog by remember { mutableStateOf(false) }
+    var showImportTextDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3904,7 +3906,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Dynamic grid list of 9 clean config options utilizing basic guaranteed compiling icons
+            // Dynamic grid list of 11 clean config options utilizing basic guaranteed compiling icons
             val configList = listOf(
                 "Controle dos pais" to Icons.Default.Lock,
                 "Limpar histórico de filmes" to Icons.Default.Delete,
@@ -3914,6 +3916,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 "Configurações de legenda" to Icons.Default.Info,
                 "Ordenação do menu" to Icons.Default.Sort,
                 "Carregamento em etapas" to Icons.Default.List,
+                "URL do Servidor" to Icons.Default.Settings,
+                "Importar do Painel" to Icons.Default.Edit,
                 "Licença e Ativação" to Icons.Default.VpnKey
             )
  
@@ -3940,6 +3944,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         "Configurações de legenda" -> showSubtitleSizeDialog = true
                                         "Ordenação do menu" -> showSortOrderDialog = true
                                         "Carregamento em etapas" -> showStagedLoadingDialog = true
+                                        "URL do Servidor" -> showServersUrlDialog = true
+                                        "Importar do Painel" -> showImportTextDialog = true
                                         "Licença e Ativação" -> showLicenseDialog = true
                                     }
                                 },
@@ -3989,6 +3995,14 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                                 if (viewModel.preferencesService.loadSeriesInForeground) list.add("Séries")
                                                 if (list.isEmpty()) "Segundo Plano" else "1º Plano: " + list.joinToString(", ")
                                             }
+                                            "URL do Servidor" -> {
+                                                val url = viewModel.preferencesService.dynamicServersUrl
+                                                if (url.startsWith("https://raw.githubusercontent.com")) "GitHub (Padrão)" else {
+                                                    val clean = url.replace("https://", "").replace("http://", "")
+                                                    if (clean.length > 20) clean.take(20) + "..." else clean
+                                                }
+                                            }
+                                            "Importar do Painel" -> "Carregar texto do painel"
                                             "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
                                             else -> ""
                                         }
@@ -4489,6 +4503,179 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("SALVAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showServersUrlDialog) {
+            var urlInput by remember { mutableStateOf(viewModel.preferencesService.dynamicServersUrl) }
+            Dialog(onDismissRequest = { showServersUrlDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Origem dos Servidores",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Insira uma URL contendo o arquivo de servidores (JSON ou Texto estilo Painel) para o app carregar dinamicamente na inicialização.",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = urlInput,
+                            onValueChange = { urlInput = it },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 11.sp),
+                            label = { Text("URL de Configuração", color = Color.Gray, fontSize = 10.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NetflixRed,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                focusedLabelColor = NetflixRed
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showServersUrlDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (urlInput.trim().isNotEmpty()) {
+                                        viewModel.preferencesService.dynamicServersUrl = urlInput.trim()
+                                        viewModel.fetchDynamicServers()
+                                        snackbarMessage = "URL de configuração definida e atualizada!"
+                                        snackbarVisible = true
+                                        showServersUrlDialog = false
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("SALVAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showImportTextDialog) {
+            var textInput by remember { mutableStateOf("") }
+            Dialog(onDismissRequest = { showImportTextDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Importar Texto do Painel",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Cole aqui o texto copiado de seu painel de revendedor que contém a lista de DNS ou links M3U (como o gerado no teste rápido).",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = textInput,
+                            onValueChange = { textInput = it },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 10.sp),
+                            label = { Text("Texto do Painel (URLs ou M3U)", color = Color.Gray, fontSize = 10.sp) },
+                            minLines = 4,
+                            maxLines = 6,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NetflixRed,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                focusedLabelColor = NetflixRed
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(120.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showImportTextDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (textInput.trim().isNotEmpty()) {
+                                        val success = viewModel.importServersFromPlainText(textInput)
+                                        if (success) {
+                                            snackbarMessage = "Servidores importados com sucesso do texto!"
+                                            snackbarVisible = true
+                                            showImportTextDialog = false
+                                        } else {
+                                            snackbarMessage = "Nenhum formato de servidor válido extraído."
+                                            snackbarVisible = true
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                Text("IMPORTAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
                     }
