@@ -415,29 +415,56 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchDynamicServers() {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val url = preferencesService.dynamicServersUrl
-                val request = Request.Builder()
-                    .url(url)
-                    .build()
+            val targets = mutableListOf<String>()
+            val customUrl = preferencesService.dynamicServersUrl.trim()
+            if (customUrl.isNotEmpty()) {
+                targets.add(customUrl)
+            }
+            
+            val defaultUrl = "https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/servers.json"
+            if (!targets.contains(defaultUrl)) {
+                targets.add(defaultUrl)
+            }
+
+            var success = false
+            for (url in targets) {
+                if (success) break
                 
-                okHttpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        val bodyString = response.body?.string()
-                        if (!bodyString.isNullOrEmpty()) {
-                            val parsed = parseServersJson(bodyString)
-                            if (parsed.isNotEmpty()) {
-                                preferencesService.cachedServersJson = bodyString
-                                _predefinedServersState.value = parsed
-                                Log.d("MK21_VM", "Loaded ${parsed.size} dynamic servers dynamically!")
+                // Retry up to 3 times for each target
+                for (attempt in 1..3) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .build()
+                        
+                        okHttpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                val bodyString = response.body?.string()
+                                if (!bodyString.isNullOrEmpty()) {
+                                    val parsed = parseServersJson(bodyString)
+                                    if (parsed.isNotEmpty()) {
+                                        preferencesService.cachedServersJson = bodyString
+                                        _predefinedServersState.value = parsed
+                                        Log.d("MK21_VM", "Loaded ${parsed.size} dynamic servers from $url on attempt $attempt!")
+                                        success = true
+                                        break
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        Log.w("MK21_VM", "Failed to load dynamic servers from web: ${response.code}")
+                    } catch (e: Throwable) {
+                        Log.w("MK21_VM", "Attempt $attempt to load servers from $url failed: ${e.message}")
+                    }
+                    if (!success && attempt < 3) {
+                        delay(2000L * attempt) // Retry delay: 2s, 4s
                     }
                 }
-            } catch (e: Throwable) {
-                Log.e("MK21_VM", "Error fetching dynamic servers", e)
+            }
+            
+            // If all web requests fail, load whatever we have in cache or default static servers
+            if (!success) {
+                Log.w("MK21_VM", "All online load attempts failed. Loading from cached storage or static defaults.")
+                loadCachedServers()
             }
         }
     }
