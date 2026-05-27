@@ -187,6 +187,18 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getString("cached_servers_json", "") ?: "" } catch (e: Throwable) { "" }
         set(value) { try { prefs.edit().putString("cached_servers_json", value).apply() } catch (e: Throwable) {} }
 
+    var loadLiveInForeground: Boolean
+        get() = try { prefs.getBoolean("load_live_foreground", true) } catch (e: Throwable) { true }
+        set(value) { try { prefs.edit().putBoolean("load_live_foreground", value).apply() } catch (e: Throwable) {} }
+
+    var loadMoviesInForeground: Boolean
+        get() = try { prefs.getBoolean("load_movies_foreground", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("load_movies_foreground", value).apply() } catch (e: Throwable) {} }
+
+    var loadSeriesInForeground: Boolean
+        get() = try { prefs.getBoolean("load_series_foreground", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("load_series_foreground", value).apply() } catch (e: Throwable) {} }
+
     fun isCredentialsConfigured(predefinedNames: Set<String>): Boolean {
         val isPredefined = predefinedNames.contains(activePlaylistName)
         return activePlaylistName.isNotEmpty() && (

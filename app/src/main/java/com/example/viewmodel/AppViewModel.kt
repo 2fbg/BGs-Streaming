@@ -12,9 +12,8 @@ import com.example.data.model.PlaylistItem
 import com.example.data.model.ServerProfile
 import com.example.data.parser.M3UParser
 import com.example.data.service.PreferencesService
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.InputStream
@@ -85,6 +84,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
+
+    private val _backgroundLoadingState = MutableStateFlow<String?>(null)
+    val backgroundLoadingState = _backgroundLoadingState.asStateFlow()
+
+    private var backgroundLoadJob: kotlinx.coroutines.Job? = null
 
     private val _loginSuccess = MutableSharedFlow<Unit>(replay = 0)
     val loginSuccess = _loginSuccess.asSharedFlow()
@@ -387,6 +391,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectPlaylist(playlistName: String) {
+        // Cancel background loads immediately upon switching playlists
+        backgroundLoadJob?.cancel()
+        backgroundLoadJob = null
+        _backgroundLoadingState.value = null
+
         _activePlaylistName.value = playlistName
         preferencesService.activePlaylistName = playlistName
         
@@ -735,6 +744,79 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private suspend fun savePlaylistStaged(targetPlaylist: String, parsedItems: List<PlaylistItem>, isSilent: Boolean = false) {
+        // 1. Cancel previous background load jobs
+        backgroundLoadJob?.cancel()
+        backgroundLoadJob = null
+        _backgroundLoadingState.value = null
+
+        // 2. Identify user preferences
+        var loadLive = preferencesService.loadLiveInForeground
+        var loadMovies = preferencesService.loadMoviesInForeground
+        var loadSeries = preferencesService.loadSeriesInForeground
+
+        // Safety fallback: if everything is false, default to LIVE in foreground so the user has something immediately
+        if (!loadLive && !loadMovies && !loadSeries) {
+            loadLive = true
+        }
+
+        // 3. Partition items
+        val (foregroundItems, backgroundItems) = parsedItems.partition { item ->
+            when (item.contentType) {
+                "LIVE" -> loadLive
+                "MOVIE" -> loadMovies
+                "SERIES" -> loadSeries
+                else -> true
+            }
+        }
+
+        // 4. Clear database table content for this source
+        playlistItemDao.clearPlaylistItems(targetPlaylist)
+
+        // 5. Insert foreground items in chunk of 250
+        if (foregroundItems.isNotEmpty()) {
+            foregroundItems.chunked(250).forEach { chunk ->
+                playlistItemDao.insertItems(chunk)
+            }
+        }
+
+        // 6. Set updated timestamp immediately
+        preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
+
+        // 7. If not silent, transition progress logic to unlock UI
+        if (!isSilent) {
+            _loadingProgress.value = 100
+            _loginSuccess.emit(Unit)
+            kotlinx.coroutines.delay(1000)
+            _loadingProgress.value = null
+        }
+
+        // 8. Launch Background loading for remaining items
+        if (backgroundItems.isNotEmpty()) {
+            backgroundLoadJob = viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val total = backgroundItems.size
+                    var inserted = 0
+                    _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... (0%)"
+
+                    // Chunk to keep it fast but yielding to read operations with small delay
+                    backgroundItems.chunked(500).forEach { chunk ->
+                        if (!this@launch.isActive) return@launch
+                        playlistItemDao.insertItems(chunk)
+                        inserted += chunk.size
+                        val percent = (inserted * 100) / total
+                        _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... ($percent%)"
+                        kotlinx.coroutines.delay(40) // yielding SQLite lock to other activities safely
+                    }
+                } catch (e: Exception) {
+                    Log.e("MK21_VM", "Error in background staged insertion: ${e.message}", e)
+                } finally {
+                    _backgroundLoadingState.value = null
+                }
+            }
+        }
+    }
+
     fun refreshActivePlaylist() {
         viewModelScope.launch(Dispatchers.IO) {
             _loadingProgress.value = 0
@@ -775,13 +857,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 _loadingProgress.value = 95 // saving cache
-                playlistItemDao.clearAndInsertPlaylistItems(targetPlaylist, parsedItems)
-
-                preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
-                _loadingProgress.value = 100
-                _loginSuccess.emit(Unit)
-                kotlinx.coroutines.delay(1200) // slight delay to show progress complete
-                _loadingProgress.value = null
+                savePlaylistStaged(targetPlaylist, parsedItems, isSilent = false)
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao processar a lista: ${e.message}"
                 _loadingProgress.value = null
@@ -802,8 +878,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
                     if (parsedItems.isNotEmpty()) {
                         viewModelScope.launch(Dispatchers.IO) {
-                            playlistItemDao.clearAndInsertPlaylistItems(targetPlaylist, parsedItems)
-                            preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
+                            savePlaylistStaged(targetPlaylist, parsedItems, isSilent = true)
                         }
                     }
                 }

@@ -1150,6 +1150,7 @@ fun HomeScreen(
     val loadingProgress by viewModel.loadingProgress.collectAsState()
     val errorMsg by viewModel.errorMessage.collectAsState()
     val continueWatching by viewModel.continueWatchingList.collectAsState()
+    val backgroundLoadingState by viewModel.backgroundLoadingState.collectAsState()
 
     var showPlaylistMenu by remember { mutableStateOf(false) }
     var selectedSeriesForDetail by remember { mutableStateOf<GroupedSeries?>(null) }
@@ -1621,6 +1622,38 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
                         }
+                    }
+                }
+            }
+
+            if (backgroundLoadingState != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161111)),
+                    border = BorderStroke(1.dp, com.example.ui.theme.SophisticatedRedStart.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            color = com.example.ui.theme.SophisticatedRedStart,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = backgroundLoadingState ?: "",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -3805,6 +3838,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showUpdateNowDialog by remember { mutableStateOf(false) }
     var showSortOrderDialog by remember { mutableStateOf(false) }
     var showLicenseDialog by remember { mutableStateOf(false) }
+    var showStagedLoadingDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3870,7 +3904,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Dynamic grid list of 8 clean config options utilizing basic guaranteed compiling icons
+            // Dynamic grid list of 9 clean config options utilizing basic guaranteed compiling icons
             val configList = listOf(
                 "Controle dos pais" to Icons.Default.Lock,
                 "Limpar histórico de filmes" to Icons.Default.Delete,
@@ -3879,6 +3913,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 "Limpar canais de histórico" to Icons.Default.ClearAll,
                 "Configurações de legenda" to Icons.Default.Info,
                 "Ordenação do menu" to Icons.Default.Sort,
+                "Carregamento em etapas" to Icons.Default.List,
                 "Licença e Ativação" to Icons.Default.VpnKey
             )
  
@@ -3904,6 +3939,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
                                         "Configurações de legenda" -> showSubtitleSizeDialog = true
                                         "Ordenação do menu" -> showSortOrderDialog = true
+                                        "Carregamento em etapas" -> showStagedLoadingDialog = true
                                         "Licença e Ativação" -> showLicenseDialog = true
                                     }
                                 },
@@ -3939,14 +3975,21 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                         
                                         // Dynamic interactive value descriptor display below title
                                         val subtext = when (title) {
-                                            "Controle dos pais" -> "Segurança ativa"
+                                            "Controle dos pais" -> "Segurança active"
                                             "Limpar histórico de filmes" -> "Apagar Continue Assistindo"
                                             "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
                                             "Atualizar agora" -> "Sincronizar m3u"
                                             "Limpar canais de histórico" -> "Apagar histórico canais"
                                             "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
                                             "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
-                                            "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias restantes"
+                                            "Carregamento em etapas" -> {
+                                                val list = mutableListOf<String>()
+                                                if (viewModel.preferencesService.loadLiveInForeground) list.add("Canais")
+                                                if (viewModel.preferencesService.loadMoviesInForeground) list.add("Filmes")
+                                                if (viewModel.preferencesService.loadSeriesInForeground) list.add("Séries")
+                                                if (list.isEmpty()) "Segundo Plano" else "1º Plano: " + list.joinToString(", ")
+                                            }
+                                            "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
                                             else -> ""
                                         }
                                         
@@ -4308,6 +4351,145 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("ENTENDIDO", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showStagedLoadingDialog) {
+            Dialog(onDismissRequest = { showStagedLoadingDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Carregamento em Etapas",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Selecione quais conteúdos carregar em Primeiro Plano. Os demais serão carregados em Segundo Plano de forma silenciosa e incremental para não travar o aplicativo.",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        var liveChecked by remember { mutableStateOf(viewModel.preferencesService.loadLiveInForeground) }
+                        var moviesChecked by remember { mutableStateOf(viewModel.preferencesService.loadMoviesInForeground) }
+                        var seriesChecked by remember { mutableStateOf(viewModel.preferencesService.loadSeriesInForeground) }
+
+                        // Custom Switch / Checkbox row
+                        @Composable
+                        fun StagedOptionRow(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onCheckedChange(!checked) }
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = description, color = Color.Gray, fontSize = 9.sp)
+                                }
+                                Checkbox(
+                                    checked = checked,
+                                    onCheckedChange = onCheckedChange,
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = NetflixRed,
+                                        uncheckedColor = Color.Gray,
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        StagedOptionRow(
+                            title = "Canais (Ao Vivo)",
+                            description = "Carga instantânea de canais de TV",
+                            checked = liveChecked,
+                            onCheckedChange = { 
+                                liveChecked = it
+                                // Prevent checking nothing
+                                if (!it && !moviesChecked && !seriesChecked) {
+                                    liveChecked = true
+                                }
+                            }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(Color.White.copy(alpha = 0.05f)))
+
+                        StagedOptionRow(
+                            title = "Filmes (VOD)",
+                            description = "Carregar catálogo de filmes na inicialização",
+                            checked = moviesChecked,
+                            onCheckedChange = { 
+                                moviesChecked = it
+                                if (!liveChecked && !it && !seriesChecked) {
+                                    liveChecked = true
+                                }
+                            }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(Color.White.copy(alpha = 0.05f)))
+
+                        StagedOptionRow(
+                            title = "Séries (VOD)",
+                            description = "Carregar catálogo de séries na inicialização",
+                            checked = seriesChecked,
+                            onCheckedChange = { 
+                                seriesChecked = it
+                                if (!liveChecked && !moviesChecked && !it) {
+                                    liveChecked = true
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showStagedLoadingDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.preferencesService.loadLiveInForeground = liveChecked
+                                    viewModel.preferencesService.loadMoviesInForeground = moviesChecked
+                                    viewModel.preferencesService.loadSeriesInForeground = seriesChecked
+                                    snackbarMessage = "Configurações de carga salvas com sucesso!"
+                                    snackbarVisible = true
+                                    showStagedLoadingDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("SALVAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
                         }
                     }
                 }
