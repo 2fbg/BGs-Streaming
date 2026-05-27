@@ -592,6 +592,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearMoviesHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playlistItemDao.clearMoviesHistory(_activePlaylistName.value)
+        }
+    }
+
+    fun clearSeriesHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playlistItemDao.clearSeriesHistory(_activePlaylistName.value)
+        }
+    }
+
     fun clearLiveHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             playlistItemDao.clearLiveHistory(_activePlaylistName.value)
@@ -842,6 +854,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Manual lists operations
     fun addManualPlaylist(name: String, url: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            playlistItemDao.clearPlaylistItems(name)
             manualPlaylistDao.insertManualPlaylist(ManualPlaylist(name, url))
         }
     }

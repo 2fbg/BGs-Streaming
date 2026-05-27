@@ -3260,13 +3260,33 @@ fun VideoPlayerUI(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            text = "Categoria: ${playlistItem.category}",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Categoria: ${playlistItem.category}",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (playlistItem.contentType == "LIVE") {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .background(GoldPremium, CircleShape)
+                                )
+                                Text(
+                                    text = "NO AR: ${getCurrentEpgProgram(playlistItem.name)}",
+                                    color = GoldPremium,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -3841,6 +3861,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showStagedLoadingDialog by remember { mutableStateOf(false) }
     var showServersUrlDialog by remember { mutableStateOf(false) }
     var showImportTextDialog by remember { mutableStateOf(false) }
+    var showClearSeriesHistoryDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -3873,166 +3894,190 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Server connection card (compact info)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "Servidor: $activePlaylist",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Usuário Logado: $username",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "PREFERÊNCIAS SISTEMA (COMPACTO)",
-                color = GoldPremium,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 11.sp,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            // Dynamic grid list of 11 clean config options utilizing basic guaranteed compiling icons
-            val configList = listOf(
-                "Controle dos pais" to Icons.Default.Lock,
-                "Limpar histórico de filmes" to Icons.Default.Delete,
-                "Leitor externo" to Icons.Default.PlayArrow,
-                "Atualizar agora" to Icons.Default.Refresh,
-                "Limpar canais de histórico" to Icons.Default.ClearAll,
-                "Configurações de legenda" to Icons.Default.Info,
-                "Ordenação do menu" to Icons.Default.Sort,
-                "Carregamento em etapas" to Icons.Default.List,
-                "URL do Servidor" to Icons.Default.Settings,
-                "Importar do Painel" to Icons.Default.Edit,
-                "Licença e Ativação" to Icons.Default.VpnKey
-            )
- 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                configList.chunked(2).forEach { pair ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        pair.forEach { (title, icon) ->
-                            Card(
-                                onClick = {
-                                    when (title) {
-                                        "Controle dos pais" -> showParentalControlDialog = true
-                                        "Limpar histórico de filmes" -> showClearMoviesHistoryDialog = true
-                                        "Leitor externo" -> showExternalPlayerDialog = true
-                                        "Atualizar agora" -> showUpdateNowDialog = true
-                                        "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
-                                        "Configurações de legenda" -> showSubtitleSizeDialog = true
-                                        "Ordenação do menu" -> showSortOrderDialog = true
-                                        "Carregamento em etapas" -> showStagedLoadingDialog = true
-                                        "URL do Servidor" -> showServersUrlDialog = true
-                                        "Importar do Painel" -> showImportTextDialog = true
-                                        "Licença e Ativação" -> showLicenseDialog = true
-                                    }
-                                },
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(72.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = title,
-                                        tint = GoldPremium,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = title,
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        
-                                        // Dynamic interactive value descriptor display below title
-                                        val subtext = when (title) {
-                                            "Controle dos pais" -> "Segurança active"
-                                            "Limpar histórico de filmes" -> "Apagar Continue Assistindo"
-                                            "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
-                                            "Atualizar agora" -> "Sincronizar m3u"
-                                            "Limpar canais de histórico" -> "Apagar histórico canais"
-                                            "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
-                                            "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
-                                            "Carregamento em etapas" -> {
-                                                val list = mutableListOf<String>()
-                                                if (viewModel.preferencesService.loadLiveInForeground) list.add("Canais")
-                                                if (viewModel.preferencesService.loadMoviesInForeground) list.add("Filmes")
-                                                if (viewModel.preferencesService.loadSeriesInForeground) list.add("Séries")
-                                                if (list.isEmpty()) "Segundo Plano" else "1º Plano: " + list.joinToString(", ")
-                                            }
-                                            "URL do Servidor" -> {
-                                                val url = viewModel.preferencesService.dynamicServersUrl
-                                                if (url.startsWith("https://raw.githubusercontent.com")) "GitHub (Padrão)" else {
-                                                    val clean = url.replace("https://", "").replace("http://", "")
-                                                    if (clean.length > 20) clean.take(20) + "..." else clean
-                                                }
-                                            }
-                                            "Importar do Painel" -> "Carregar texto do painel"
-                                            "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
-                                            else -> ""
+                // SECTION 1: SYSTEM PREFERENCES
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "PREFERÊNCIAS SISTEMA (COMPACTO)",
+                        color = GoldPremium,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+
+                    val configList = listOf(
+                        "Controle dos pais" to Icons.Default.Lock,
+                        "Leitor externo" to Icons.Default.PlayArrow,
+                        "Configurações de legenda" to Icons.Default.Info,
+                        "Ordenação do menu" to Icons.Default.Sort,
+                        "Carregamento em etapas" to Icons.Default.List,
+                        "Importar do Painel" to Icons.Default.Edit,
+                        "Licença e Ativação" to Icons.Default.VpnKey
+                    )
+
+                    configList.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            pair.forEach { (title, icon) ->
+                                Card(
+                                    onClick = {
+                                        when (title) {
+                                            "Controle dos pais" -> showParentalControlDialog = true
+                                            "Leitor externo" -> showExternalPlayerDialog = true
+                                            "Configurações de legenda" -> showSubtitleSizeDialog = true
+                                            "Ordenação do menu" -> showSortOrderDialog = true
+                                            "Carregamento em etapas" -> showStagedLoadingDialog = true
+                                            "Importar do Painel" -> showImportTextDialog = true
+                                            "Licença e Ativação" -> showLicenseDialog = true
                                         }
-                                        
-                                        if (subtext.isNotEmpty()) {
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(72.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = title,
+                                            tint = GoldPremium,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = subtext,
-                                                color = Color.Gray,
-                                                fontSize = 9.sp,
+                                                text = title,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
                                                 maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(top = 2.dp)
+                                                overflow = TextOverflow.Ellipsis
                                             )
+                                            
+                                            val subtext = when (title) {
+                                                "Controle dos pais" -> "Segurança active"
+                                                "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
+                                                "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
+                                                "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
+                                                "Carregamento em etapas" -> {
+                                                    val list = mutableListOf<String>()
+                                                    if (viewModel.preferencesService.loadLiveInForeground) list.add("Canais")
+                                                    if (viewModel.preferencesService.loadMoviesInForeground) list.add("Filmes")
+                                                    if (viewModel.preferencesService.loadSeriesInForeground) list.add("Séries")
+                                                    if (list.isEmpty()) "Segundo Plano" else "1º Plano: " + list.joinToString(", ")
+                                                }
+                                                "Importar do Painel" -> "Carregar texto do painel"
+                                                "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
+                                                else -> ""
+                                            }
+                                            
+                                            if (subtext.isNotEmpty()) {
+                                                Text(
+                                                    text = subtext,
+                                                    color = Color.Gray,
+                                                    fontSize = 9.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.padding(top = 2.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
+                            if (pair.size < 2) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
-                        if (pair.size < 2) {
-                            Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+
+                // SECTION 2: CLEANING ACTIONS
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "LIMPEZA E PRIVACIDADE",
+                        color = GoldPremium,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+
+                    val clearOptions = listOf(
+                        "Limpar histórico de filmes" to "Apagar Continue Assistindo de Filmes",
+                        "Limpar histórico de séries" to "Apagar Continue Assistindo de Séries",
+                        "Limpar canais de histórico" to "Apagar canais assistidos ultimamente"
+                    )
+
+                    clearOptions.forEach { (title, subtitle) ->
+                        Card(
+                            onClick = {
+                                when (title) {
+                                    "Limpar histórico de filmes" -> showClearMoviesHistoryDialog = true
+                                    "Limpar histórico de séries" -> showClearSeriesHistoryDialog = true
+                                    "Limpar canais de histórico" -> showClearLiveHistoryDialog = true
+                                }
+                            },
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (title == "Limpar canais de histórico") Icons.Default.ClearAll else Icons.Default.Delete,
+                                    contentDescription = title,
+                                    tint = GoldPremium,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column {
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = subtitle,
+                                        color = Color.Gray,
+                                        fontSize = 10.sp,
+                                        modifier = Modifier.padding(top = 1.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Footer version
             Text(
-                text = "MK21 MultiServidor v1.21.PRO - Android Engine",
+                text = "MK21 MultiServidor v1.21.PRO - Android Engine - by FBG2",
                 color = Color.Gray,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
@@ -4862,14 +4907,14 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Limpar Histórico",
+                            text = "Limpar Filmes Assistidos",
                             color = GoldPremium,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                         Text(
-                            text = "Deseja realmente apagar o seu histórico de filmes e séries assistidos (Continue Assistindo)?",
+                            text = "Deseja realmente apagar o seu histórico de filmes assistidos (Continue Assistindo)?",
                             color = Color.White.copy(alpha = 0.8f),
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -4889,9 +4934,69 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             }
                             Button(
                                 onClick = {
-                                    viewModel.clearMoviesAndSeriesHistory()
+                                    viewModel.clearMoviesHistory()
                                     showClearMoviesHistoryDialog = false
-                                    snackbarMessage = "Histórico de filmes e séries apagado!"
+                                    snackbarMessage = "Histórico de filmes apagado!"
+                                    snackbarVisible = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("SIM", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog for Clear Series History
+        if (showClearSeriesHistoryDialog) {
+            Dialog(onDismissRequest = { showClearSeriesHistoryDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(300.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Limpar Séries Assistidas",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        Text(
+                            text = "Deseja realmente apagar o seu histórico de séries assistidas (Continue Assistindo)?",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showClearSeriesHistoryDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("NÃO", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.clearSeriesHistory()
+                                    showClearSeriesHistoryDialog = false
+                                    snackbarMessage = "Histórico de séries apagado!"
                                     snackbarVisible = true
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),

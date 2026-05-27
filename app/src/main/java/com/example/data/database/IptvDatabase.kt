@@ -55,6 +55,12 @@ interface PlaylistItemDao {
     @Query("UPDATE playlist_items SET lastWatchedTime = 0 WHERE playlistSource = :source AND contentType IN ('MOVIE', 'SERIES')")
     suspend fun clearMoviesAndSeriesHistory(source: String)
 
+    @Query("UPDATE playlist_items SET lastWatchedTime = 0 WHERE playlistSource = :source AND contentType = 'MOVIE'")
+    suspend fun clearMoviesHistory(source: String)
+
+    @Query("UPDATE playlist_items SET lastWatchedTime = 0 WHERE playlistSource = :source AND contentType = 'SERIES'")
+    suspend fun clearSeriesHistory(source: String)
+
     @Query("UPDATE playlist_items SET lastWatchedTime = 0 WHERE playlistSource = :source AND contentType = 'LIVE'")
     suspend fun clearLiveHistory(source: String)
 }
