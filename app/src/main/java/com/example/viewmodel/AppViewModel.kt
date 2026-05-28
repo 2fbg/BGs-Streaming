@@ -510,6 +510,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     if (shouldSyncBasedOnFrequency(lastUpdate)) {
                         Log.d("MK21_VM", "Starting background pre-sync of playlist: $listName")
                         downloadAndParsePlaylistSilently(listName)
+                        // Give the system 8 seconds of breathing room between playlists to safeguard CPU/Database
+                        delay(8000L)
                     }
                 }
             } catch (e: Exception) {
@@ -546,11 +548,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                
-                // Sync all other configured lists if enabled
-                syncAllConfiguredPlaylistsInBackground()
             } catch (e: Throwable) {
                 Log.e("MK21_VM", "Error during init loading configuration check", e)
+            }
+        }
+
+        // Delay background pre-sync of non-active lists heavily (25 seconds)
+        // This ensures the current selected playlist gets 100% of network & DB resources immediately on bootup
+        viewModelScope.launch {
+            try {
+                delay(25000L)
+                syncAllConfiguredPlaylistsInBackground()
+            } catch (e: Throwable) {
+                Log.e("MK21_VM", "Error launching delayed background playlist sync", e)
             }
         }
     }
@@ -938,10 +948,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun savePlaylistStaged(targetPlaylist: String, parsedItems: List<PlaylistItem>, isSilent: Boolean = false) {
-        // 1. Cancel previous background load jobs
-        backgroundLoadJob?.cancel()
-        backgroundLoadJob = null
-        _backgroundLoadingState.value = null
+        val isActivePlaylist = (targetPlaylist == _activePlaylistName.value)
+
+        // 1. Cancel previous background load jobs ONLY if it is the active playlist
+        if (isActivePlaylist) {
+            backgroundLoadJob?.cancel()
+            backgroundLoadJob = null
+            _backgroundLoadingState.value = null
+        }
 
         // 2. Identify user preferences
         var loadLive = preferencesService.loadLiveInForeground
@@ -977,7 +991,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
 
         // 7. If not silent, transition progress logic to unlock UI
-        if (!isSilent) {
+        if (!isSilent && isActivePlaylist) {
             _loadingProgress.value = 100
             _loginSuccess.emit(Unit)
             kotlinx.coroutines.delay(1000)
@@ -986,11 +1000,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
         // 8. Launch Background loading for remaining items
         if (backgroundItems.isNotEmpty()) {
-            backgroundLoadJob = viewModelScope.launch(Dispatchers.IO) {
+            val job = viewModelScope.launch(Dispatchers.IO) {
                 try {
                     val total = backgroundItems.size
                     var inserted = 0
-                    if (!preferencesService.hideBackgroundProgress) {
+                    if (isActivePlaylist && !isSilent && !preferencesService.hideBackgroundProgress) {
                         _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... (0%)"
                     }
 
@@ -1000,16 +1014,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         playlistItemDao.insertItems(chunk)
                         inserted += chunk.size
                         val percent = (inserted * 100) / total
-                        if (!preferencesService.hideBackgroundProgress) {
+                        if (isActivePlaylist && !isSilent && !preferencesService.hideBackgroundProgress) {
                             _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... ($percent%)"
                         }
-                        kotlinx.coroutines.delay(40) // yielding SQLite lock to other activities safely
+                        kotlinx.coroutines.delay(60) // slightly increased delay to optimize background loading and SQLite writes
                     }
                 } catch (e: Exception) {
                     Log.e("MK21_VM", "Error in background staged insertion: ${e.message}", e)
                 } finally {
-                    _backgroundLoadingState.value = null
+                    if (isActivePlaylist) {
+                        _backgroundLoadingState.value = null
+                    }
                 }
+            }
+            if (isActivePlaylist) {
+                backgroundLoadJob = job
             }
         }
     }
@@ -1063,7 +1082,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun downloadAndParsePlaylistSilently(targetPlaylist: String = _activePlaylistName.value) {
+    private suspend fun downloadAndParsePlaylistSilently(targetPlaylist: String = _activePlaylistName.value) {
         try {
             val downloadUrl = getActivePlaylistDownloadUrl(targetPlaylist)
             if (downloadUrl.isEmpty()) return
@@ -1074,9 +1093,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 response.body?.byteStream()?.let { stream ->
                     val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
                     if (parsedItems.isNotEmpty()) {
-                        viewModelScope.launch(Dispatchers.IO) {
-                            savePlaylistStaged(targetPlaylist, parsedItems, isSilent = true)
-                        }
+                        savePlaylistStaged(targetPlaylist, parsedItems, isSilent = true)
                     }
                 }
             }
