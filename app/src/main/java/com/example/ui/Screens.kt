@@ -2088,12 +2088,64 @@ fun HomeScreen(
 
         // Complete fullscreen video player overlay
         if (currentPlayingItem != null) {
-            VideoPlayerUI(
-                playlistItem = currentPlayingItem!!,
-                onClosePlayback = { viewModel.closePlayback() },
-                onPlayPrevious = { viewModel.playPrevious() },
-                onPlayNext = { viewModel.playNext() }
-            )
+            if (viewModel.preferencesService.useExternalPlayer) {
+                val context = LocalContext.current
+                LaunchedEffect(currentPlayingItem) {
+                    val item = currentPlayingItem
+                    if (item != null) {
+                        val videoUrl = item.url.trim()
+                        if (videoUrl.isNotEmpty()) {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                setDataAndType(android.net.Uri.parse(videoUrl), "video/*")
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                val pType = viewModel.preferencesService.externalPlayerType
+                                if (pType == "VLC") {
+                                    setPackage("org.videolan.vlc")
+                                } else if (pType == "MX Player") {
+                                    setPackage("com.mxtech.videoplayer.ad")
+                                }
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: android.content.ActivityNotFoundException) {
+                                val playerRequested = viewModel.preferencesService.externalPlayerType
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Player $playerRequested não encontrado. Abrindo com player padrão...",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                                try {
+                                    val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                        setDataAndType(android.net.Uri.parse(videoUrl), "video/*")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(fallbackIntent)
+                                } catch (ex: Exception) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Nenhum player de vídeo disponível para reproduzir este link.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Erro ao iniciar player: ${e.localizedMessage}",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                    viewModel.closePlayback()
+                }
+            } else {
+                VideoPlayerUI(
+                    playlistItem = currentPlayingItem!!,
+                    onClosePlayback = { viewModel.closePlayback() },
+                    onPlayPrevious = { viewModel.playPrevious() },
+                    onPlayNext = { viewModel.playNext() }
+                )
+            }
         }
 
         if (showSortOrderDialog) {
@@ -3867,7 +3919,9 @@ fun VideoPlayerUI(
                 currentVolume = volumeValue,
                 onSeek = { offsetSec ->
                     val curPos = exoPlayer.currentPosition
-                    val targetPos = (curPos + offsetSec * 1000).coerceIn(0, exoPlayer.duration)
+                    val duration = exoPlayer.duration
+                    val maxPos = if (duration > 0) duration else Long.MAX_VALUE
+                    val targetPos = (curPos + offsetSec * 1000).coerceIn(0L, maxPos)
                     exoPlayer.seekTo(targetPos)
                 },
                 onDismiss = { showCastDialog = false }
@@ -4540,7 +4594,13 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                             
                                             val subtext = when (title) {
                                                 "Controle dos pais" -> "Segurança active"
-                                                "Leitor externo" -> if (viewModel.preferencesService.useExternalPlayer) "Player Externo" else "Player Interno"
+                                                "Leitor externo" -> {
+                                                    if (viewModel.preferencesService.useExternalPlayer) {
+                                                        "Player Externo (${viewModel.preferencesService.externalPlayerType})"
+                                                    } else {
+                                                        "Player Interno (Padrão)"
+                                                    }
+                                                }
                                                 "Configurações de legenda" -> viewModel.preferencesService.subtitleConfig
                                                 "Ordenação do menu" -> viewModel.preferencesService.menuSortOrder
                                                 "Carregamento em etapas" -> {
@@ -5109,14 +5169,45 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
 
         // Video Player options dialogue
         if (showExternalPlayerDialog) {
+            val currentVal = if (!viewModel.preferencesService.useExternalPlayer) {
+                "Player Interno (Padrão)"
+            } else {
+                when (viewModel.preferencesService.externalPlayerType) {
+                    "VLC" -> "VLC Player (Externo)"
+                    "MX Player" -> "MX Player (Externo)"
+                    else -> "Qualquer Player (Externo)"
+                }
+            }
             SettingsSelectionDialog(
                 title = "Escolher Leitor de Vídeo",
-                options = listOf("Usar Player Interno (Padrão)", "Usar Player Externo"),
-                currentValue = if (viewModel.preferencesService.useExternalPlayer) "Usar Player Externo" else "Usar Player Interno (Padrão)",
+                options = listOf(
+                    "Player Interno (Padrão)",
+                    "VLC Player (Externo)",
+                    "MX Player (Externo)",
+                    "Qualquer Player (Externo)"
+                ),
+                currentValue = currentVal,
                 onDismiss = { showExternalPlayerDialog = false },
-                onOptionSelected = {
-                    viewModel.preferencesService.useExternalPlayer = (it == "Usar Player Externo")
-                    snackbarMessage = "Configuração salva: $it"
+                onOptionSelected = { choice ->
+                    when (choice) {
+                        "Player Interno (Padrão)" -> {
+                            viewModel.preferencesService.useExternalPlayer = false
+                            viewModel.preferencesService.externalPlayerType = "Interno"
+                        }
+                        "VLC Player (Externo)" -> {
+                            viewModel.preferencesService.useExternalPlayer = true
+                            viewModel.preferencesService.externalPlayerType = "VLC"
+                        }
+                        "MX Player (Externo)" -> {
+                            viewModel.preferencesService.useExternalPlayer = true
+                            viewModel.preferencesService.externalPlayerType = "MX Player"
+                        }
+                        else -> {
+                            viewModel.preferencesService.useExternalPlayer = true
+                            viewModel.preferencesService.externalPlayerType = "Qualquer"
+                        }
+                    }
+                    snackbarMessage = "Configuração salva: $choice"
                     snackbarVisible = true
                 }
             )

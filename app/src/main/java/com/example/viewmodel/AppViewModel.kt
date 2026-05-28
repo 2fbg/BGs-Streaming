@@ -263,10 +263,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
-    // Highlights selection (Randomly gets 5 items of ACTIVE playlist)
+    // Highlights selection (Randomly gets 5 items of ACTIVE playlist) without adult content
     val highlightsList = _activePlaylistName.flatMapLatest { playlist ->
         playlistItemDao.getRandomHighlights(playlist).map { items ->
-            items.shuffled().take(6)
+            items.filter { !it.isAdult && !isAdultCategory(it.category) }
+                .shuffled()
+                .take(6)
         }
     }.flowOn(Dispatchers.IO).stateIn(
         scope = viewModelScope,

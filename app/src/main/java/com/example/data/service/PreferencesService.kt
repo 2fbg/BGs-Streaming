@@ -96,6 +96,10 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getBoolean("use_external_player", false) } catch (e: Throwable) { false }
         set(value) { try { prefs.edit().putBoolean("use_external_player", value).apply() } catch (e: Throwable) {} }
 
+    var externalPlayerType: String
+        get() = try { prefs.getString("external_player_type", "Qualquer Player") ?: "Qualquer Player" } catch (e: Throwable) { "Qualquer Player" }
+        set(value) { try { prefs.edit().putString("external_player_type", value).apply() } catch (e: Throwable) {} }
+
     var deviceType: String
         get() = try { prefs.getString("device_type", "Celular / Tablet") ?: "Celular / Tablet" } catch (e: Throwable) { "Celular / Tablet" }
         set(value) { try { prefs.edit().putString("device_type", value).apply() } catch (e: Throwable) {} }
