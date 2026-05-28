@@ -24,6 +24,12 @@ object LocalCastServer {
     var isRunning: Boolean = false
         private set
 
+    // Remote sync control states
+    var remoteIsPlaying: Boolean = true
+    var remoteSeekRequest: Long = -1L // in milliseconds
+    var remoteVolume: Float = 0.8f
+    var tvCurrentTimeSeconds: Float = 0.0f
+
     @Synchronized
     fun startServer(context: Context, item: PlaylistItem): String? {
         activeItem = item
@@ -75,6 +81,7 @@ object LocalCastServer {
     private fun handleConnection(socket: Socket) {
         try {
             val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            val firstLine = reader.readLine() ?: ""
             // Read headers (we can ignore content but we must read until blank line)
             var line: String?
             while (true) {
@@ -82,6 +89,52 @@ object LocalCastServer {
                 if (line.isNullOrEmpty()) {
                     break
                 }
+            }
+
+            val path = if (firstLine.startsWith("GET ")) {
+                firstLine.substringAfter("GET ").substringBefore(" HTTP/")
+            } else {
+                "/"
+            }
+
+            // Intercept real-time REST endpoint for TV polling commands
+            if (path.contains("api/status")) {
+                val timeQuery = path.substringAfter("time=", "")
+                if (timeQuery.isNotEmpty()) {
+                    val actualTime = timeQuery.substringBefore("&").toFloatOrNull()
+                    if (actualTime != null) {
+                        tvCurrentTimeSeconds = actualTime
+                    }
+                }
+                
+                val item = activeItem
+                val json = """
+                    {
+                        "playing": $remoteIsPlaying,
+                        "seekTo": $remoteSeekRequest,
+                        "volume": $remoteVolume,
+                        "url": "${item?.url ?: ""}",
+                        "name": "${item?.name ?: ""}"
+                    }
+                """.trimIndent()
+                
+                // Reset seek request immediately after serving it
+                if (remoteSeekRequest >= 0) {
+                    remoteSeekRequest = -1L
+                }
+                
+                val jsonBytes = json.toByteArray(Charsets.UTF_8)
+                val responseHeader = "HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: application/json; charset=utf-8\r\n" +
+                        "Content-Length: ${jsonBytes.size}\r\n" +
+                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Connection: close\r\n\r\n"
+                
+                val outputStream = socket.getOutputStream()
+                outputStream.write(responseHeader.toByteArray(Charsets.UTF_8))
+                outputStream.write(jsonBytes)
+                outputStream.flush()
+                return
             }
 
             val item = activeItem
@@ -227,6 +280,52 @@ object LocalCastServer {
                     </div>
                     
                     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            var player = videojs('my-video');
+                            var currentVideoUrl = "${cleanUrl}";
+                            
+                            function startPolling() {
+                                setInterval(function() {
+                                    var currentTime = player.currentTime() || 0;
+                                    fetch('/api/status?time=' + currentTime)
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            // 1. Channel / video stream synchronization
+                                            if (data.url && data.url !== currentVideoUrl) {
+                                                console.log("Stream changed! Reloading video...");
+                                                location.reload();
+                                            }
+                                            
+                                            // 2. Play/Pause command sync
+                                            if (data.playing === false && !player.paused()) {
+                                                player.pause();
+                                            } else if (data.playing === true && player.paused()) {
+                                                player.play().catch(function(e) {
+                                                    console.log("Autoplay block:", e);
+                                                });
+                                            }
+                                            
+                                            // 3. Time seek command sync
+                                            if (data.seekTo >= 0) {
+                                                var seekSecs = data.seekTo / 1000;
+                                                player.currentTime(seekSecs);
+                                            }
+                                            
+                                            // 4. Volume command sync
+                                            if (typeof data.volume === 'number') {
+                                                player.volume(data.volume);
+                                            }
+                                        })
+                                        .catch(err => console.error("Error polling commands:", err));
+                                }, 1000);
+                            }
+                            
+                            player.ready(function() {
+                                startPolling();
+                            });
+                        });
+                    </script>
                 </body>
                 </html>
                 """.trimIndent()

@@ -3968,6 +3968,7 @@ fun VideoPlayerUI(
                 onTogglePlayback = {
                     isPlaying = !isPlaying
                     exoPlayer.playWhenReady = isPlaying
+                    LocalCastServer.remoteIsPlaying = isPlaying
                 },
                 onVolumeChange = { pct ->
                     isMuted = false
@@ -3975,6 +3976,7 @@ fun VideoPlayerUI(
                     val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                     val targetVol = (pct * maxVol).toInt().coerceIn(0, maxVol)
                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                    LocalCastServer.remoteVolume = pct
                 },
                 currentVolume = volumeValue,
                 onSeek = { offsetSec ->
@@ -3983,6 +3985,12 @@ fun VideoPlayerUI(
                     val maxPos = if (duration > 0) duration else Long.MAX_VALUE
                     val targetPos = (curPos + offsetSec * 1000).coerceIn(0L, maxPos)
                     exoPlayer.seekTo(targetPos)
+                    
+                    if (LocalCastServer.tvCurrentTimeSeconds > 0) {
+                        LocalCastServer.remoteSeekRequest = ((LocalCastServer.tvCurrentTimeSeconds + offsetSec) * 1000).toLong().coerceAtLeast(0L)
+                    } else {
+                        LocalCastServer.remoteSeekRequest = targetPos
+                    }
                 },
                 onDismiss = { showCastDialog = false }
             )
@@ -4018,19 +4026,43 @@ fun SmartTvCastDialog(
     var isScanning by remember { mutableStateOf(true) }
     var pairedDevice by remember { mutableStateOf<String?>(null) }
     var isPairing by remember { mutableStateOf<String?>(null) }
+    var scanLogText by remember { mutableStateOf("Iniciando varredura...") }
     
-    val deviceList = listOf(
-        "Sala de Estar (Chromecast Ultra)" to "Google Cast",
-        "Quarto Principal (LG webOS TV)" to "DLNA/SmartShare",
-        "Cozinha (Roku Streaming Stick)" to "Roku Cast",
-        "Escritório (Samsung Crystal 4K)" to "Tizen Connect"
-    )
+    val deviceList = remember {
+        listOf(
+            "Sala de Estar (Chromecast Ultra)" to "Google Cast Protocol",
+            "Quarto Principal (LG webOS TV)" to "DLNA/SmartShare (UPnP)",
+            "Cozinha (Roku Streaming Stick)" to "Roku Cast Service",
+            "Escritório (Samsung Crystal 4K)" to "Tizen Connect"
+        )
+    }
 
-    // Scanning cycle simulator
-    LaunchedEffect(activeTab) {
-        if (activeTab == 1 && pairedDevice == null) {
-            isScanning = true
-            delay(1500)
+    val discoveredList = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, String>>() }
+
+    // Enhanced dynamic network scan scheduler simulator
+    LaunchedEffect(activeTab, isScanning) {
+        if (activeTab == 1 && isScanning) {
+            discoveredList.clear()
+            scanLogText = "Verificando conexões de rede Wi-Fi..."
+            delay(700)
+            scanLogText = "SSDP: Varrendo endereço de multicast 239.255.255.250..."
+            delay(800)
+            if (deviceList.size > 1) {
+                discoveredList.add(deviceList[1]) // Add LG Quarto Principal
+            }
+            scanLogText = "mDNS: Buscando canais _googlecast._tcp.local ativos..."
+            delay(1000)
+            if (deviceList.size > 0) {
+                discoveredList.add(deviceList[0]) // Add Chromecast Sala de Estar
+            }
+            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos e descritores XML..."
+            delay(900)
+            if (deviceList.size > 3) {
+                discoveredList.add(deviceList[2]) // Add Roku Cozinha
+                discoveredList.add(deviceList[3]) // Add Samsung TV Escritório
+            }
+            scanLogText = "Busca finalizada. 4 TVs encontradas na rede local."
+            delay(500)
             isScanning = false
         }
     }
@@ -4283,32 +4315,83 @@ fun SmartTvCastDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 CircularProgressIndicator(color = GoldPremium, strokeWidth = 3.dp)
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(20.dp))
                                 Text(
-                                    text = "Procurando Smart TVs na rede Wi-Fi...",
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    fontSize = 13.sp,
+                                    text = "Buscando Smart TVs...",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Buscando TVs com protocolo DLNA ou Cast ativo",
-                                    color = Color.Gray,
+                                    text = scanLogText,
+                                    color = GoldPremium.copy(alpha = 0.9f),
                                     fontSize = 11.sp,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 14.dp)
                                 )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                // Show partially discovered devices
+                                if (discoveredList.isNotEmpty()) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                                        discoveredList.forEach { (name, protocol) ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 4.dp)
+                                                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(6.dp))
+                                                    .padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(name, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                                    Text(protocol, color = Color.Gray, fontSize = 9.sp)
+                                                }
+                                                Text("Detectado", color = Color(0xFF4CAF50), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             Column {
-                                Text(
-                                    text = "SELECIONE UMA SMART TV ABAIXO:",
-                                    color = Color.Gray,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "SELECIONE UMA SMART TV ABAIXO:",
+                                        color = Color.Gray,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable { isScanning = true }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Recarregar",
+                                            tint = GoldPremium,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "REBUSCAR",
+                                            color = GoldPremium,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
 
-                                deviceList.forEach { (name, protocol) ->
+                                discoveredList.forEach { (name, protocol) ->
                                     val isConnecting = isPairing == name
                                     Card(
                                         onClick = {
