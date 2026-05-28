@@ -4,110 +4,86 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.data.model.PlaylistItem
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpHandler
-import com.sun.net.httpserver.HttpServer
-import java.io.IOException
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.io.OutputStream
-import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 import java.net.NetworkInterface
 import java.util.Locale
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 object LocalCastServer {
     private const val TAG = "LocalCastServer"
-    private var server: HttpServer? = null
+    private var serverSocket: ServerSocket? = null
+    private var executorService: ExecutorService? = null
+    
     var activeItem: PlaylistItem? = null
     var serverPort: Int = 8585
     var isRunning: Boolean = false
         private set
 
+    @Synchronized
     fun startServer(context: Context, item: PlaylistItem): String? {
         activeItem = item
-        if (server != null) {
+        if (isRunning && serverSocket != null) {
             return getCastUrl(context)
         }
+        
         try {
-            server = HttpServer.create(InetSocketAddress(serverPort), 0)
-            server?.createContext("/", CastHtmlHandler())
-            server?.executor = Executors.newSingleThreadExecutor()
-            server?.start()
-            isRunning = true
-            Log.d(TAG, "Server started on port $serverPort")
+            serverSocket = ServerSocket(serverPort)
+            startAcceptLoop()
             return getCastUrl(context)
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting server: ", e)
+            Log.e(TAG, "Error starting server on primary port $serverPort, trying fallback: ", e)
             try {
-                // Try alternate port if 8585 is bound
                 serverPort = 9015
-                server = HttpServer.create(InetSocketAddress(serverPort), 0)
-                server?.createContext("/", CastHtmlHandler())
-                server?.executor = Executors.newSingleThreadExecutor()
-                server?.start()
-                isRunning = true
-                Log.d(TAG, "Server started on alternate port $serverPort")
+                serverSocket = ServerSocket(serverPort)
+                startAcceptLoop()
                 return getCastUrl(context)
             } catch (ex: Exception) {
-                Log.e(TAG, "Failed server creation fallback", ex)
+                Log.e(TAG, "Failed server fallback setup", ex)
             }
         }
         return null
     }
 
-    fun stopServer() {
-        try {
-            server?.stop(0)
-            server = null
-            isRunning = false
-            Log.d(TAG, "Server stopped successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping server", e)
-        }
-    }
-
-    fun getLocalIpAddress(context: Context): String {
-        try {
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            if (wifiManager != null) {
-                val ipAddress = wifiManager.connectionInfo.ipAddress
-                if (ipAddress != 0) {
-                    return String.format(
-                        Locale.US,
-                        "%d.%d.%d.%d",
-                        ipAddress and 0xff,
-                        ipAddress shr 8 and 0xff,
-                        ipAddress shr 16 and 0xff,
-                        ipAddress shr 24 and 0xff
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Wifi IP fetching error", e)
-        }
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val intf = interfaces.nextElement()
-                val addrs = intf.inetAddresses
-                while (addrs.hasMoreElements()) {
-                    val addr = addrs.nextElement()
-                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
-                        return addr.hostAddress
+    private fun startAcceptLoop() {
+        isRunning = true
+        executorService = Executors.newFixedThreadPool(4)
+        
+        // Start main acceptance thread
+        Thread {
+            while (isRunning) {
+                try {
+                    val socket = serverSocket?.accept() ?: break
+                    executorService?.execute {
+                        handleConnection(socket)
                     }
+                } catch (e: Exception) {
+                    if (isRunning) {
+                        Log.e(TAG, "Error accepting socket connection", e)
+                    }
+                    break
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Network adapter IP fetching error", e)
-        }
-        return "192.168.1.100"
+        }.start()
+        Log.d(TAG, "Custom ServerSocket HTTP server started on port $serverPort")
     }
 
-    fun getCastUrl(context: Context): String {
-        return "http://${getLocalIpAddress(context)}:$serverPort/"
-    }
+    private fun handleConnection(socket: Socket) {
+        try {
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            // Read headers (we can ignore content but we must read until blank line)
+            var line: String?
+            while (true) {
+                line = reader.readLine()
+                if (line.isNullOrEmpty()) {
+                    break
+                }
+            }
 
-    private class CastHtmlHandler : HttpHandler {
-        override fun handle(t: HttpExchange) {
             val item = activeItem
             val html = if (item == null) {
                 """
@@ -255,16 +231,86 @@ object LocalCastServer {
                 </html>
                 """.trimIndent()
             }
+
+            val htmlBytes = html.toByteArray(Charsets.UTF_8)
+            val outputStream = socket.getOutputStream()
             
-            val responseBytes = html.toByteArray(Charsets.UTF_8)
-            t.responseHeaders.set("Content-Type", "text/html; charset=utf-8")
-            t.sendResponseHeaders(200, responseBytes.size.toLong())
-            val os: OutputStream = t.responseBody
+            val responseHeader = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: text/html; charset=utf-8\r\n" +
+                    "Content-Length: ${htmlBytes.size}\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n"
+
+            outputStream.write(responseHeader.toByteArray(Charsets.UTF_8))
+            outputStream.write(htmlBytes)
+            outputStream.flush()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling client session", e)
+        } finally {
             try {
-                os.write(responseBytes)
-            } finally {
-                os.close()
+                socket.close()
+            } catch (ex: Exception) {
+                // Ignore close error
             }
         }
+    }
+
+    @Synchronized
+    fun stopServer() {
+        isRunning = false
+        try {
+            serverSocket?.close()
+            serverSocket = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing ServerSocket", e)
+        }
+        try {
+            executorService?.shutdownNow()
+            executorService = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing executors", e)
+        }
+        Log.d(TAG, "Server stopped successfully")
+    }
+
+    fun getLocalIpAddress(context: Context): String {
+        try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            if (wifiManager != null) {
+                val ipAddress = wifiManager.connectionInfo.ipAddress
+                if (ipAddress != 0) {
+                    return String.format(
+                        Locale.US,
+                        "%d.%d.%d.%d",
+                        ipAddress and 0xff,
+                        ipAddress shr 8 and 0xff,
+                        ipAddress shr 16 and 0xff,
+                        ipAddress shr 24 and 0xff
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Wifi IP fetching error", e)
+        }
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val intf = interfaces.nextElement()
+                val addrs = intf.inetAddresses
+                while (addrs.hasMoreElements()) {
+                    val addr = addrs.nextElement()
+                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
+                        return addr.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Network adapter IP fetching error", e)
+        }
+        return "192.168.1.100"
+    }
+
+    fun getCastUrl(context: Context): String {
+        return "http://${getLocalIpAddress(context)}:$serverPort/"
     }
 }

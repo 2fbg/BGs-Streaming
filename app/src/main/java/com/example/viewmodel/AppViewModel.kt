@@ -469,6 +469,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun shouldSyncBasedOnFrequency(lastUpdate: Long): Boolean {
+        if (lastUpdate == 0L) return true
+        val timeElapsed = System.currentTimeMillis() - lastUpdate
+        return when (preferencesService.syncIntervalFrequency) {
+            "A cada inicialização" -> true
+            "Uma vez ao dia" -> timeElapsed > 24L * 60 * 60 * 1000L
+            "Uma vez por semana" -> timeElapsed > 7L * 24 * 60 * 60 * 1000L
+            "Desativado (Apenas manual)" -> false
+            else -> timeElapsed > 24L * 60 * 60 * 1000L
+        }
+    }
+
+    fun syncAllConfiguredPlaylistsInBackground() {
+        if (!preferencesService.syncAllListsBackground) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val configuredLists = mutableListOf<String>()
+                val active = _activePlaylistName.value
+                
+                // For predefined servers, they share global credentials
+                if (_username.value.isNotEmpty() && _password.value.isNotEmpty()) {
+                    for (server in predefinedServers) {
+                        if (server.name != active) {
+                            configuredLists.add(server.name)
+                        }
+                    }
+                }
+                
+                // For manual lists
+                val manual = manualPlaylists.value
+                for (m in manual) {
+                    if (m.name != active) {
+                        configuredLists.add(m.name)
+                    }
+                }
+                
+                for (listName in configuredLists) {
+                    val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(listName)
+                    if (shouldSyncBasedOnFrequency(lastUpdate)) {
+                        Log.d("MK21_VM", "Starting background pre-sync of playlist: $listName")
+                        downloadAndParsePlaylistSilently(listName)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MK21_VM", "Error preloading background playlists", e)
+            }
+        }
+    }
+
     init {
         // Load dynamically cached servers immediately, then fetch latest in background
         loadCachedServers()
@@ -484,23 +533,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 if (isCredentialsConfigured()) {
                     val lastUpdate = preferencesService.getLastPlaylistUpdateTimestamp(preferencesService.activePlaylistName)
-                    val oneDayMs = 24 * 60 * 60 * 1000L
-                    val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdate
                     
-                    // If cache details do not exist, or are older than 1 day, fetch from internet
                     if (lastUpdate == 0L) {
                         refreshActivePlaylist()
-                    } else if (timeSinceLastUpdate > oneDayMs) {
-                        // Update in silent background threads to satisfy "atualizar de forma assíncrona depois"
+                    } else if (shouldSyncBasedOnFrequency(lastUpdate)) {
                         viewModelScope.launch(Dispatchers.IO) {
                             try {
                                 downloadAndParsePlaylistSilently()
                             } catch (e: Throwable) {
-                                Log.e("MK21_VM", "Error updating background playlist cache", e)
+                                Log.e("MK21_VM", "Error updating background active playlist cache", e)
                             }
                         }
                     }
                 }
+                
+                // Sync all other configured lists if enabled
+                syncAllConfiguredPlaylistsInBackground()
             } catch (e: Throwable) {
                 Log.e("MK21_VM", "Error during init loading configuration check", e)
             }
@@ -942,7 +990,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     val total = backgroundItems.size
                     var inserted = 0
-                    _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... (0%)"
+                    if (!preferencesService.hideBackgroundProgress) {
+                        _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... (0%)"
+                    }
 
                     // Chunk to keep it fast but yielding to read operations with small delay
                     backgroundItems.chunked(500).forEach { chunk ->
@@ -950,7 +1000,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         playlistItemDao.insertItems(chunk)
                         inserted += chunk.size
                         val percent = (inserted * 100) / total
-                        _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... ($percent%)"
+                        if (!preferencesService.hideBackgroundProgress) {
+                            _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... ($percent%)"
+                        }
                         kotlinx.coroutines.delay(40) // yielding SQLite lock to other activities safely
                     }
                 } catch (e: Exception) {

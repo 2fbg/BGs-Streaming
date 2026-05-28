@@ -4426,6 +4426,9 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showImportTextDialog by remember { mutableStateOf(false) }
     var showCastTutorialDialog by remember { mutableStateOf(false) }
     var showClearSeriesHistoryDialog by remember { mutableStateOf(false) }
+    var showSyncIntervalDialog by remember { mutableStateOf(false) }
+    var showSyncAllListsDialog by remember { mutableStateOf(false) }
+    var showHideProgressDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -4563,6 +4566,85 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                                     modifier = Modifier.padding(top = 2.dp)
                                                 )
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                            if (pair.size < 2) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+
+                // SECTION: SINCRONIZAÇÃO E CACHE
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "SINCRONIZAÇÃO E CACHE",
+                        color = GoldPremium,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+
+                    val syncSettingsList = listOf(
+                        Triple("Frequência", Icons.Default.Refresh, "Frequência: " + viewModel.preferencesService.syncIntervalFrequency),
+                        Triple("Sincronizar todas", Icons.Default.Sync, if (viewModel.preferencesService.syncAllListsBackground) "Todas em 2º plano" else "Apenas ativa"),
+                        Triple("Progresso de carga", Icons.Default.VisibilityOff, if (viewModel.preferencesService.hideBackgroundProgress) "Ocultar na inicial" else "Exibir status")
+                    )
+
+                    syncSettingsList.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            pair.forEach { (title, icon, subtitle) ->
+                                Card(
+                                    onClick = {
+                                        when (title) {
+                                            "Frequência" -> showSyncIntervalDialog = true
+                                            "Sincronizar todas" -> showSyncAllListsDialog = true
+                                            "Progresso de carga" -> showHideProgressDialog = true
+                                        }
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(72.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = title,
+                                            tint = GoldPremium,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = title,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = subtitle,
+                                                color = Color.Gray,
+                                                fontSize = 9.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -5035,6 +5117,53 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                 onOptionSelected = {
                     viewModel.preferencesService.useExternalPlayer = (it == "Usar Player Externo")
                     snackbarMessage = "Configuração salva: $it"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Sync interval dialogue
+        if (showSyncIntervalDialog) {
+            SettingsSelectionDialog(
+                title = "Frequência de Sincronização",
+                options = listOf("A cada inicialização", "Uma vez ao dia", "Uma vez por semana", "Desativado (Apenas manual)"),
+                currentValue = viewModel.preferencesService.syncIntervalFrequency,
+                onDismiss = { showSyncIntervalDialog = false },
+                onOptionSelected = {
+                    viewModel.preferencesService.syncIntervalFrequency = it
+                    snackbarMessage = "Sincronização agendada para: $it!"
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Sync all server lists together dialogue
+        if (showSyncAllListsDialog) {
+            SettingsSelectionDialog(
+                title = "Sincronizar Todas as Listas",
+                options = listOf("Sincronizar Todas em 2º Plano", "Sincronizar Apenas Lista Ativa"),
+                currentValue = if (viewModel.preferencesService.syncAllListsBackground) "Sincronizar Todas em 2º Plano" else "Sincronizar Apenas Lista Ativa",
+                onDismiss = { showSyncAllListsDialog = false },
+                onOptionSelected = {
+                    val syncAll = (it == "Sincronizar Todas em 2º Plano")
+                    viewModel.preferencesService.syncAllListsBackground = syncAll
+                    snackbarMessage = if (syncAll) "Sincronização em segundo plano ativada para todas as listas!" else "Sincronizando apenas a lista ativa."
+                    snackbarVisible = true
+                }
+            )
+        }
+
+        // Hide background progress indicator dialogue
+        if (showHideProgressDialog) {
+            SettingsSelectionDialog(
+                title = "Progresso em Segundo Plano",
+                options = listOf("Ocultar Progresso (Silencioso)", "Mostrar Progresso na Tela Inicial"),
+                currentValue = if (viewModel.preferencesService.hideBackgroundProgress) "Ocultar Progresso (Silencioso)" else "Mostrar Progresso na Tela Inicial",
+                onDismiss = { showHideProgressDialog = false },
+                onOptionSelected = {
+                    val hide = (it == "Ocultar Progresso (Silencioso)")
+                    viewModel.preferencesService.hideBackgroundProgress = hide
+                    snackbarMessage = if (hide) "Progresso ocultado das telas principais." else "Progresso visível ativado."
                     snackbarVisible = true
                 }
             )

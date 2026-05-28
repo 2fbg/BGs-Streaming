@@ -203,6 +203,18 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getBoolean("load_series_foreground", false) } catch (e: Throwable) { false }
         set(value) { try { prefs.edit().putBoolean("load_series_foreground", value).apply() } catch (e: Throwable) {} }
 
+    var syncIntervalFrequency: String
+        get() = try { prefs.getString("sync_interval_frequency", "Uma vez ao dia") ?: "Uma vez ao dia" } catch (e: Throwable) { "Uma vez ao dia" }
+        set(value) { try { prefs.edit().putString("sync_interval_frequency", value).apply() } catch (e: Throwable) {} }
+
+    var syncAllListsBackground: Boolean
+        get() = try { prefs.getBoolean("sync_all_lists_background", true) } catch (e: Throwable) { true }
+        set(value) { try { prefs.edit().putBoolean("sync_all_lists_background", value).apply() } catch (e: Throwable) {} }
+
+    var hideBackgroundProgress: Boolean
+        get() = try { prefs.getBoolean("hide_background_progress", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("hide_background_progress", value).apply() } catch (e: Throwable) {} }
+
     fun isCredentialsConfigured(predefinedNames: Set<String>): Boolean {
         val isPredefined = predefinedNames.contains(activePlaylistName)
         return activePlaylistName.isNotEmpty() && (
