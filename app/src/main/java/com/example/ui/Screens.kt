@@ -378,130 +378,151 @@ fun MK21Logo(
     showSubtitle: Boolean = true,
     compact: Boolean = false
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier
+            .background(Color(0xFF151417), CircleShape)
+            .border(
+                BorderStroke(
+                    2.dp,
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFFFD700), // Gold
+                            Color(0xFFFF3B30), // Red
+                            Color(0xFFFFFFFF), // Silver
+                            Color(0xFFB30404)  // Crimson Red
+                        )
+                    )
+                ),
+                CircleShape
+            )
+            .padding(horizontal = if (compact) 14.dp else 24.dp, vertical = if (compact) 10.dp else 18.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // "MK" in Shiny Chrome Silver Gradient with Bevel Shadow
-            Text(
-                text = "MK",
-                fontSize = if (compact) 20.sp else 46.sp,
-                fontWeight = FontWeight.Black,
-                style = androidx.compose.ui.text.TextStyle(
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
-                    shadow = androidx.compose.ui.graphics.Shadow(
-                        color = Color.Black.copy(alpha = 0.95f),
-                        offset = androidx.compose.ui.geometry.Offset(2f, 2f),
-                        blurRadius = 6f
-                    ),
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFFFFFFF),
-                            Color(0xFFEDEDED),
-                            Color(0xFF9E9E9E),
-                            Color(0xFF535353)
-                        )
-                    )
-                )
-            )
-            // "21" in Back-Glow Laser Red Gradient overlapping the letters slightly
-            Text(
-                text = "21",
-                fontSize = if (compact) 22.sp else 52.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.offset(x = if (compact) (-2).dp else (-5).dp),
-                style = androidx.compose.ui.text.TextStyle(
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
-                    shadow = androidx.compose.ui.graphics.Shadow(
-                        color = Color(0xFFFF1E1E).copy(alpha = 0.85f),
-                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                        blurRadius = 14f
-                    ),
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFFF3B30),
-                            Color(0xFFFF1E1E),
-                            Color(0xFFB30404)
-                        )
-                    )
-                )
-            )
-        }
-
-        // Central shiny flare bar
-        Box(
-            modifier = Modifier
-                .padding(vertical = if (compact) 1.dp else 4.dp)
-                .height(if (compact) 1.dp else 1.8.dp)
-                .width(if (compact) 95.dp else 190.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xFFFF1E1E).copy(alpha = 0.25f),
-                            Color(0xFFFF3B30),
-                            Color(0xFFFFFFFF), // Core hot spark flare
-                            Color(0xFFFF3B30),
-                            Color(0xFFFF1E1E).copy(alpha = 0.25f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-        
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(if (compact) 1.dp else 3.dp))
-            // Subtitle: MAIS QUE UM NÚMERO É RESULTADO flanked by tapered arrows/lines
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
-                // Left tapered segment
-                Box(
-                    modifier = Modifier
-                        .height(1.5.dp)
-                        .width(if (compact) 14.dp else 28.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, Color(0xFFFF1E1E))
-                            )
-                        )
-                )
-                
+                // "MK" in Shiny Chrome Silver Gradient with Bevel Shadow
                 Text(
-                    text = " MAIS QUE UM NÚMERO É RESULTADO ",
-                    fontSize = if (compact) 5.5.sp else 8.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White.copy(alpha = 0.95f),
-                    letterSpacing = if (compact) 0.1.sp else 0.4.sp,
+                    text = "MK",
+                    fontSize = if (compact) 24.sp else 44.sp,
+                    fontWeight = FontWeight.Black,
                     style = androidx.compose.ui.text.TextStyle(
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
                         shadow = androidx.compose.ui.graphics.Shadow(
-                            color = Color(0xFFFF1E1E).copy(alpha = 0.5f),
-                            offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            blurRadius = 4f
+                            color = Color.Black.copy(alpha = 0.95f),
+                            offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                            blurRadius = 6f
+                        ),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFFFFFFFF),
+                                Color(0xFFEDEDED),
+                                Color(0xFF9E9E9E),
+                                Color(0xFF535353)
+                            )
                         )
                     )
                 )
-                
-                // Right tapered segment
-                Box(
-                    modifier = Modifier
-                        .height(1.5.dp)
-                        .width(if (compact) 14.dp else 28.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(Color(0xFFFF1E1E), Color.Transparent)
+                // "21" in Back-Glow Laser Red Gradient overlapping the letters slightly
+                Text(
+                    text = "21",
+                    fontSize = if (compact) 26.sp else 50.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.offset(x = if (compact) (-2).dp else (-5).dp),
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = Color(0xFFFF1E1E).copy(alpha = 0.85f),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            blurRadius = 14f
+                        ),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFFFF3B30),
+                                Color(0xFFFF1E1E),
+                                Color(0xFFB30404)
                             )
                         )
+                    )
                 )
+            }
+
+            // Central shiny flare bar
+            Box(
+                modifier = Modifier
+                    .padding(vertical = if (compact) 2.dp else 4.dp)
+                    .height(if (compact) 1.dp else 1.8.dp)
+                    .width(if (compact) 60.dp else 125.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFFFF1E1E).copy(alpha = 0.25f),
+                                Color(0xFFFF3B30),
+                                Color(0xFFFFFFFF), // Core hot spark flare
+                                Color(0xFFFF3B30),
+                                Color(0xFFFF1E1E).copy(alpha = 0.25f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            
+            if (showSubtitle) {
+                Spacer(modifier = Modifier.height(if (compact) 1.dp else 3.dp))
+                // Subtitle: MAIS QUE UM NÚMERO É RESULTADO flanked by tapered arrows/lines
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    // Left tapered segment
+                    Box(
+                        modifier = Modifier
+                            .height(1.5.dp)
+                            .width(if (compact) 10.dp else 20.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color.Transparent, Color(0xFFFF1E1E))
+                                )
+                            )
+                    )
+                    
+                    Text(
+                        text = " MAIS QUE UM NÚMERO É RESULTADO ",
+                        fontSize = if (compact) 5.sp else 7.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White.copy(alpha = 0.95f),
+                        letterSpacing = if (compact) 0.1.sp else 0.4.sp,
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                            shadow = androidx.compose.ui.graphics.Shadow(
+                                color = Color(0xFFFF1E1E).copy(alpha = 0.5f),
+                                offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                blurRadius = 4f
+                            )
+                        )
+                    )
+                    
+                    // Right tapered segment
+                    Box(
+                        modifier = Modifier
+                            .height(1.5.dp)
+                            .width(if (compact) 10.dp else 20.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color(0xFFFF1E1E), Color.Transparent)
+                                )
+                            )
+                    )
+                }
             }
         }
     }
@@ -4030,10 +4051,7 @@ fun SmartTvCastDialog(
     
     val deviceList = remember {
         listOf(
-            "TV Sala FBG2 (Sua LG webOS TV)" to "DLNA / webOS SmartShare (SSDP)",
-            "Sala de Estar (Chromecast Ultra)" to "Google Cast Protocol",
-            "Cozinha (Roku Streaming Stick)" to "Roku Cast Service",
-            "Escritório (Samsung Crystal 4K)" to "Tizen Connect"
+            "TV Sala FBG2 (LG webOS TV)" to "DLNA / webOS SmartShare (SSDP)"
         )
     }
 
@@ -4051,34 +4069,30 @@ fun SmartTvCastDialog(
                 scanLogText = "Encontrado dispositivo DLNA: TV Sala FBG2"
                 discoveredList.add(deviceList[0]) // Add TV Sala FBG2
             }
-            delay(700)
-            scanLogText = "mDNS: Buscando canais _googlecast._tcp.local ativos..."
-            delay(700)
-            if (deviceList.size > 1) {
-                discoveredList.add(deviceList[1]) // Add Chromecast Sala de Estar
-            }
-            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos de dispositivos..."
             delay(600)
-            if (deviceList.size > 3) {
-                discoveredList.add(deviceList[2]) // Add Roku Cozinha
-                discoveredList.add(deviceList[3]) // Add Samsung TV Escritório
-            }
+            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos de dispositivos..."
+            delay(500)
             scanLogText = "Busca concluída! Sua TV Sala FBG2 foi detectada."
             delay(300)
             isScanning = false
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0E11)),
             shape = RoundedCornerShape(20.dp),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp)
+                .widthIn(max = 480.dp)
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
+                .padding(vertical = 4.dp, horizontal = 12.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -4090,30 +4104,37 @@ fun SmartTvCastDialog(
                             imageVector = Icons.Default.ConnectedTv,
                             contentDescription = "Transmissão",
                             tint = GoldPremium,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Transmitir para TV",
                             color = Color.White,
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.Gray)
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.Gray, modifier = Modifier.size(18.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Custom Tab Row
-                Row(
+                // Scrollable container for contents inside the dialog
+                Column(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
-                        .padding(4.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
+                    // Custom Tab Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
+                            .padding(4.dp)
+                    ) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -4406,52 +4427,52 @@ fun SmartTvCastDialog(
                                                 }
                                             }
                                         },
-                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
-                                        shape = RoundedCornerShape(10.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                                        shape = RoundedCornerShape(8.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
+                                            .padding(vertical = 2.dp)
                                     ) {
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Tv,
                                                 contentDescription = null,
                                                 tint = GoldPremium,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(16.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = name,
                                                     color = Color.White,
-                                                    fontSize = 13.sp,
+                                                    fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                                 Text(
                                                     text = protocol,
                                                     color = Color.Gray,
-                                                    fontSize = 10.sp
+                                                    fontSize = 9.sp
                                                 )
                                             }
                                             
                                             if (isConnecting) {
                                                 CircularProgressIndicator(
                                                     color = GoldPremium,
-                                                    strokeWidth = 2.dp,
-                                                    modifier = Modifier.size(16.dp)
+                                                    strokeWidth = 1.5.dp,
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             } else {
                                                 Icon(
                                                     imageVector = Icons.Default.ChevronRight,
                                                     contentDescription = null,
                                                     tint = Color.Gray,
-                                                    modifier = Modifier.size(20.dp)
+                                                    modifier = Modifier.size(16.dp)
                                                 )
                                             }
                                         }
@@ -4650,11 +4671,13 @@ fun SmartTvCastDialog(
                             }
                         }
                     }
-                }
-            }
-        }
-    }
+                } // This closes the activeTab == 1 else block
+                } // This closes the scrollable inside Column!
+            } // This closes the Card column padding!
+        } // This closes the Card!
+    } // This closes the Dialog!
 }
+
 
 /**
  * SETTINGS CONTROL CONFIGURATIONS SCREEN
