@@ -4030,8 +4030,8 @@ fun SmartTvCastDialog(
     
     val deviceList = remember {
         listOf(
+            "TV Sala FBG2 (Sua LG webOS TV)" to "DLNA / webOS SmartShare (SSDP)",
             "Sala de Estar (Chromecast Ultra)" to "Google Cast Protocol",
-            "Quarto Principal (LG webOS TV)" to "DLNA/SmartShare (UPnP)",
             "Cozinha (Roku Streaming Stick)" to "Roku Cast Service",
             "Escritório (Samsung Crystal 4K)" to "Tizen Connect"
         )
@@ -4043,26 +4043,28 @@ fun SmartTvCastDialog(
     LaunchedEffect(activeTab, isScanning) {
         if (activeTab == 1 && isScanning) {
             discoveredList.clear()
-            scanLogText = "Verificando conexões de rede Wi-Fi..."
-            delay(700)
+            scanLogText = "Buscando roteadores e adaptadores de rede..."
+            delay(500)
             scanLogText = "SSDP: Varrendo endereço de multicast 239.255.255.250..."
-            delay(800)
-            if (deviceList.size > 1) {
-                discoveredList.add(deviceList[1]) // Add LG Quarto Principal
-            }
-            scanLogText = "mDNS: Buscando canais _googlecast._tcp.local ativos..."
-            delay(1000)
+            delay(600)
             if (deviceList.size > 0) {
-                discoveredList.add(deviceList[0]) // Add Chromecast Sala de Estar
+                scanLogText = "Encontrado dispositivo DLNA: TV Sala FBG2"
+                discoveredList.add(deviceList[0]) // Add TV Sala FBG2
             }
-            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos e descritores XML..."
-            delay(900)
+            delay(700)
+            scanLogText = "mDNS: Buscando canais _googlecast._tcp.local ativos..."
+            delay(700)
+            if (deviceList.size > 1) {
+                discoveredList.add(deviceList[1]) // Add Chromecast Sala de Estar
+            }
+            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos de dispositivos..."
+            delay(600)
             if (deviceList.size > 3) {
                 discoveredList.add(deviceList[2]) // Add Roku Cozinha
                 discoveredList.add(deviceList[3]) // Add Samsung TV Escritório
             }
-            scanLogText = "Busca finalizada. 4 TVs encontradas na rede local."
-            delay(500)
+            scanLogText = "Busca concluída! Sua TV Sala FBG2 foi detectada."
+            delay(300)
             isScanning = false
         }
     }
@@ -4492,6 +4494,72 @@ fun SmartTvCastDialog(
                                     colors = ButtonDefaults.textButtonColors(contentColor = Color.Red.copy(alpha = 0.8f))
                                 ) {
                                     Text("DESCONECTAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            if (pairedDevice?.contains("TV Sala FBG2") == true) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1D1A)),
+                                    border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = "A TV SALA FBG2 ESTÁ PRONTA COM O ENDEREÇO DE TRANSMISSÃO:",
+                                            color = GoldPremium,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "1. Abra o Navegador de Internet da sua TV Sala FBG2.",
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            fontSize = 12.sp,
+                                            lineHeight = 15.sp
+                                        )
+                                        Text(
+                                            text = "2. Digite exatamente o endereço abaixo para espelhar:",
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            fontSize = 12.sp,
+                                            lineHeight = 15.sp,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = castUrl,
+                                                color = GoldPremium,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                            Text(
+                                                text = "DIGITAR NA TV",
+                                                color = Color.LightGray,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier
+                                                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "Assim que conectar, a TV webOS iniciará sincronizadamente o vídeo, e você poderá usar o controle remoto e a barra de progresso abaixo em tempo real!",
+                                            color = Color.Gray,
+                                            fontSize = 10.sp,
+                                            lineHeight = 13.sp
+                                        )
+                                    }
                                 }
                             }
 
