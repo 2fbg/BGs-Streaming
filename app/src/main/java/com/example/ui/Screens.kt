@@ -386,61 +386,121 @@ fun MK21Logo(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            // "MK" in Silver/White Gradient
+            // "MK" in Shiny Chrome Silver Gradient with Bevel Shadow
             Text(
                 text = "MK",
-                fontSize = if (compact) 18.sp else 38.sp,
+                fontSize = if (compact) 20.sp else 46.sp,
                 fontWeight = FontWeight.Black,
                 style = androidx.compose.ui.text.TextStyle(
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    letterSpacing = (-1).sp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color(0xFFFFFFFF), Color(0xFFCCCCCC))
+                    letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = Color.Black.copy(alpha = 0.95f),
+                        offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                        blurRadius = 6f
+                    ),
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFFFFFFF),
+                            Color(0xFFEDEDED),
+                            Color(0xFF9E9E9E),
+                            Color(0xFF535353)
+                        )
                     )
                 )
             )
-            // "21" in Red Gradient
+            // "21" in Back-Glow Laser Red Gradient overlapping the letters slightly
             Text(
                 text = "21",
-                fontSize = if (compact) 20.sp else 42.sp,
+                fontSize = if (compact) 22.sp else 52.sp,
                 fontWeight = FontWeight.Black,
+                modifier = Modifier.offset(x = if (compact) (-2).dp else (-5).dp),
                 style = androidx.compose.ui.text.TextStyle(
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    letterSpacing = (-1).sp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color(0xFFFF1E1E), Color(0xFFB30000))
+                    letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = Color(0xFFFF1E1E).copy(alpha = 0.85f),
+                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        blurRadius = 14f
+                    ),
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFFF3B30),
+                            Color(0xFFFF1E1E),
+                            Color(0xFFB30404)
+                        )
                     )
                 )
             )
         }
+
+        // Central shiny flare bar
+        Box(
+            modifier = Modifier
+                .padding(vertical = if (compact) 1.dp else 4.dp)
+                .height(if (compact) 1.dp else 1.8.dp)
+                .width(if (compact) 95.dp else 190.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0xFFFF1E1E).copy(alpha = 0.25f),
+                            Color(0xFFFF3B30),
+                            Color(0xFFFFFFFF), // Core hot spark flare
+                            Color(0xFFFF3B30),
+                            Color(0xFFFF1E1E).copy(alpha = 0.25f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
         
         if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
-            // Subtitle: MAIS QUE UM NÚMERO É RESULTADO
+            Spacer(modifier = Modifier.height(if (compact) 1.dp else 3.dp))
+            // Subtitle: MAIS QUE UM NÚMERO É RESULTADO flanked by tapered arrows/lines
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 4.dp)
             ) {
-                // Red horizontal line
+                // Left tapered segment
                 Box(
                     modifier = Modifier
-                        .height(1.dp)
-                        .width(10.dp)
-                        .background(Color(0xFFFF1E1E))
+                        .height(1.5.dp)
+                        .width(if (compact) 14.dp else 28.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, Color(0xFFFF1E1E))
+                            )
+                        )
                 )
+                
                 Text(
                     text = " MAIS QUE UM NÚMERO É RESULTADO ",
-                    fontSize = if (compact) 6.sp else 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.LightGray.copy(alpha = 0.8f),
-                    letterSpacing = 0.2.sp
+                    fontSize = if (compact) 5.5.sp else 8.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White.copy(alpha = 0.95f),
+                    letterSpacing = if (compact) 0.1.sp else 0.4.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = Color(0xFFFF1E1E).copy(alpha = 0.5f),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
-                // Red horizontal line
+                
+                // Right tapered segment
                 Box(
                     modifier = Modifier
-                        .height(1.dp)
-                        .width(10.dp)
-                        .background(Color(0xFFFF1E1E))
+                        .height(1.5.dp)
+                        .width(if (compact) 14.dp else 28.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color(0xFFFF1E1E), Color.Transparent)
+                            )
+                        )
                 )
             }
         }
