@@ -2781,6 +2781,7 @@ fun VideoPlayerUI(
     var aspectOverlayText by remember { mutableStateOf("Ajustar (Original)") }
     var aspectOverlayJob by remember { mutableStateOf<Job?>(null) }
     var showCastDialog by remember { mutableStateOf(false) }
+    var showAudioSubDialog by remember { mutableStateOf(false) }
     
     var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -2859,8 +2860,8 @@ fun VideoPlayerUI(
     }
 
     // Auto-hide playback controls after 5 seconds of inactivity
-    LaunchedEffect(controlsVisible) {
-        if (controlsVisible) {
+    LaunchedEffect(controlsVisible, showCastDialog, showAudioSubDialog) {
+        if (controlsVisible && !showCastDialog && !showAudioSubDialog) {
             delay(5000)
             controlsVisible = false
             showSpeedMenu = false
@@ -3620,7 +3621,6 @@ fun VideoPlayerUI(
                     }
 
                     // Audio track switcher dialog overlay button trigger
-                    var showAudioSubDialog by remember { mutableStateOf(false) }
                     if (isLandscape) {
                         TextButton(
                             onClick = { showAudioSubDialog = true },
@@ -3654,224 +3654,224 @@ fun VideoPlayerUI(
                             )
                         }
                     }
+                }
+            }
+        }
 
-                    if (showAudioSubDialog) {
-                        var selectedAudio by remember { mutableStateOf("") }
-                        var selectedSub by remember { mutableStateOf("des") }
+        if (showAudioSubDialog) {
+            var selectedAudio by remember { mutableStateOf("") }
+            var selectedSub by remember { mutableStateOf("des") }
 
-                        val currentTracks = exoPlayer.currentTracks
-                        val audioTracks = remember(currentTracks) {
-                            val list = mutableListOf<Pair<String, String>>()
-                            for (group in currentTracks.groups) {
-                                if (group.type == 1) { // 1 = C.TRACK_TYPE_AUDIO
-                                    for (i in 0 until group.length) {
-                                        if (group.isTrackSupported(i)) {
-                                            val format = group.getTrackFormat(i)
-                                            val lang = format.language ?: ""
-                                            val label = format.label ?: ""
-                                            val friendlyName = when (lang.lowercase()) {
-                                                "por", "pt", "pt-br" -> "Português"
-                                                "eng", "en" -> "Inglês"
-                                                "spa", "es" -> "Espanhol"
-                                                "fra", "fr" -> "Francês"
-                                                "ita", "it" -> "Italiano"
-                                                "deu", "de" -> "Alemão"
-                                                else -> label.ifEmpty { lang.uppercase().ifEmpty { "Áudio ${i + 1}" } }
-                                            }
-                                            if (list.none { it.first == lang }) {
-                                                list.add(lang to friendlyName)
-                                            }
-                                        }
-                                    }
+            val currentTracks = exoPlayer.currentTracks
+            val audioTracks = remember(currentTracks) {
+                val list = mutableListOf<Pair<String, String>>()
+                for (group in currentTracks.groups) {
+                    if (group.type == 1) { // 1 = C.TRACK_TYPE_AUDIO
+                        for (i in 0 until group.length) {
+                            if (group.isTrackSupported(i)) {
+                                val format = group.getTrackFormat(i)
+                                val lang = format.language ?: ""
+                                val label = format.label ?: ""
+                                val friendlyName = when (lang.lowercase()) {
+                                    "por", "pt", "pt-br" -> "Português"
+                                    "eng", "en" -> "Inglês"
+                                    "spa", "es" -> "Espanhol"
+                                    "fra", "fr" -> "Francês"
+                                    "ita", "it" -> "Italiano"
+                                    "deu", "de" -> "Alemão"
+                                    else -> label.ifEmpty { lang.uppercase().ifEmpty { "Áudio ${i + 1}" } }
                                 }
-                            }
-                            list
-                        }
-
-                        val subtitleTracks = remember(currentTracks) {
-                            val list = mutableListOf<Pair<String, String>>()
-                            for (group in currentTracks.groups) {
-                                if (group.type == 3) { // 3 = C.TRACK_TYPE_TEXT
-                                    for (i in 0 until group.length) {
-                                        if (group.isTrackSupported(i)) {
-                                            val format = group.getTrackFormat(i)
-                                            val lang = format.language ?: ""
-                                            val label = format.label ?: ""
-                                            val friendlyName = when (lang.lowercase()) {
-                                                "por", "pt", "pt-br" -> "Português"
-                                                "eng", "en" -> "Inglês"
-                                                "spa", "es" -> "Espanhol"
-                                                "fra", "fr" -> "Francês"
-                                                "ita", "it" -> "Italiano"
-                                                "deu", "de" -> "Alemão"
-                                                else -> label.ifEmpty { lang.uppercase().ifEmpty { "Legenda ${i + 1}" } }
-                                            }
-                                            if (list.none { it.first == lang }) {
-                                                list.add(lang to friendlyName)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            list
-                        }
-
-                        LaunchedEffect(currentTracks) {
-                            selectedAudio = exoPlayer.trackSelectionParameters.preferredAudioLanguages.firstOrNull() ?: ""
-                            selectedSub = exoPlayer.trackSelectionParameters.preferredTextLanguages.firstOrNull() ?: "des"
-                        }
-
-                        Dialog(onDismissRequest = { showAudioSubDialog = false }) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
-                                shape = RoundedCornerShape(16.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "Áudio & Legendas",
-                                        color = GoldPremium,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    Row(modifier = Modifier.fillMaxWidth()) {
-                                        // Audio Column
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("ÁUDIO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            // Se não houver mais de uma opção para trocar o áudio, aparece vazio
-                                            if (audioTracks.size > 1) {
-                                                audioTracks.forEach { (code, label) ->
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .clickable {
-                                                                selectedAudio = code
-                                                                exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                                                                    .buildUpon()
-                                                                    .setPreferredAudioLanguage(code)
-                                                                    .build()
-                                                            }
-                                                            .padding(vertical = 6.dp)
-                                                    ) {
-                                                        RadioButton(
-                                                            selected = selectedAudio == code,
-                                                            onClick = {
-                                                                selectedAudio = code
-                                                                exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                                                                    .buildUpon()
-                                                                    .setPreferredAudioLanguage(code)
-                                                                    .build()
-                                                            },
-                                                            colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(label, color = Color.White, fontSize = 12.sp)
-                                                    }
-                                                }
-                                            } else {
-                                                // Aparece vazio conforme solicitado pelo usuário
-                                                Spacer(modifier = Modifier.height(80.dp))
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.width(16.dp))
-
-                                        // Subtitle Column
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("LEGENDAS", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            // Se não houver opções de legenda para trocar, aparece vazio
-                                            if (subtitleTracks.isNotEmpty()) {
-                                                val subsWithDisable = listOf("des" to "Desativado") + subtitleTracks
-                                                subsWithDisable.forEach { (code, label) ->
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .clickable {
-                                                                selectedSub = code
-                                                                val builder = exoPlayer.trackSelectionParameters.buildUpon()
-                                                                if (code == "des") {
-                                                                    builder.setPreferredTextLanguage(null)
-                                                                } else {
-                                                                    builder.setPreferredTextLanguage(code)
-                                                                }
-                                                                exoPlayer.trackSelectionParameters = builder.build()
-                                                            }
-                                                            .padding(vertical = 6.dp)
-                                                    ) {
-                                                        RadioButton(
-                                                            selected = selectedSub == code,
-                                                            onClick = {
-                                                                selectedSub = code
-                                                                val builder = exoPlayer.trackSelectionParameters.buildUpon()
-                                                                if (code == "des") {
-                                                                    builder.setPreferredTextLanguage(null)
-                                                                } else {
-                                                                    builder.setPreferredTextLanguage(code)
-                                                                }
-                                                                exoPlayer.trackSelectionParameters = builder.build()
-                                                            },
-                                                            colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(label, color = Color.White, fontSize = 12.sp)
-                                                    }
-                                                }
-                                            } else {
-                                                // Aparece vazio conforme solicitado pelo usuário
-                                                Spacer(modifier = Modifier.height(80.dp))
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    Button(
-                                        onClick = { showAudioSubDialog = false },
-                                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("CONCLUIR", fontWeight = FontWeight.Bold, color = Color.White)
-                                    }
+                                if (list.none { it.first == lang }) {
+                                    list.add(lang to friendlyName)
                                 }
                             }
                         }
                     }
                 }
+                list
             }
 
-            if (showCastDialog) {
-                SmartTvCastDialog(
-                    playlistItem = playlistItem,
-                    playbackStatePlaying = isPlaying,
-                    onTogglePlayback = {
-                        isPlaying = !isPlaying
-                        exoPlayer.playWhenReady = isPlaying
-                    },
-                    onVolumeChange = { pct ->
-                        isMuted = false
-                        volumeValue = pct
-                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                        val targetVol = (pct * maxVol).toInt().coerceIn(0, maxVol)
-                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
-                    },
-                    currentVolume = volumeValue,
-                    onSeek = { offsetSec ->
-                        val curPos = exoPlayer.currentPosition
-                        val targetPos = (curPos + offsetSec * 1000).coerceIn(0, exoPlayer.duration)
-                        exoPlayer.seekTo(targetPos)
-                    },
-                    onDismiss = { showCastDialog = false }
-                )
+            val subtitleTracks = remember(currentTracks) {
+                val list = mutableListOf<Pair<String, String>>()
+                for (group in currentTracks.groups) {
+                    if (group.type == 3) { // 3 = C.TRACK_TYPE_TEXT
+                        for (i in 0 until group.length) {
+                            if (group.isTrackSupported(i)) {
+                                val format = group.getTrackFormat(i)
+                                val lang = format.language ?: ""
+                                val label = format.label ?: ""
+                                val friendlyName = when (lang.lowercase()) {
+                                    "por", "pt", "pt-br" -> "Português"
+                                    "eng", "en" -> "Inglês"
+                                    "spa", "es" -> "Espanhol"
+                                    "fra", "fr" -> "Francês"
+                                    "ita", "it" -> "Italiano"
+                                    "deu", "de" -> "Alemão"
+                                    else -> label.ifEmpty { lang.uppercase().ifEmpty { "Legenda ${i + 1}" } }
+                                }
+                                if (list.none { it.first == lang }) {
+                                    list.add(lang to friendlyName)
+                                }
+                            }
+                        }
+                    }
+                }
+                list
             }
+
+            LaunchedEffect(currentTracks) {
+                selectedAudio = exoPlayer.trackSelectionParameters.preferredAudioLanguages.firstOrNull() ?: ""
+                selectedSub = exoPlayer.trackSelectionParameters.preferredTextLanguages.firstOrNull() ?: "des"
+            }
+
+            Dialog(onDismissRequest = { showAudioSubDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111115)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Áudio & Legendas",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            // Audio Column
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("ÁUDIO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                // Se não houver mais de uma opção para trocar o áudio, aparece vazio
+                                if (audioTracks.size > 1) {
+                                    audioTracks.forEach { (code, label) ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedAudio = code
+                                                    exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                        .buildUpon()
+                                                        .setPreferredAudioLanguage(code)
+                                                        .build()
+                                                }
+                                                .padding(vertical = 6.dp)
+                                        ) {
+                                            RadioButton(
+                                                selected = selectedAudio == code,
+                                                onClick = {
+                                                    selectedAudio = code
+                                                    exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
+                                                        .buildUpon()
+                                                        .setPreferredAudioLanguage(code)
+                                                        .build()
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(label, color = Color.White, fontSize = 12.sp)
+                                        }
+                                    }
+                                } else {
+                                    // Aparece vazio conforme solicitado pelo usuário
+                                    Spacer(modifier = Modifier.height(80.dp))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            // Subtitle Column
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("LEGENDAS", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                // Se não houver opções de legenda para trocar, aparece vazio
+                                if (subtitleTracks.isNotEmpty()) {
+                                    val subsWithDisable = listOf("des" to "Desativado") + subtitleTracks
+                                    subsWithDisable.forEach { (code, label) ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedSub = code
+                                                    val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                    if (code == "des") {
+                                                        builder.setPreferredTextLanguage(null)
+                                                    } else {
+                                                        builder.setPreferredTextLanguage(code)
+                                                    }
+                                                    exoPlayer.trackSelectionParameters = builder.build()
+                                                }
+                                                .padding(vertical = 6.dp)
+                                        ) {
+                                            RadioButton(
+                                                selected = selectedSub == code,
+                                                onClick = {
+                                                    selectedSub = code
+                                                    val builder = exoPlayer.trackSelectionParameters.buildUpon()
+                                                    if (code == "des") {
+                                                        builder.setPreferredTextLanguage(null)
+                                                    } else {
+                                                        builder.setPreferredTextLanguage(code)
+                                                    }
+                                                    exoPlayer.trackSelectionParameters = builder.build()
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = NetflixRed)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(label, color = Color.White, fontSize = 12.sp)
+                                        }
+                                    }
+                                } else {
+                                    // Aparece vazio conforme solicitado pelo usuário
+                                    Spacer(modifier = Modifier.height(80.dp))
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = { showAudioSubDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("CONCLUIR", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showCastDialog) {
+            SmartTvCastDialog(
+                playlistItem = playlistItem,
+                playbackStatePlaying = isPlaying,
+                onTogglePlayback = {
+                    isPlaying = !isPlaying
+                    exoPlayer.playWhenReady = isPlaying
+                },
+                onVolumeChange = { pct ->
+                    isMuted = false
+                    volumeValue = pct
+                    val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                    val targetVol = (pct * maxVol).toInt().coerceIn(0, maxVol)
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                },
+                currentVolume = volumeValue,
+                onSeek = { offsetSec ->
+                    val curPos = exoPlayer.currentPosition
+                    val targetPos = (curPos + offsetSec * 1000).coerceIn(0, exoPlayer.duration)
+                    exoPlayer.seekTo(targetPos)
+                },
+                onDismiss = { showCastDialog = false }
+            )
         }
     }
 }
