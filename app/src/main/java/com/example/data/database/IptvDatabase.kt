@@ -46,6 +46,13 @@ interface PlaylistItemDao {
         }
     }
 
+    @Transaction
+    suspend fun insertChunkInTransaction(items: List<PlaylistItem>) {
+        items.chunked(80).forEach { chunk ->
+            insertItems(chunk)
+        }
+    }
+
     @Query("UPDATE playlist_items SET isFavorite = :favorite WHERE id = :itemId")
     suspend fun setFavorite(itemId: Long, favorite: Boolean)
 

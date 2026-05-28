@@ -39,8 +39,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ServerProfile("server_3", "CINELON21", "http://infinixparcerias.site"),
         ServerProfile("server_4", "TANNIX", "http://unituf.online"),
         ServerProfile("server_5", "CB6000", "http://cb6.fun"),
-        ServerProfile("server_6", "MK21 TV", "http://appsmk.org"),
-        ServerProfile("server_7", "NOVA+", "http://novamk21.win")
+        ServerProfile("server_6", "MK21 TV", "http://appsmk.org")
     )
 
     private val _predefinedServersState = MutableStateFlow<List<ServerProfile>>(staticDefaultServers)
@@ -319,50 +318,78 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     baseUrl = baseUrl.substring(0, nextSlashIndex)
                 }
                 
-                if (baseUrlsAdded.contains(baseUrl.lowercase())) {
-                    continue
-                }
-                
+                var targetBaseUrl = baseUrl
+                var targetName = ""
                 val lowercaseBaseUrl = baseUrl.lowercase()
-                if (lowercaseBaseUrl.contains("apple.com") || 
-                    lowercaseBaseUrl.contains("playstore") || 
-                    lowercaseBaseUrl.contains("painelmk21") || 
-                    lowercaseBaseUrl.contains("is.gd") || 
-                    lowercaseBaseUrl.contains("t.ly") || 
-                    lowercaseBaseUrl.contains("bit.ly") || 
-                    lowercaseBaseUrl.contains("da.gd") || 
-                    lowercaseBaseUrl.contains("assistmaiss.com") || 
-                    lowercaseBaseUrl.contains("vizzionplay.app") || 
-                    lowercaseBaseUrl.contains("appplaysim.com") || 
-                    lowercaseBaseUrl.contains("vocine.appflix.top") || 
-                    lowercaseBaseUrl.contains("ibopro.xyz") || 
-                    lowercaseBaseUrl.contains("addmyplaylist.com") || 
-                    lowercaseBaseUrl.contains("cbbrst.top")) {
+
+                // Normalization block for predefined premium lists to prevent duplicates and keep names matching
+                if (lowercaseBaseUrl.contains("vlogmk.de") || lowercaseBaseUrl.contains("newphase.sbs")) {
+                    targetBaseUrl = "http://vlogmk.de"
+                    targetName = "VLOG"
+                } else if (lowercaseBaseUrl.contains("triimundial.shop") || lowercaseBaseUrl.contains("lubtv.fun")) {
+                    targetBaseUrl = "http://triimundial.shop"
+                    targetName = "LUB TV"
+                } else if (lowercaseBaseUrl.contains("infinixparcerias.site") || lowercaseBaseUrl.contains("cinelontv.work") || lowercaseBaseUrl.contains("cinelon")) {
+                    targetBaseUrl = "http://infinixparcerias.site"
+                    targetName = "CINELON21"
+                } else if (lowercaseBaseUrl.contains("unituf.online") || lowercaseBaseUrl.contains("tannix26.shop") || lowercaseBaseUrl.contains("tannix")) {
+                    targetBaseUrl = "http://unituf.online"
+                    targetName = "TANNIX"
+                } else if (lowercaseBaseUrl.contains("cb6.fun") || lowercaseBaseUrl.contains("cb6000")) {
+                    targetBaseUrl = "http://cb6.fun"
+                    targetName = "CB6000"
+                } else if (lowercaseBaseUrl.contains("appsmk.org") || lowercaseBaseUrl.contains("mk21.uk") || lowercaseBaseUrl.contains("mk21")) {
+                    targetBaseUrl = "http://appsmk.org"
+                    targetName = "MK21 TV"
+                }
+
+                if (baseUrlsAdded.contains(targetBaseUrl.lowercase())) {
                     continue
                 }
                 
-                var namePart = trimmedLine.replace(urlPart, "")
-                namePart = namePart.replace("[🟢🔴🔵⚪🟠🟣✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
-                namePart = namePart.replace("*", "")
-                namePart = namePart.replace(":", "")
-                namePart = namePart.replace("-", "")
-                namePart = namePart.replace("_", "")
-                namePart = namePart.replace("(", "")
-                namePart = namePart.replace(")", "")
-                
-                namePart = namePart.replace("(?i)Link ".toRegex(), "")
-                namePart = namePart.replace("(?i)M3U".toRegex(), "")
-                namePart = namePart.replace("(?i)URL XCIPTV SERVIDORES".toRegex(), "")
-                namePart = namePart.replace("(?i)URL IPTV SMARTERS".toRegex(), "")
-                namePart = namePart.replace("(?i)CÓDIGOS ASSIST PLUS".toRegex(), "")
-                
-                var name = namePart.trim()
-                if (name.isEmpty()) {
-                    name = "Servidor $idCounter"
+                val checkBase = targetBaseUrl.lowercase()
+                if (checkBase.contains("apple.com") || 
+                    checkBase.contains("playstore") || 
+                    checkBase.contains("painelmk21") || 
+                    checkBase.contains("is.gd") || 
+                    checkBase.contains("t.ly") || 
+                    checkBase.contains("bit.ly") || 
+                    checkBase.contains("da.gd") || 
+                    checkBase.contains("assistmaiss.com") || 
+                    checkBase.contains("vizzionplay.app") || 
+                    checkBase.contains("appplaysim.com") || 
+                    checkBase.contains("vocine.appflix.top") || 
+                    checkBase.contains("ibopro.xyz") || 
+                    checkBase.contains("addmyplaylist.com") || 
+                    checkBase.contains("cbbrst.top")) {
+                    continue
                 }
                 
-                list.add(ServerProfile("dynamic_$idCounter", name, baseUrl))
-                baseUrlsAdded.add(baseUrl.lowercase())
+                var name = targetName
+                if (name.isEmpty()) {
+                    var namePart = trimmedLine.replace(urlPart, "")
+                    namePart = namePart.replace("[🟢🔴🔵⚪🟠🟣✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
+                    namePart = namePart.replace("*", "")
+                    namePart = namePart.replace(":", "")
+                    namePart = namePart.replace("-", "")
+                    namePart = namePart.replace("_", "")
+                    namePart = namePart.replace("(", "")
+                    namePart = namePart.replace(")", "")
+                    
+                    namePart = namePart.replace("(?i)Link ".toRegex(), "")
+                    namePart = namePart.replace("(?i)M3U".toRegex(), "")
+                    namePart = namePart.replace("(?i)URL XCIPTV SERVIDORES".toRegex(), "")
+                    namePart = namePart.replace("(?i)URL IPTV SMARTERS".toRegex(), "")
+                    namePart = namePart.replace("(?i)CÓDIGOS ASSIST PLUS".toRegex(), "")
+                    
+                    name = namePart.trim()
+                    if (name.isEmpty()) {
+                        name = "Servidor $idCounter"
+                    }
+                }
+                
+                list.add(ServerProfile("dynamic_$idCounter", name, targetBaseUrl))
+                baseUrlsAdded.add(targetBaseUrl.lowercase())
                 idCounter++
             }
         }
@@ -510,8 +537,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     if (shouldSyncBasedOnFrequency(lastUpdate)) {
                         Log.d("MK21_VM", "Starting background pre-sync of playlist: $listName")
                         downloadAndParsePlaylistSilently(listName)
-                        // Give the system 8 seconds of breathing room between playlists to safeguard CPU/Database
-                        delay(8000L)
+                        // Give the system 20 seconds of breathing room between playlists to safeguard CPU/Network/Database
+                        delay(20000L)
                     }
                 }
             } catch (e: Exception) {
@@ -553,11 +580,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Delay background pre-sync of non-active lists heavily (25 seconds)
+        // Delay background pre-sync of non-active lists (5 minutes / 300000 ms)
         // This ensures the current selected playlist gets 100% of network & DB resources immediately on bootup
         viewModelScope.launch {
             try {
-                delay(25000L)
+                delay(300000L)
                 syncAllConfiguredPlaylistsInBackground()
             } catch (e: Throwable) {
                 Log.e("MK21_VM", "Error launching delayed background playlist sync", e)
@@ -977,15 +1004,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // 4. Clear database table content for this source
-        playlistItemDao.clearPlaylistItems(targetPlaylist)
-
-        // 5. Insert foreground items in chunk of 250
-        if (foregroundItems.isNotEmpty()) {
-            foregroundItems.chunked(250).forEach { chunk ->
-                playlistItemDao.insertItems(chunk)
-            }
-        }
+        // 4 & 5. Clear and insert foreground items in a single, high-performance database transaction
+        playlistItemDao.clearAndInsertPlaylistItems(targetPlaylist, foregroundItems)
 
         // 6. Set updated timestamp immediately
         preferencesService.setLastPlaylistUpdateTimestamp(targetPlaylist, System.currentTimeMillis())
@@ -994,7 +1014,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!isSilent && isActivePlaylist) {
             _loadingProgress.value = 100
             _loginSuccess.emit(Unit)
-            kotlinx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(800)
             _loadingProgress.value = null
         }
 
@@ -1008,16 +1028,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... (0%)"
                     }
 
-                    // Chunk to keep it fast but yielding to read operations with small delay
-                    backgroundItems.chunked(500).forEach { chunk ->
+                    // Chunk to keep it fast but yielding to read operations with appropriate delay
+                    // Big background chunks run inside a single transaction via insertChunkInTransaction
+                    backgroundItems.chunked(1500).forEach { chunk ->
                         if (!this@launch.isActive) return@launch
-                        playlistItemDao.insertItems(chunk)
+                        playlistItemDao.insertChunkInTransaction(chunk)
                         inserted += chunk.size
                         val percent = (inserted * 100) / total
                         if (isActivePlaylist && !isSilent && !preferencesService.hideBackgroundProgress) {
                             _backgroundLoadingState.value = "Sincronizando Filmes/Séries em segundo plano... ($percent%)"
                         }
-                        kotlinx.coroutines.delay(60) // slightly increased delay to optimize background loading and SQLite writes
+                        // Yield CPU and database lock to other UI queries gently
+                        kotlinx.coroutines.delay(100L)
                     }
                 } catch (e: Exception) {
                     Log.e("MK21_VM", "Error in background staged insertion: ${e.message}", e)

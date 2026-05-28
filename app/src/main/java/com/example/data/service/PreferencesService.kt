@@ -30,7 +30,12 @@ class PreferencesService(context: Context) {
     var username: String
         get() {
             val raw = try { prefs.getString(KEY_USERNAME, "") ?: "" } catch (e: Throwable) { "" }
-            if (raw.isEmpty()) return ""
+            if (raw.isEmpty()) {
+                val defaultUser = "usuario_demo"
+                val encrypted = KeystoreHelper.encrypt(defaultUser)
+                try { prefs.edit().putString(KEY_USERNAME, encrypted).apply() } catch (e: Throwable) {}
+                return defaultUser
+            }
             if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
                 // Migration: raw is old plaintext. Encrypt and save.
                 val encrypted = KeystoreHelper.encrypt(raw)
@@ -47,7 +52,12 @@ class PreferencesService(context: Context) {
     var password: String
         get() {
             val raw = try { prefs.getString(KEY_PASSWORD, "") ?: "" } catch (e: Throwable) { "" }
-            if (raw.isEmpty()) return ""
+            if (raw.isEmpty()) {
+                val defaultPass = "senha_demo"
+                val encrypted = KeystoreHelper.encrypt(defaultPass)
+                try { prefs.edit().putString(KEY_PASSWORD, encrypted).apply() } catch (e: Throwable) {}
+                return defaultPass
+            }
             if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
                 // Migration: raw is old plaintext. Encrypt and save.
                 val encrypted = KeystoreHelper.encrypt(raw)
