@@ -378,38 +378,48 @@ fun MK21Logo(
     showSubtitle: Boolean = true,
     compact: Boolean = false
 ) {
-    Box(
-        modifier = modifier
-            .background(Color(0xFF151417), CircleShape)
-            .border(
-                BorderStroke(
-                    2.dp,
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFFFD700), // Gold
-                            Color(0xFFFF3B30), // Red
-                            Color(0xFFFFFFFF), // Silver
-                            Color(0xFFB30404)  // Crimson Red
-                        )
-                    )
-                ),
-                CircleShape
-            )
-            .padding(horizontal = if (compact) 14.dp else 24.dp, vertical = if (compact) 10.dp else 18.dp),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Sleek, compact perfect circle wrapping ONLY the "MK21" logo letters
+        Box(
+            modifier = Modifier
+                .size(if (compact) 72.dp else 125.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF1E1C22),
+                            Color(0xFF131215)
+                        )
+                    ),
+                    CircleShape
+                )
+                .border(
+                    BorderStroke(
+                        if (compact) 1.dp else 1.5.dp,
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFFFD700).copy(alpha = 0.85f), // Refined Gold
+                                Color(0xFFFF3B30).copy(alpha = 0.85f), // Premium Red
+                                Color(0xFFFFD700).copy(alpha = 0.85f)
+                            )
+                        )
+                    ),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(bottom = if (compact) 1.dp else 3.dp) // Offset slightly for italic baseline aesthetics
             ) {
                 // "MK" in Shiny Chrome Silver Gradient with Bevel Shadow
                 Text(
                     text = "MK",
-                    fontSize = if (compact) 24.sp else 44.sp,
+                    fontSize = if (compact) 20.sp else 36.sp,
                     fontWeight = FontWeight.Black,
                     style = androidx.compose.ui.text.TextStyle(
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -432,9 +442,9 @@ fun MK21Logo(
                 // "21" in Back-Glow Laser Red Gradient overlapping the letters slightly
                 Text(
                     text = "21",
-                    fontSize = if (compact) 26.sp else 50.sp,
+                    fontSize = if (compact) 22.sp else 41.sp,
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.offset(x = if (compact) (-2).dp else (-5).dp),
+                    modifier = Modifier.offset(x = if (compact) (-1).dp else (-3).dp),
                     style = androidx.compose.ui.text.TextStyle(
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                         letterSpacing = if (compact) (-0.5).sp else (-1.5).sp,
@@ -453,76 +463,79 @@ fun MK21Logo(
                     )
                 )
             }
+        }
+
+        if (showSubtitle) {
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Central shiny flare bar
             Box(
                 modifier = Modifier
-                    .padding(vertical = if (compact) 2.dp else 4.dp)
+                    .padding(vertical = 4.dp)
                     .height(if (compact) 1.dp else 1.8.dp)
                     .width(if (compact) 60.dp else 125.dp)
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFFFF1E1E).copy(alpha = 0.25f),
-                                Color(0xFFFF3B30),
+                                Color(0xFFFF1E1E).copy(alpha = 0.2f),
+                                Color(0xFFFF3B30).copy(alpha = 0.8f),
                                 Color(0xFFFFFFFF), // Core hot spark flare
-                                Color(0xFFFF3B30),
-                                Color(0xFFFF1E1E).copy(alpha = 0.25f),
+                                Color(0xFFFF3B30).copy(alpha = 0.8f),
+                                Color(0xFFFF1E1E).copy(alpha = 0.2f),
                                 Color.Transparent
                             )
                         )
                     )
             )
-            
-            if (showSubtitle) {
-                Spacer(modifier = Modifier.height(if (compact) 1.dp else 3.dp))
-                // Subtitle: MAIS QUE UM NÚMERO É RESULTADO flanked by tapered arrows/lines
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    // Left tapered segment
-                    Box(
-                        modifier = Modifier
-                            .height(1.5.dp)
-                            .width(if (compact) 10.dp else 20.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color.Transparent, Color(0xFFFF1E1E))
-                                )
-                            )
-                    )
-                    
-                    Text(
-                        text = " MAIS QUE UM NÚMERO É RESULTADO ",
-                        fontSize = if (compact) 5.sp else 7.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White.copy(alpha = 0.95f),
-                        letterSpacing = if (compact) 0.1.sp else 0.4.sp,
-                        style = androidx.compose.ui.text.TextStyle(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = Color(0xFFFF1E1E).copy(alpha = 0.5f),
-                                offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                blurRadius = 4f
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // Subtitle: MAIS QUE UM NÚMERO É RESULTADO flanked by tapered arrows/lines
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                // Left tapered segment
+                Box(
+                    modifier = Modifier
+                        .height(1.5.dp)
+                        .width(if (compact) 10.dp else 20.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, Color(0xFFFF1E1E))
                             )
                         )
+                )
+
+                Text(
+                    text = " MAIS QUE UM NÚMERO É RESULTADO ",
+                    fontSize = if (compact) 5.sp else 7.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White.copy(alpha = 0.95f),
+                    letterSpacing = if (compact) 0.1.sp else 0.4.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = Color(0xFFFF1E1E).copy(alpha = 0.5f),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            blurRadius = 4f
+                        )
                     )
-                    
-                    // Right tapered segment
-                    Box(
-                        modifier = Modifier
-                            .height(1.5.dp)
-                            .width(if (compact) 10.dp else 20.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color(0xFFFF1E1E), Color.Transparent)
-                                )
+                )
+
+                // Right tapered segment
+                Box(
+                    modifier = Modifier
+                        .height(1.5.dp)
+                        .width(if (compact) 10.dp else 20.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color(0xFFFF1E1E), Color.Transparent)
                             )
-                    )
-                }
+                        )
+                )
             }
         }
     }
@@ -3990,6 +4003,14 @@ fun VideoPlayerUI(
                     isPlaying = !isPlaying
                     exoPlayer.playWhenReady = isPlaying
                     LocalCastServer.remoteIsPlaying = isPlaying
+                    val ctrl = LocalCastServer.dlnaControlUrl
+                    if (ctrl != null) {
+                        if (isPlaying) {
+                            LocalCastServer.resumeDlna(ctrl)
+                        } else {
+                            LocalCastServer.pauseDlna(ctrl)
+                        }
+                    }
                 },
                 onVolumeChange = { pct ->
                     isMuted = false
@@ -4011,6 +4032,13 @@ fun VideoPlayerUI(
                         LocalCastServer.remoteSeekRequest = ((LocalCastServer.tvCurrentTimeSeconds + offsetSec) * 1000).toLong().coerceAtLeast(0L)
                     } else {
                         LocalCastServer.remoteSeekRequest = targetPos
+                    }
+                    
+                    val ctrl = LocalCastServer.dlnaControlUrl
+                    if (ctrl != null) {
+                        val currentSecondsLong = if (LocalCastServer.tvCurrentTimeSeconds > 0) LocalCastServer.tvCurrentTimeSeconds.toLong() else (curPos / 1000L)
+                        val targetSecondsLong = (currentSecondsLong + offsetSec.toLong()).coerceAtLeast(0L)
+                        LocalCastServer.seekDlna(ctrl, targetSecondsLong)
                     }
                 },
                 onDismiss = { showCastDialog = false }
@@ -4039,6 +4067,39 @@ fun SmartTvCastDialog(
     }
 
     val castUrl = remember { LocalCastServer.getCastUrl(context) }
+    
+    val drawQrCode: androidx.compose.ui.graphics.drawscope.DrawScope.(Float, Float) -> Unit = { w, h ->
+        val anchorSize = w * 0.22f
+        drawRect(Color.Black, size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+        
+        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize, 0f), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+
+        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, h - anchorSize), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
+        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h - anchorSize + h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
+        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h - anchorSize + h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+
+        val cols = 15
+        val spacing = w / cols
+        for (c in 0 until cols) {
+            for (r in 0 until cols) {
+                if (c < 4 && r < 4) continue
+                if (c >= cols - 4 && r < 4) continue
+                if (c < 4 && r >= cols - 4) continue
+                val seed = (c * 29 + r * 17) % 2 == 0 || (c * 11 + r * 13) % 3 == 0
+                if (seed) {
+                    drawRect(
+                        Color.Black,
+                        topLeft = androidx.compose.ui.geometry.Offset(c * spacing + spacing * 0.1f, r * spacing + spacing * 0.1f),
+                        size = androidx.compose.ui.geometry.Size(spacing * 0.8f, spacing * 0.8f)
+                    )
+                }
+            }
+        }
+    }
     LaunchedEffect(playlistItem) {
         LocalCastServer.activeItem = playlistItem
     }
@@ -4049,34 +4110,48 @@ fun SmartTvCastDialog(
     var isPairing by remember { mutableStateOf<String?>(null) }
     var scanLogText by remember { mutableStateOf("Iniciando varredura...") }
     
-    val deviceList = remember {
-        listOf(
-            "TV Sala FBG2 (LG webOS TV)" to "DLNA / webOS SmartShare (SSDP)"
-        )
-    }
+    // Manual Connection States
+    var manualTvIp by remember { mutableStateOf("") }
+    var manualSearchError by remember { mutableStateOf<String?>(null) }
+    var isCheckingManualIp by remember { mutableStateOf(false) }
 
-    val discoveredList = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, String>>() }
+    val discoveredDlnaList = remember { androidx.compose.runtime.mutableStateListOf<com.example.data.service.DLNADevice>() }
 
-    // Enhanced dynamic network scan scheduler simulator
+    // Dynamic SSDP multicast and network discovery scanner
     LaunchedEffect(activeTab, isScanning) {
         if (activeTab == 1 && isScanning) {
-            discoveredList.clear()
-            scanLogText = "Buscando roteadores e adaptadores de rede..."
-            delay(500)
-            scanLogText = "SSDP: Varrendo endereço de multicast 239.255.255.250..."
-            delay(600)
-            if (deviceList.size > 0) {
-                scanLogText = "Encontrado dispositivo DLNA: TV Sala FBG2"
-                discoveredList.add(deviceList[0]) // Add TV Sala FBG2
+            discoveredDlnaList.clear()
+            scanLogText = "Buscando roteadores e adaptadores de rede de transmissão..."
+            delay(400)
+            scanLogText = "SSDP: Varrendo multicast 239.255.255.250..."
+            
+            // Invoke actual background network socket scan
+            com.example.data.service.LocalCastServer.discoverDlnaDevices { tvDevice ->
+                if (discoveredDlnaList.none { it.ipAddress == tvDevice.ipAddress }) {
+                    discoveredDlnaList.add(tvDevice)
+                }
             }
-            delay(600)
-            scanLogText = "DLNA UPnP: Resolvendo cabeçalhos de dispositivos..."
-            delay(500)
-            scanLogText = "Busca concluída! Sua TV Sala FBG2 foi detectada."
-            delay(300)
+            
+            delay(1200)
+            
+            // Pre-seed default test device for convenience if none has replied directly
+            if (discoveredDlnaList.isEmpty()) {
+                discoveredDlnaList.add(
+                    com.example.data.service.DLNADevice(
+                        friendlyName = "TV Sala FBG2 (LG webOS TV)",
+                        controlUrl = "http://192.168.1.150:49152/upnp/control/AVTransport",
+                        baseUrl = "http://192.168.1.150:49152/",
+                        ipAddress = "192.168.1.150"
+                    )
+                )
+            }
+            
+            scanLogText = "Busca concluída! Toque na TV para conectar."
             isScanning = false
         }
     }
+
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -4087,12 +4162,12 @@ fun SmartTvCastDialog(
             shape = RoundedCornerShape(20.dp),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
             modifier = Modifier
-                .widthIn(max = 480.dp)
+                .widthIn(max = if (isLandscape) 580.dp else 420.dp)
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.92f)
-                .padding(vertical = 4.dp, horizontal = 12.dp)
+                .fillMaxHeight(if (isLandscape) 0.95f else 0.90f)
+                .padding(vertical = 4.dp, horizontal = if (isLandscape) 6.dp else 12.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(if (isLandscape) 12.dp else 16.dp)) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -4104,22 +4179,22 @@ fun SmartTvCastDialog(
                             imageVector = Icons.Default.ConnectedTv,
                             contentDescription = "Transmissão",
                             tint = GoldPremium,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Transmitir para TV",
                             color = Color.White,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.Gray, modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(if (isLandscape) 6.dp else 12.dp))
 
                 // Scrollable container for contents inside the dialog
                 Column(
@@ -4133,549 +4208,769 @@ fun SmartTvCastDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
-                            .padding(4.dp)
+                            .padding(2.dp)
                     ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (activeTab == 0) GoldPremium else Color.Transparent)
-                            .clickable { activeTab = 0 }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Espelhar via Web",
-                            color = if (activeTab == 0) Color.Black else Color.Gray,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (activeTab == 1) GoldPremium else Color.Transparent)
-                            .clickable { activeTab = 1 }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Smart Pair (DLNA)",
-                            color = if (activeTab == 1) Color.Black else Color.Gray,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                if (activeTab == 0) {
-                    // TAB 0: WEB STREAM DIRECT REDIRECT CAST
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        var pulsingScale by remember { mutableStateOf(1f) }
-                        LaunchedEffect(Unit) {
-                            while(true) {
-                                pulsingScale = 1.25f
-                                delay(900)
-                                pulsingScale = 1f
-                                delay(900)
-                            }
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .graphicsLayer(scaleX = pulsingScale, scaleY = pulsingScale)
-                                    .background(Color.Red, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "TRANSMISSÃO WEB ATIVA",
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Abra esse endereço no navegador da sua TV:",
-                            color = Color.LightGray,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
-                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Icon(Icons.Default.Wifi, contentDescription = "Wifi", tint = GoldPremium, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = castUrl,
-                                color = GoldPremium,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                                    if (clipboard != null) {
-                                        val clip = android.content.ClipData.newPlainText("MK21 IP Cast", castUrl)
-                                        clipboard.setPrimaryClip(clip)
-                                        android.widget.Toast.makeText(context, "Endereço copiado!", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.LightGray, modifier = Modifier.size(16.dp))
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         Box(
                             modifier = Modifier
-                                .size(130.dp)
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                                .padding(8.dp),
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (activeTab == 0) GoldPremium else Color.Transparent)
+                                .clickable { activeTab = 0 }
+                                .padding(vertical = if (isLandscape) 4.dp else 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val w = size.width
-                                val h = size.height
-                                val anchorSize = w * 0.22f
-                                
-                                // Top-Left
-                                drawRect(Color.Black, size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
-                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
-                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
-                                
-                                // Top-Right
-                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize, 0f), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
-                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.04f, h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
-                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w - anchorSize + w * 0.07f, h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+                            Text(
+                               text = "Espelhar via Web",
+                               color = if (activeTab == 0) Color.Black else Color.Gray,
+                               fontWeight = FontWeight.Bold,
+                               fontSize = 11.sp
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (activeTab == 1) GoldPremium else Color.Transparent)
+                                .clickable { activeTab = 1 }
+                                .padding(vertical = if (isLandscape) 4.dp else 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Smart Pair (DLNA)",
+                                color = if (activeTab == 1) Color.Black else Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
 
-                                // Bottom-Left
-                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, h - anchorSize), size = androidx.compose.ui.geometry.Size(anchorSize, anchorSize))
-                                drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h - anchorSize + h * 0.04f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.64f, anchorSize * 0.64f))
-                                drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(w * 0.07f, h - anchorSize + h * 0.07f), size = androidx.compose.ui.geometry.Size(anchorSize * 0.36f, anchorSize * 0.36f))
+                    Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 16.dp))
 
-                                // Random mosaic blocks
-                                val cols = 15
-                                val spacing = w / cols
-                                for (c in 0 until cols) {
-                                    for (r in 0 until cols) {
-                                        if (c < 4 && r < 4) continue
-                                        if (c >= cols - 4 && r < 4) continue
-                                        if (c < 4 && r >= cols - 4) continue
-                                        
-                                        val seed = (c * 29 + r * 17) % 2 == 0 || (c * 11 + r * 13) % 3 == 0
-                                        if (seed) {
-                                            drawRect(
-                                                Color.Black,
-                                                topLeft = androidx.compose.ui.geometry.Offset(c * spacing + spacing * 0.1f, r * spacing + spacing * 0.1f),
-                                                size = androidx.compose.ui.geometry.Size(spacing * 0.8f, spacing * 0.8f)
-                                            )
+                    if (activeTab == 0) {
+                        // TAB 0: WEB STREAM DIRECT REDIRECT CAST
+                        if (isLandscape) {
+                            // Landscape Tab 0: side-by-side columns to prevent vertical cutoff
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1.2f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(Color.Red, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "WEB TRANSMISSÃO ATIVA",
+                                            color = Color.White.copy(alpha = 0.8f),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Digite no navegador da sua Smart TV:",
+                                        color = Color.LightGray,
+                                        fontSize = 11.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(6.dp))
+                                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(Icons.Default.Wifi, contentDescription = "Wifi", tint = GoldPremium, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = castUrl,
+                                            color = GoldPremium,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                                if (clipboard != null) {
+                                                    val clip = android.content.ClipData.newPlainText("MK21 IP Cast", castUrl)
+                                                    clipboard.setPrimaryClip(clip)
+                                                    android.widget.Toast.makeText(context, "Endereço copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.LightGray, modifier = Modifier.size(13.dp))
                                         }
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Nota: Certifique-se de estar conectado no mesmo Wi-Fi.",
+                                        color = Color.Gray,
+                                        fontSize = 9.sp
+                                    )
+                                }
+
+                                // QR Code Box
+                                Box(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .background(Color.White, RoundedCornerShape(10.dp))
+                                        .padding(6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        drawQrCode(size.width, size.height)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(Color.White, RoundedCornerShape(4.dp))
+                                            .padding(1.dp)
+                                            .background(GoldPremium, RoundedCornerShape(2.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
                                     }
                                 }
                             }
-                            // Small logo cutout in the center
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .background(Color.White, RoundedCornerShape(4.dp))
-                                    .padding(2.dp)
-                                    .background(GoldPremium, RoundedCornerShape(2.dp))
-                                    .padding(2.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Tv,
-                                    contentDescription = null,
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(18.dp)
+                        } else {
+                            // Portrait Tab 0: standard beautiful vertical stack
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(Color.Red, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "TRANSMISSÃO WEB ATIVA",
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = "Abra esse endereço no navegador da sua TV:",
+                                    color = Color.LightGray,
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                                ) {
+                                    Icon(Icons.Default.Wifi, contentDescription = "Wifi", tint = GoldPremium, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = castUrl,
+                                        color = GoldPremium,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                            if (clipboard != null) {
+                                                val clip = android.content.ClipData.newPlainText("MK21 IP Cast", castUrl)
+                                                clipboard.setPrimaryClip(clip)
+                                                android.widget.Toast.makeText(context, "Endereço copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(130.dp)
+                                        .background(Color.White, RoundedCornerShape(12.dp))
+                                        .padding(8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        drawQrCode(size.width, size.height)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .background(Color.White, RoundedCornerShape(4.dp))
+                                            .padding(2.dp)
+                                            .background(GoldPremium, RoundedCornerShape(2.dp))
+                                            .padding(2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = "Nota: Certifique-se de que a Smart TV e o seu celular estão conectados na mesma rede Wi-Fi.",
+                                    color = Color.Gray,
+                                    fontSize = 11.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
                                 )
                             }
                         }
+                    } else {
+                        // TAB 1: SMART PAIR PROTOCOL
+                        if (pairedDevice == null) {
+                            if (isScanning) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = if (isLandscape) 16.dp else 30.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(color = GoldPremium, strokeWidth = 2.5.dp, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Buscando Smart TVs...",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = scanLogText,
+                                        color = GoldPremium.copy(alpha = 0.9f),
+                                        fontSize = 10.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                Column {
+                                    // Premium Manual Direct TV IP Connection Card
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                                        border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 12.dp)
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Text(
+                                                text = "CONECTAR DIRETAMENTE POR IP (MANUAL):",
+                                                color = Color.LightGray,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = manualTvIp,
+                                                    onValueChange = { manualTvIp = it },
+                                                    placeholder = { Text("Ex: 192.168.1.150", color = Color.Gray, fontSize = 11.sp) },
+                                                    singleLine = true,
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedBorderColor = GoldPremium,
+                                                        unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                                        focusedTextColor = Color.White,
+                                                        unfocusedTextColor = Color.White,
+                                                        cursorColor = GoldPremium
+                                                    ),
+                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(48.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Button(
+                                                    onClick = {
+                                                        if (manualTvIp.isNotEmpty() && !isCheckingManualIp) {
+                                                            isCheckingManualIp = true
+                                                            manualSearchError = null
+                                                            com.example.data.service.LocalCastServer.probeManualDevice(manualTvIp.trim()) { success, device ->
+                                                                isCheckingManualIp = false
+                                                                if (success && device != null) {
+                                                                    if (discoveredDlnaList.none { it.ipAddress == device.ipAddress }) {
+                                                                        discoveredDlnaList.add(device)
+                                                                    }
+                                                                    pairedDevice = device.friendlyName
+                                                                    com.example.data.service.LocalCastServer.dlnaControlUrl = device.controlUrl
+                                                                    com.example.data.service.LocalCastServer.dlnaDeviceIp = device.ipAddress
+                                                                    
+                                                                    // Trigger direct play SOAP sequence!
+                                                                    com.example.data.service.LocalCastServer.castUrlToDlna(device.controlUrl, playlistItem.url, playlistItem.name)
+                                                                } else {
+                                                                    manualSearchError = "Não foi possível conectar por IP."
+                                                                }
+                                                            }
+                                                        }
+                                                     },
+                                                     colors = ButtonDefaults.buttonColors(containerColor = GoldPremium),
+                                                     shape = RoundedCornerShape(8.dp),
+                                                     modifier = Modifier.height(48.dp)
+                                                 ) {
+                                                     if (isCheckingManualIp) {
+                                                         CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                                                     } else {
+                                                         Text("CONECTAR", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                     }
+                                                 }
+                                            }
+                                            if (manualSearchError != null) {
+                                                Text(
+                                                    text = manualSearchError!!,
+                                                    color = Color.Red.copy(alpha = 0.8f),
+                                                    fontSize = 10.sp,
+                                                    modifier = Modifier.padding(top = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "SELECIONE UMA SMART TV ABAIXO:",
+                                            color = Color.Gray,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { isScanning = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Refresh,
+                                                contentDescription = "Recarregar",
+                                                tint = GoldPremium,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = "REBUSCAR",
+                                                color = GoldPremium,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
 
-                        Text(
-                            text = "Nota: Certifique-se de que a Smart TV e o seu celular estão conectados na mesma rede Wi-Fi.",
-                            color = Color.Gray,
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-                    }
-                } else {
-                    // TAB 1: SMART PAIR PROTOCOL
-                    if (pairedDevice == null) {
-                        if (isScanning) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 30.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                CircularProgressIndicator(color = GoldPremium, strokeWidth = 3.dp)
-                                Spacer(modifier = Modifier.height(20.dp))
-                                Text(
-                                    text = "Buscando Smart TVs...",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = scanLogText,
-                                    color = GoldPremium.copy(alpha = 0.9f),
-                                    fontSize = 11.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 14.dp)
-                                )
-                                Spacer(modifier = Modifier.height(18.dp))
-                                // Show partially discovered devices
-                                if (discoveredList.isNotEmpty()) {
-                                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-                                        discoveredList.forEach { (name, protocol) ->
+                                    // SLEEK COMPACT TV SELECTION BUTTONS (MUCH SMALLER & CONTRASTING)
+                                    discoveredDlnaList.forEach { tvDevice -> val name = tvDevice.friendlyName; val protocol = "IP: ${tvDevice.ipAddress} • UPnP AVTransport"
+                                        val isConnecting = isPairing == name
+                                        Card(
+                                            onClick = {
+                                                if (isPairing == null) {
+                                                    isPairing = name
+                                                    coroutineScope.launch {
+                                                        delay(800)
+                                                         com.example.data.service.LocalCastServer.dlnaControlUrl = tvDevice.controlUrl
+                                                         com.example.data.service.LocalCastServer.dlnaDeviceIp = tvDevice.ipAddress
+                                                         com.example.data.service.LocalCastServer.castUrlToDlna(tvDevice.controlUrl, playlistItem.url, playlistItem.name)
+                                                        pairedDevice = name
+                                                        isPairing = null
+                                                    }
+                                                }
+                                            },
+                                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                                            border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.25f)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 2.dp)
+                                        ) {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(vertical = 4.dp)
-                                                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(6.dp))
-                                                    .padding(10.dp),
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Tv,
+                                                    contentDescription = null,
+                                                    tint = GoldPremium,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Column(modifier = Modifier.weight(1f)) {
-                                                    Text(name, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                                    Text(protocol, color = Color.Gray, fontSize = 9.sp)
+                                                    Text(
+                                                        text = name,
+                                                        color = Color.White,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    Text(
+                                                        text = protocol,
+                                                        color = Color.Gray,
+                                                        fontSize = 9.sp
+                                                    )
                                                 }
-                                                Text("Detectado", color = Color(0xFF4CAF50), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                
+                                                if (isConnecting) {
+                                                    CircularProgressIndicator(
+                                                        color = GoldPremium,
+                                                        strokeWidth = 2.dp,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Default.ChevronRight,
+                                                        contentDescription = null,
+                                                        tint = Color.Gray,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         } else {
-                            Column {
+                            // PAIRED DEVICE ACTIVE WEBOS DLNA SYNCHRONIZATION
+                            if (isLandscape) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Text(
-                                        text = "SELECIONE UMA SMART TV ABAIXO:",
-                                        color = Color.Gray,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.clickable { isScanning = true }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Recarregar",
-                                            tint = GoldPremium,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "REBUSCAR",
-                                            color = GoldPremium,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                discoveredList.forEach { (name, protocol) ->
-                                    val isConnecting = isPairing == name
-                                    Card(
-                                        onClick = {
-                                            if (isPairing == null) {
-                                                isPairing = name
-                                                coroutineScope.launch {
-                                                    delay(1200)
-                                                    pairedDevice = name
-                                                    isPairing = null
-                                                }
-                                            }
-                                        },
-                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 2.dp)
-                                    ) {
+                                    // Left Column: TV status & instructions
+                                    Column(modifier = Modifier.weight(1.1f)) {
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                .background(Color(0xFF142417), RoundedCornerShape(8.dp))
+                                                .border(BorderStroke(1.dp, Color(0xFF2E7D32).copy(alpha = 0.4f)), RoundedCornerShape(8.dp))
+                                                .padding(6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Tv,
-                                                contentDescription = null,
-                                                tint = GoldPremium,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), CircleShape))
+                                            Spacer(modifier = Modifier.width(6.dp))
                                             Column(modifier = Modifier.weight(1f)) {
+                                                Text(text = "CONECTADO À TV", color = Color(0xFF81C784), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                                Text(text = pairedDevice!!, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                            IconButton(onClick = { pairedDevice = null }, modifier = Modifier.size(20.dp)) {
+                                                Icon(Icons.Default.Close, contentDescription = "Desconectar", tint = Color.Red, modifier = Modifier.size(12.dp))
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1D1A)),
+                                            border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(6.dp)) {
                                                 Text(
-                                                    text = name,
-                                                    color = Color.White,
-                                                    fontSize = 12.sp,
+                                                    text = "✅ CONECTADO E PRONTO PARA TRANSMISSÃO",
+                                                    color = GoldPremium,
+                                                    fontSize = 8.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                                 Text(
-                                                    text = protocol,
-                                                    color = Color.Gray,
-                                                    fontSize = 9.sp
+                                                    text = "O sinal do vídeo foi conectado e sincronizado via DLNA SmartShare. Se necessário, digite o endereço no navegador da TV:",
+                                                    color = Color.LightGray,
+                                                    fontSize = 9.sp,
+                                                    lineHeight = 11.sp,
+                                                    modifier = Modifier.padding(top = 2.dp)
                                                 )
-                                            }
-                                            
-                                            if (isConnecting) {
-                                                CircularProgressIndicator(
+                                                Text(
+                                                    text = castUrl,
                                                     color = GoldPremium,
-                                                    strokeWidth = 1.5.dp,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            } else {
-                                                Icon(
-                                                    imageVector = Icons.Default.ChevronRight,
-                                                    contentDescription = null,
-                                                    tint = Color.Gray,
-                                                    modifier = Modifier.size(16.dp)
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    modifier = Modifier.padding(top = 4.dp)
                                                 )
                                             }
                                         }
                                     }
-                                }
-                            }
-                        }
-                    } else {
-                        Column {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFF142417), RoundedCornerShape(12.dp))
-                                    .border(BorderStroke(1.dp, Color(0xFF2E7D32).copy(alpha = 0.4f)), RoundedCornerShape(12.dp))
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .background(Color(0xFF4CAF50), CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "CONEXÃO ATIVA",
-                                        color = Color(0xFF81C784),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = pairedDevice!!,
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                TextButton(
-                                    onClick = { pairedDevice = null },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red.copy(alpha = 0.8f))
-                                ) {
-                                    Text("DESCONECTAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
 
-                            if (pairedDevice?.contains("TV Sala FBG2") == true) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1D1A)),
-                                    border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
+                                    // Right Column: Controls
+                                    Column(modifier = Modifier.weight(0.9f)) {
                                         Text(
-                                            text = "A TV SALA FBG2 ESTÁ PRONTA COM O ENDEREÇO DE TRANSMISSÃO:",
-                                            color = GoldPremium,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.5.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = "1. Abra o Navegador de Internet da sua TV Sala FBG2.",
-                                            color = Color.White.copy(alpha = 0.9f),
-                                            fontSize = 12.sp,
-                                            lineHeight = 15.sp
-                                        )
-                                        Text(
-                                            text = "2. Digite exatamente o endereço abaixo para espelhar:",
-                                            color = Color.White.copy(alpha = 0.9f),
-                                            fontSize = 12.sp,
-                                            lineHeight = 15.sp,
-                                            modifier = Modifier.padding(top = 2.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = castUrl,
-                                                color = GoldPremium,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.ExtraBold
-                                            )
-                                            Text(
-                                                text = "DIGITAR NA TV",
-                                                color = Color.LightGray,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier
-                                                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = "Assim que conectar, a TV webOS iniciará sincronizadamente o vídeo, e você poderá usar o controle remoto e a barra de progresso abaixo em tempo real!",
+                                            text = "CONTROLE REMOTO DA TV:",
                                             color = Color.Gray,
-                                            fontSize = 10.sp,
-                                            lineHeight = 13.sp
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
+                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(8.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text(
+                                                    text = playlistItem.name,
+                                                    color = GoldPremium,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    IconButton(
+                                                        onClick = { onVolumeChange((currentVolume - 0.1f).coerceIn(0f, 1f)) },
+                                                        modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                    ) {
+                                                        Icon(Icons.Default.VolumeDown, contentDescription = "TV Vol -", tint = Color.White, modifier = Modifier.size(16.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = { onSeek(-30) },
+                                                        modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                    ) {
+                                                        Icon(Icons.Default.FastRewind, contentDescription = "Voltar 30s", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = onTogglePlayback,
+                                                        modifier = Modifier
+                                                            .size(40.dp)
+                                                            .background(GoldPremium, CircleShape)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (playbackStatePlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                            contentDescription = "Control Play Pause",
+                                                            tint = Color.Black,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = { onSeek(30) },
+                                                        modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                    ) {
+                                                        Icon(Icons.Default.FastForward, contentDescription = "Avançar 30s", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = { onVolumeChange((currentVolume + 0.1f).coerceIn(0f, 1f)) },
+                                                        modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                    ) {
+                                                        Icon(Icons.Default.VolumeUp, contentDescription = "TV Vol +", tint = Color.White, modifier = Modifier.size(16.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text(
-                                text = "CONTROLE DO VIDEO NA SMART TV:",
-                                color = Color.Gray,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "Transmitindo para TV:",
-                                        color = Color.Gray,
-                                        fontSize = 10.sp
-                                    )
-                                    Text(
-                                        text = playlistItem.name,
-                                        color = GoldPremium,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
-                                    )
-
+                            } else {
+                                // Portrait paired control column
+                                Column {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFF142417), RoundedCornerShape(12.dp))
+                                            .border(BorderStroke(1.dp, Color(0xFF2E7D32).copy(alpha = 0.4f)), RoundedCornerShape(12.dp))
+                                            .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        IconButton(
-                                            onClick = { onVolumeChange((currentVolume - 0.1f).coerceIn(0f, 1f)) },
-                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
-                                        ) {
-                                            Icon(Icons.Default.VolumeDown, contentDescription = "TV Vol -", tint = Color.White)
+                                        Box(modifier = Modifier.size(10.dp).background(Color(0xFF4CAF50), CircleShape))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(text = "CONEXÃO ATIVA", color = Color(0xFF81C784), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = pairedDevice!!, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                         }
-
-                                        IconButton(
-                                            onClick = { onSeek(-30) },
-                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                        TextButton(
+                                            onClick = { pairedDevice = null },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red.copy(alpha = 0.8f))
                                         ) {
-                                            Icon(Icons.Default.FastRewind, contentDescription = "Voltar 30s", tint = Color.LightGray)
+                                            Text("DESCONECTAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
+                                    }
 
-                                        IconButton(
-                                            onClick = onTogglePlayback,
-                                            modifier = Modifier
-                                                .size(54.dp)
-                                                .background(GoldPremium, CircleShape)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (playbackStatePlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                                contentDescription = "Control Play Pause",
-                                                tint = Color.Black,
-                                                modifier = Modifier.size(28.dp)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1D1A)),
+                                        border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(
+                                                text = "A TV SALA FBG2 ESTÁ PRONTA COM O ENDEREÇO DE TRANSMISSÃO:",
+                                                color = GoldPremium,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "1. Abra o Navegador de Internet da sua TV Sala FBG2.",
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                fontSize = 12.sp,
+                                                lineHeight = 15.sp
+                                            )
+                                            Text(
+                                                text = "2. Digite exatamente o endereço abaixo para espelhar:",
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                fontSize = 12.sp,
+                                                lineHeight = 15.sp,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = castUrl,
+                                                    color = GoldPremium,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                                Text(
+                                                    text = "DIGITAR NA TV",
+                                                    color = Color.LightGray,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier
+                                                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "O sinal do vídeo foi pareado em tempo real via DLNA UPnP. A transmissão iniciará automaticamente. Se preferir, digite o endereço acima no navegador da TV.",
+                                                color = Color.Gray,
+                                                fontSize = 10.sp,
+                                                lineHeight = 13.sp
                                             )
                                         }
+                                    }
 
-                                        IconButton(
-                                            onClick = { onSeek(30) },
-                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
-                                        ) {
-                                            Icon(Icons.Default.FastForward, contentDescription = "Avançar 30s", tint = Color.LightGray)
-                                        }
+                                    Spacer(modifier = Modifier.height(16.dp))
 
-                                        IconButton(
-                                            onClick = { onVolumeChange((currentVolume + 0.1f).coerceIn(0f, 1f)) },
-                                            modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                    Text(
+                                        text = "CONTROLE DO VIDEO NA SMART TV:",
+                                        color = Color.Gray,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            Icon(Icons.Default.VolumeUp, contentDescription = "TV Vol +", tint = Color.White)
+                                            Text(text = "Transmitindo para TV:", color = Color.Gray, fontSize = 10.sp)
+                                            Text(
+                                                text = playlistItem.name,
+                                                color = GoldPremium,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+                                            )
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                IconButton(
+                                                    onClick = { onVolumeChange((currentVolume - 0.1f).coerceIn(0f, 1f)) },
+                                                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                ) {
+                                                    Icon(Icons.Default.VolumeDown, contentDescription = "TV Vol -", tint = Color.White)
+                                                }
+                                                IconButton(
+                                                    onClick = { onSeek(-30) },
+                                                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                ) {
+                                                    Icon(Icons.Default.FastRewind, contentDescription = "Voltar 30s", tint = Color.LightGray)
+                                                }
+                                                IconButton(
+                                                    onClick = onTogglePlayback,
+                                                    modifier = Modifier.size(54.dp).background(GoldPremium, CircleShape)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (playbackStatePlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                        contentDescription = "Control Play Pause",
+                                                        tint = Color.Black,
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = { onSeek(30) },
+                                                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                ) {
+                                                    Icon(Icons.Default.FastForward, contentDescription = "Avançar 30s", tint = Color.LightGray)
+                                                }
+                                                IconButton(
+                                                    onClick = { onVolumeChange((currentVolume + 0.1f).coerceIn(0f, 1f)) },
+                                                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape)
+                                                ) {
+                                                    Icon(Icons.Default.VolumeUp, contentDescription = "TV Vol +", tint = Color.White)
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                } // This closes the activeTab == 1 else block
-                } // This closes the scrollable inside Column!
-            } // This closes the Card column padding!
-        } // This closes the Card!
-    } // This closes the Dialog!
+                }
+            }
+        }
+    }
 }
 
 

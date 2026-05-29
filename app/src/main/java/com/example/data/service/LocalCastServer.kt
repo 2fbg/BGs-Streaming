@@ -10,9 +10,21 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.NetworkInterface
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.URL
+import java.net.HttpURLConnection
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
+data class DLNADevice(
+    val friendlyName: String,
+    val controlUrl: String,
+    val baseUrl: String,
+    val ipAddress: String,
+)
 
 object LocalCastServer {
     private const val TAG = "LocalCastServer"
@@ -29,6 +41,10 @@ object LocalCastServer {
     var remoteSeekRequest: Long = -1L // in milliseconds
     var remoteVolume: Float = 0.8f
     var tvCurrentTimeSeconds: Float = 0.0f
+
+    // DLNA Active Connection States
+    var dlnaControlUrl: String? = null
+    var dlnaDeviceIp: String? = null
 
     @Synchronized
     fun startServer(context: Context, item: PlaylistItem): String? {
@@ -412,4 +428,370 @@ object LocalCastServer {
     fun getCastUrl(context: Context): String {
         return "http://${getLocalIpAddress(context)}:$serverPort/"
     }
+
+    /**
+     * Scan the local network for DLNA renderers using SSDP M-SEARCH protocol
+     */
+    fun discoverDlnaDevices(onDeviceDiscovered: (DLNADevice) -> Unit) {
+        Thread {
+            var socket: DatagramSocket? = null
+            try {
+                socket = DatagramSocket()
+                socket.soTimeout = 2500
+                val target = InetAddress.getByName("239.255.255.250")
+                
+                // M-SEARCH query for MediaRenderer:1 (standard for televisions and set-top boxes)
+                val query = "M-SEARCH * HTTP/1.1\r\n" +
+                        "HOST: 239.255.255.250:1900\r\n" +
+                        "MAN: \"ssdp:discover\"\r\n" +
+                        "MX: 3\r\n" +
+                        "ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n"
+                
+                val bytes = query.toByteArray()
+                val packet = DatagramPacket(bytes, bytes.size, target, 1900)
+                socket.send(packet)
+                
+                // Secondary fallback search for AVTransport services
+                val queryAv = "M-SEARCH * HTTP/1.1\r\n" +
+                        "HOST: 239.255.255.250:1900\r\n" +
+                        "MAN: \"ssdp:discover\"\r\n" +
+                        "MX: 3\r\n" +
+                        "ST: urn:schemas-upnp-org:service:AVTransport:1\r\n\r\n"
+                val bytesAv = queryAv.toByteArray()
+                val packetAv = DatagramPacket(bytesAv, bytesAv.size, target, 1900)
+                socket.send(packetAv)
+                
+                val receiveBuffer = ByteArray(8192)
+                val startTime = System.currentTimeMillis()
+                val discoveredLocations = mutableSetOf<String>()
+                
+                while (System.currentTimeMillis() - startTime < 3000) {
+                    try {
+                        val receivePacket = DatagramPacket(receiveBuffer, receiveBuffer.size)
+                        socket.receive(receivePacket)
+                        val response = String(receivePacket.data, 0, receivePacket.length)
+                        
+                        // Look for LOCATION: http://...
+                        val locationLine = response.lines().firstOrNull { it.uppercase(Locale.US).startsWith("LOCATION:") }
+                        if (locationLine != null) {
+                            val locationUrl = locationLine.substringAfter(":").trim()
+                            if (locationUrl.isNotEmpty() && discoveredLocations.add(locationUrl)) {
+                                fetchDeviceDescription(locationUrl, onDeviceDiscovered)
+                            }
+                        }
+                    } catch (e: java.io.InterruptedIOException) {
+                        break // Timeout
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error parsing SSDP raw packet", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "SSDP search crashed", e)
+            } finally {
+                try {
+                    socket?.close()
+                } catch (e: Exception) {}
+            }
+        }.start()
+    }
+
+    private fun fetchDeviceDescription(locationUrl: String, onDeviceDiscovered: (DLNADevice) -> Unit) {
+        try {
+            val url = URL(locationUrl)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 1500
+            conn.readTimeout = 2000
+            conn.requestMethod = "GET"
+            
+            if (conn.responseCode == 200) {
+                val xmlText = conn.inputStream.bufferedReader().use { it.readText() }
+                
+                var friendlyName = xmlText.substringAfter("<friendlyName>", "").substringBefore("</friendlyName>").trim()
+                if (friendlyName.isEmpty()) {
+                    friendlyName = "Smart TV/DLNA Player"
+                }
+                
+                // Locate AVTransport control path
+                val avTransportIndex = xmlText.indexOf("urn:schemas-upnp-org:service:AVTransport")
+                var controlUrlSub = "/AVTransport/control" // standard default fallback path
+                if (avTransportIndex != -1) {
+                    val serviceBlock = xmlText.substring(avTransportIndex, xmlText.indexOf("</service>", avTransportIndex).coerceAtLeast(avTransportIndex))
+                    val extractedCtrl = serviceBlock.substringAfter("<controlURL>", "").substringBefore("</controlURL>").trim()
+                    if (extractedCtrl.isNotEmpty()) {
+                        controlUrlSub = extractedCtrl
+                    }
+                }
+                
+                val uri = url.toURI()
+                val resolvedControlUrl = if (controlUrlSub.startsWith("http://") || controlUrlSub.startsWith("https://")) {
+                    controlUrlSub
+                } else {
+                    val base = "${uri.scheme}://${uri.host}:${uri.port}"
+                    if (controlUrlSub.startsWith("/")) {
+                        "$base$controlUrlSub"
+                    } else {
+                        "$base/$controlUrlSub"
+                    }
+                }
+                
+                val baseUrl = "${uri.scheme}://${uri.host}:${uri.port}/"
+                onDeviceDiscovered(
+                    DLNADevice(
+                        friendlyName = friendlyName,
+                        controlUrl = resolvedControlUrl,
+                        baseUrl = baseUrl,
+                        ipAddress = uri.host
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed reading device XML at $locationUrl", e)
+        }
+    }
+
+    /**
+     * Background direct IP sweep for Smart TV description files
+     */
+    fun probeManualDevice(ip: String, onResult: (Boolean, DLNADevice?) -> Unit) {
+        Thread {
+            val commonPorts = listOf(49152, 1800, 50244, 49153, 8012, 8008, 55000, 8200)
+            var success = false
+            var foundDevice: DLNADevice? = null
+            
+            for (port in commonPorts) {
+                val urls = listOf(
+                    "http://$ip:$port/dlna/description.xml",
+                    "http://$ip:$port/description.xml",
+                    "http://$ip:$port/xml/device_description.xml",
+                    "http://$ip:$port/upnp/desc.xml",
+                    "http://$ip:$port/dd.xml"
+                )
+                for (u in urls) {
+                    try {
+                        val url = URL(u)
+                        val conn = url.openConnection() as HttpURLConnection
+                        conn.connectTimeout = 400
+                        conn.readTimeout = 400
+                        if (conn.responseCode == 200) {
+                            val xmlText = conn.inputStream.bufferedReader().use { it.readText() }
+                            if (xmlText.contains("MediaRenderer") || xmlText.contains("AVTransport") || xmlText.contains("avtransport")) {
+                                var friendlyName = xmlText.substringAfter("<friendlyName>", "").substringBefore("</friendlyName>").trim()
+                                if (friendlyName.isEmpty()) friendlyName = "Smart TV ($ip)"
+                                
+                                val avTransportIndex = xmlText.indexOf("urn:schemas-upnp-org:service:AVTransport")
+                                var controlUrl = "/AVTransport/control"
+                                if (avTransportIndex != -1) {
+                                    val serviceBlock = xmlText.substring(avTransportIndex, xmlText.indexOf("</service>", avTransportIndex).coerceAtLeast(avTransportIndex))
+                                    val extracted = serviceBlock.substringAfter("<controlURL>", "").substringBefore("</controlURL>").trim()
+                                    if (extracted.isNotEmpty()) {
+                                        controlUrl = extracted
+                                    }
+                                }
+                                
+                                val resolved = if (controlUrl.startsWith("http://") || controlUrl.startsWith("https://")) {
+                                    controlUrl
+                                } else {
+                                    "http://$ip:$port" + (if (controlUrl.startsWith("/")) "" else "/") + controlUrl
+                                }
+                                
+                                foundDevice = DLNADevice(
+                                    friendlyName = friendlyName,
+                                    controlUrl = resolved,
+                                    baseUrl = "http://$ip:$port/",
+                                    ipAddress = ip
+                                )
+                                success = true
+                                break
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore and try next
+                    }
+                }
+                if (success) break
+            }
+            
+            if (!success) {
+                // If standard SSDP is blocked or port scanning didn't identify XML, pre-build standard TV endpoints
+                val fallbackPort = 49152
+                val fallbackControlUrl = "http://$ip:$fallbackPort/upnp/control/AVTransport"
+                foundDevice = DLNADevice(
+                    friendlyName = "Smart TV ($ip)",
+                    controlUrl = fallbackControlUrl,
+                    baseUrl = "http://$ip:$fallbackPort/",
+                    ipAddress = ip
+                )
+                onResult(true, foundDevice)
+            } else {
+                onResult(true, foundDevice)
+            }
+        }.start()
+    }
+
+    /**
+     * Send direct media URL block to TV via UPnP DLNA SOAP Request
+     */
+    fun castUrlToDlna(controlUrl: String, streamUrl: String, title: String) {
+        Thread {
+            try {
+                // SOAP Envelope format for SetAVTransportURI
+                val soapSetUri = """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                        <s:Body>
+                            <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                                <InstanceID>0</InstanceID>
+                                <CurrentURI>$streamUrl</CurrentURI>
+                                <CurrentURIMetaData><![CDATA[<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"><item id="0" parentID="-1" restricted="false"><dc:title>$title</dc:title><upnp:class>object.item.videoItem.movie</upnp:class><res protocolInfo="http-get:*:video/mp4:*">$streamUrl</res></item></DIDL-Lite>]]></CurrentURIMetaData>
+                            </u:SetAVTransportURI>
+                        </s:Body>
+                    </s:Envelope>
+                """.trimIndent()
+                
+                sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI", soapSetUri)
+                
+                // Brief pause to allow the renderer buffers to register the new media endpoint
+                Thread.sleep(800)
+                
+                // Play Action to start streaming the newly set media URI
+                val soapPlay = """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                        <s:Body>
+                            <u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                                <InstanceID>0</InstanceID>
+                                <Speed>1</Speed>
+                            </u:Play>
+                        </s:Body>
+                    </s:Envelope>
+                """.trimIndent()
+                
+                sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#Play", soapPlay)
+                Log.d(TAG, "Cast commands fired successfully to DLNA target: $controlUrl")
+            } catch (e: Exception) {
+                Log.e(TAG, "DLNA Cast sequence failed", e)
+            }
+        }.start()
+    }
+
+    /**
+     * Pause DLNA Media Playback
+     */
+    fun pauseDlna(controlUrl: String) {
+        Thread {
+            val soapPause = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                    <s:Body>
+                        <u:Pause xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                            <InstanceID>0</InstanceID>
+                        </u:Pause>
+                    </s:Body>
+                </s:Envelope>
+            """.trimIndent()
+            sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#Pause", soapPause)
+        }.start()
+    }
+
+    /**
+     * Resume DLNA Media Playback
+     */
+    fun resumeDlna(controlUrl: String) {
+        Thread {
+            val soapPlay = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                    <s:Body>
+                        <u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                            <InstanceID>0</InstanceID>
+                            <Speed>1</Speed>
+                        </u:Play>
+                    </s:Body>
+                </s:Envelope>
+            """.trimIndent()
+            sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#Play", soapPlay)
+        }.start()
+    }
+
+    /**
+     * Seek to a specific timestamp in seconds
+     */
+    fun seekDlna(controlUrl: String, positionSeconds: Long) {
+        Thread {
+            val hh = positionSeconds / 3600
+            val mm = (positionSeconds % 3600) / 60
+            val ss = positionSeconds % 60
+            val timeStr = String.format(Locale.US, "%02d:%02d:%02d", hh, mm, ss)
+            
+            val soapSeek = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                    <s:Body>
+                        <u:Seek xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                            <InstanceID>0</InstanceID>
+                            <Unit>REL_TIME</Unit>
+                            <Target>$timeStr</Target>
+                        </u:Seek>
+                    </s:Body>
+                </s:Envelope>
+            """.trimIndent()
+            sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#Seek", soapSeek)
+        }.start()
+    }
+
+    /**
+     * Stop DLNA Media Stream completely
+     */
+    fun stopDlna(controlUrl: String) {
+        Thread {
+            val soapStop = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                    <s:Body>
+                        <u:Stop xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+                            <InstanceID>0</InstanceID>
+                        </u:Stop>
+                    </s:Body>
+                </s:Envelope>
+            """.trimIndent()
+            sendSoapAction(controlUrl, "urn:schemas-upnp-org:service:AVTransport:1#Stop", soapStop)
+        }.start()
+    }
+
+    private fun sendSoapAction(controlUrl: String, soapAction: String, xmlPayload: String) {
+        var conn: HttpURLConnection? = null
+        try {
+            val url = URL(controlUrl)
+            conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 2500
+            conn.readTimeout = 3000
+            conn.doOutput = true
+            
+            conn.setRequestProperty("Content-Type", "text/xml; charset=\"utf-8\"")
+            conn.setRequestProperty("SOAPACTION", "\"$soapAction\"")
+            
+            val outputBytes = xmlPayload.toByteArray(Charsets.UTF_8)
+            conn.setRequestProperty("Content-Length", outputBytes.size.toString())
+            
+            conn.outputStream.use { os ->
+                os.write(outputBytes)
+                os.flush()
+            }
+            
+            val code = conn.responseCode
+            if (code >= 200 && code < 300) {
+                val res = conn.inputStream.bufferedReader().use { it.readText() }
+                Log.d(TAG, "UPnP SOAP success code $code Action $soapAction")
+            } else {
+                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                Log.w(TAG, "UPnP SOAP failure $code: $err")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "SOAP HTTP POST request failed to $controlUrl: ${e.message}")
+        } finally {
+            conn?.disconnect()
+        }
+    }
 }
+
