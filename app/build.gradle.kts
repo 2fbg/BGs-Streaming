@@ -25,10 +25,23 @@ android {
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
+      val keystoreFile = file(keystorePath)
+      if (!keystoreFile.exists() && keystorePath == "${rootDir}/my-upload-key.jks") {
+        val base64File = file("${rootDir}/my-upload-key.base64")
+        if (base64File.exists()) {
+          try {
+            val base64Text = base64File.readText().trim()
+            val decodedBytes = Base64.getDecoder().decode(base64Text)
+            keystoreFile.writeBytes(decodedBytes)
+          } catch (e: Exception) {
+            logger.warn("Failed to decode my-upload-key.base64: ${e.message}")
+          }
+        }
+      }
+      storeFile = keystoreFile
+      storePassword = System.getenv("STORE_PASSWORD") ?: "F@bioGu@rniere1983!"
       keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      keyPassword = System.getenv("KEY_PASSWORD") ?: "F@bioGu@rniere1983!"
     }
     create("debugConfig") {
       val keystoreFile = file("${rootDir}/debug.keystore")
@@ -136,3 +149,38 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+tasks.register("generateReleaseKeystore") {
+  doLast {
+    val keystoreFile = file("${rootDir}/my-upload-key.jks")
+    if (keystoreFile.exists()) {
+      println("Keystore already exists at ${keystoreFile.absolutePath}")
+      return@doLast
+    }
+    val pb = ProcessBuilder(
+      "keytool", "-genkeypair",
+      "-v",
+      "-keystore", keystoreFile.absolutePath,
+      "-keyalg", "RSA",
+      "-keysize", "2048",
+      "-validity", "10000",
+      "-alias", "upload",
+      "-storepass", "F@bioGu@rniere1983!",
+      "-keypass", "F@bioGu@rniere1983!",
+      "-dname", "CN=Fabio Guarniere, O=MK21, C=BR"
+    )
+    val exitCode = pb.inheritIO().start().waitFor()
+    if (exitCode != 0) {
+      throw GradleException("Failed to generate keystore with keytool, exit code: $exitCode")
+    }
+    println("Keystore successfully created at ${keystoreFile.absolutePath}!")
+    
+    // Now convert it to base64 so it can be committed
+    val base64File = file("${rootDir}/my-upload-key.base64")
+    val bytes = keystoreFile.readBytes()
+    val base64Text = Base64.getEncoder().encodeToString(bytes)
+    base64File.writeText(base64Text)
+    println("Base64 representation written to ${base64File.absolutePath}!")
+  }
+}
+
