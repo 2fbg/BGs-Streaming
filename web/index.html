@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MK21 MultiServidor Web</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Premium Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Hls.js for HLS (.m3u8) playback in browsers -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0d0f14;
+            color: #f3f4f6;
+        }
+
+        .jetbrains {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Ambient glowing effects */
+        .glowing-bg {
+            background: radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.15) 0%, rgba(13, 15, 20, 0) 60%);
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: rgba(22, 28, 41, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(13, 15, 20, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="glowing-bg min-h-screen flex flex-col overflow-x-hidden antialiased select-none">
+
+    <!-- Top Glow Header Bar -->
+    <div class="h-1 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 w-full"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="flex-grow flex flex-col justify-center items-center p-4">
+
+        <!-- 1. LOGIN / GATEWAY SCREEN -->
+        <div id="login-screen" class="w-full max-w-lg transition-all duration-300 transform scale-100 block">
+            <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
+                <!-- Branding -->
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 mb-4 ring-4 ring-blue-500/10">
+                        <i class="fa-solid fa-circle-play text-3xl text-white"></i>
+                    </div>
+                    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-blue-400 bg-clip-text text-transparent">
+                        MK21 MultiServidor
+                    </h1>
+                    <p class="text-slate-400 text-sm mt-2">Versão Web IPTV de Alto Desempenho</p>
+                </div>
+
+                <!-- Form -->
+                <div class="space-y-5">
+                    <!-- Server Profile Picker -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" for="server-selector">
+                            Selecionar Servidor
+                        </label>
+                        <div class="relative">
+                            <select id="server-selector" class="w-full px-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none outline-none">
+                                <!-- Loaded dynamically via JS -->
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Username -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" for="user-input">
+                            Usuário
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input id="user-input" type="text" autocomplete="username" placeholder="Digite seu usuário" class="w-full pl-11 pr-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200">
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" for="pass-input">
+                            Senha
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                                <i class="fa-solid fa-lock"></i>
+                            </span>
+                            <input id="pass-input" type="password" autocomplete="current-password" placeholder="Digite sua senha" class="w-full pl-11 pr-12 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200">
+                            <button id="toggle-password" type="button" class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-white transition-colors">
+                                <i class="fa-solid fa-eye-slash" id="password-eye-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Access CORS Settings / Info -->
+                    <div class="bg-blue-950/20 border border-blue-900/30 rounded-2xl p-4 text-xs font-medium text-blue-300 leading-relaxed shadow-sm">
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-base mt-0.5 text-blue-400"></i>
+                            <div>
+                                <span class="font-bold text-white block mb-1">Informação sobre Navegadores (CORS):</span>
+                                A maioria dos servidores IPTV limita conexões web diretas (CORS). Se a lista falhar ao carregar, habilite uma extensão CORS (ex: "Allow CORS" na Chrome Store) ou use a opção de Proxy abaixo.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CORS Proxy Method Selector -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" for="cors-selector">
+                            Método de Conexão (Proxy)
+                        </label>
+                        <div class="relative">
+                            <select id="cors-selector" class="w-full px-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none outline-none">
+                                <option value="direct">Conexão Direta (Recomendado c/ Extensão CORS)</option>
+                                <option value="proxy1">Proxy Integrado 1 (ThingProxy)</option>
+                                <option value="proxy2">Proxy Integrado 2 (AllOrigin)</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button id="login-button" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 outline-none text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2">
+                        <span>Acessar Portal IPTV</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Predefined Server Credits -->
+            <p class="text-center text-xs text-slate-500 mt-6 font-medium">
+                Desenvolvido para MK21 Multisservidores Portal • Sistema Multi-Gateway
+            </p>
+        </div>
+
+
+        <!-- 2. MAIN PLAYER / CONTENT SCREEN -->
+        <div id="player-screen" class="w-full max-w-[1600px] flex-col h-[calc(100vh-4rem)] transition-all duration-300 transform scale-95 opacity-0 hidden">
+            <!-- App Dashboard Header -->
+            <header class="glass-card rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
+                        MK
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg leading-tight" id="active-server-display">VLOG</h2>
+                        <span class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Conectado: <span id="active-user-display" class="font-semibold"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Quick Section / Content Type Filters -->
+                <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                    <button data-type="LIVE" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition-all duration-200">
+                        <i class="fa-solid fa-tv mr-2"></i>Canais Ao Vivo
+                    </button>
+                    <button data-type="MOVIE" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-solid fa-film mr-2"></i>Filmes
+                    </button>
+                    <button data-type="SERIES" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-solid fa-clapperboard mr-2"></i>Séries
+                    </button>
+                </div>
+
+                <!-- Right Controls: Logout / Quick Switch -->
+                <div class="flex items-center gap-3">
+                    <button id="logout-button" class="px-4 py-2.5 bg-slate-800 hover:bg-red-950/40 hover:text-red-400 text-slate-300 text-xs font-bold rounded-xl outline-none transition-all duration-200 flex items-center gap-2">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Sair</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Columns (Left Nav - Mid Lists - Right View/Player) -->
+            <div class="flex-grow flex gap-4 overflow-hidden h-[calc(100%-6.5rem)]">
+                
+                <!-- COLUMN 1: Category Selector (Accordion design) -->
+                <aside class="w-72 glass-card rounded-2xl flex flex-col overflow-hidden shrink-0 hidden md:flex">
+                    <div class="p-4 border-b border-slate-800">
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center justify-between">
+                            <span>Categorias</span>
+                            <span id="category-count" class="px-2 py-0.5 bg-slate-900 rounded-md text-[10px] text-blue-400 tracking-normal jetbrains">0</span>
+                        </h3>
+                    </div>
+                    <div id="category-list" class="flex-grow overflow-y-auto p-2 space-y-1">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </aside>
+
+                <!-- COLUMN 2: Media Listing -->
+                <section class="flex-grow md:w-96 glass-card rounded-2xl flex flex-col overflow-hidden min-w-[320px]">
+                    <!-- Search and Actions Bar -->
+                    <div class="p-4 border-b border-slate-800 space-y-3">
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                            </span>
+                            <input id="search-input" type="text" placeholder="Buscar canal, filme ou série..." class="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-850 text-slate-200 placeholder-slate-500 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all duration-200">
+                        </div>
+
+                        <!-- Mobile Category Button Trigger -->
+                        <div class="block md:hidden">
+                            <button id="mobile-category-trigger" class="w-full px-4 py-2.5 bg-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-xl flex items-center justify-between">
+                                <span id="mobile-category-label">Todas as Categorias</span>
+                                <i class="fa-solid fa-layer-group"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Items Grid / List -->
+                    <div id="media-items-scroller" class="flex-grow overflow-y-auto p-4">
+                        <div id="media-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Items loaded dynamically -->
+                        </div>
+                        <div id="empty-state" class="hidden flex flex-col items-center justify-center text-center p-8 text-slate-500 mt-12">
+                            <i class="fa-solid fa-clapperboard text-5xl mb-3 text-slate-700 animate-pulse"></i>
+                            <p class="font-medium text-sm">Nenhum resultado encontrado nesta categoria</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- COLUMN 3: Active Video & Media Screen details -->
+                <section class="hidden lg:flex w-[480px] xl:w-[600px] glass-card rounded-2xl flex-col overflow-hidden shrink-0">
+                    <!-- Video Player Container -->
+                    <div class="w-full aspect-video bg-black relative group overflow-hidden border-b border-slate-800">
+                        <video id="iptv-video" class="w-full h-full object-contain" controls preload="auto"></video>
+                        
+                        <!-- Overlay Custom Floating Banner while no video plays -->
+                        <div id="player-banner" class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+                            <i class="fa-solid fa-play-css text-6xl text-slate-800 mb-4 animate-bounce"></i>
+                            <h3 class="font-bold text-lg text-slate-300">Pronto para Reproduzir</h3>
+                            <p class="text-xs text-slate-500 max-w-sm mt-1">Selecione algum canal ou vídeo ao lado para iniciar a transmissão imediatamente no navegador.</p>
+                        </div>
+                    </div>
+
+                    <!-- Selected Channel Details / Info -->
+                    <div class="p-6 flex-grow flex flex-col overflow-y-auto">
+                        <div id="detail-pane" class="hidden">
+                            <div class="flex items-start gap-4 mb-6">
+                                <div id="detail-logo-container" class="w-20 h-20 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border border-slate-800">
+                                    <img id="detail-logo" class="w-full h-full object-cover" src="" alt="logo">
+                                </div>
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span id="detail-type" class="px-2 py-0.5 bg-blue-900/30 text-[10px] uppercase font-bold text-blue-400 rounded-md jetbrains tracking-wider">LIVE</span>
+                                        <span id="detail-category" class="text-xs text-slate-400 font-medium">Canais Gerais</span>
+                                    </div>
+                                    <h2 id="detail-name" class="font-extrabold text-xl leading-tight">Nome da Mídia</h2>
+                                </div>
+                            </div>
+
+                            <!-- Integration Tips & External Player Launchers -->
+                            <div class="space-y-4">
+                                <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-2xl p-4">
+                                    <h4 class="font-bold text-xs uppercase tracking-widest text-indigo-400 mb-2">Alternativas de Reprodução</h4>
+                                    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+                                        Se o reprodutor web do seu navegador apresentar falhas ou problemas de codec / CORS com este stream, copie o link abaixo ou assista no VLC Player.
+                                    </p>
+                                    <div class="flex gap-2">
+                                        <button onclick="copyCurrentStreamUrl()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                            <i class="fa-solid fa-copy"></i> Copiar Link
+                                        </button>
+                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                            <i class="fa-solid fa-video"></i> Abrir no VLC
+                                        </a>
+                                    </div>
+                                    <div id="stream-url-display" class="mt-3 text-[10px] text-slate-500 truncate select-all jetbrains bg-slate-950 p-2 rounded-lg"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inactive Pane -->
+                        <div id="detail-empty" class="my-auto flex flex-col items-center justify-center text-center p-8 text-slate-600">
+                            <i class="fa-solid fa-circle-info text-4xl mb-2"></i>
+                            <p class="text-sm font-medium">Abra um canal para ver detalhes da mídia e alternativas externas.</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MOBILE DIALOG / POPUP: CATEGORY PICKER -->
+    <div id="mobile-category-modal" class="fixed inset-0 bg-black/80 z-50 backdrop-blur-sm justify-center items-end hidden">
+        <div class="bg-slate-900 w-full rounded-t-3xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                <h3 class="font-bold text-lg text-white">Selecionar Categoria</h3>
+                <button id="close-category-modal" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="mobile-category-list" class="overflow-y-auto p-4 space-y-2">
+                <!-- Populated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- FULL SCREEN SPINNER / LOADER OVERLAY -->
+    <div id="app-loader" class="fixed inset-0 bg-[#0d0f14]/90 z-50 flex flex-col items-center justify-center gap-3 backdrop-blur-md hidden">
+        <div class="relative w-16 h-16">
+            <div class="absolute inset-0 rounded-full border-4 border-blue-600/20 border-t-blue-500 animate-spin"></div>
+        </div>
+        <p class="font-extrabold text-sm tracking-wide text-slate-300 select-none uppercase mt-3" id="loader-message">Buscando playlists...</p>
+        <span class="text-xs text-blue-400 jetbrains" id="loader-progress">0%</span>
+    </div>
+
+    <!-- MAIN CONFIG & APPLICATION CONTROLLER -->
+    <script>
+        // Inline replica of servers.json to work flawlessly offline or context-free (avoid CORS issues when testing locally via file://)
+        const PREDEFINED_SERVERS = [
+            { id: "server_1", name: "VLOG", baseUrl: "http://vlogmk.de" },
+            { id: "server_2", name: "LUB TV", baseUrl: "http://triimundial.shop" },
+            { id: "server_3", name: "CINELON21", baseUrl: "http://infinixparcerias.site" },
+            { id: "server_4", name: "TANNIX", baseUrl: "http://unituf.online" },
+            { id: "server_5", name: "CB6000", baseUrl: "http://cb6.fun" },
+            { id: "server_6", name: "MK21 TV", baseUrl: "http://appsmk.org" },
+            { id: "server_7", name: "NOVA+", baseUrl: "http://novamk21.win" }
+        ];
+
+        // App state variables
+        let playlistItems = [];
+        let activeType = 'LIVE'; // LIVE, MOVIE, SERIES
+        let activeCategory = 'ALL';
+        let currentStreamUrl = '';
+        const hlsPlayer = new Hls({
+            maxBufferSize: 30 * 1024 * 1024,
+            maxBufferLength: 20,
+            autoStartLoad: true
+        });
+
+        // Elements
+        const loginScreen = document.getElementById('login-screen');
+        const playerScreen = document.getElementById('player-screen');
+        const serverSelector = document.getElementById('server-selector');
+        const userInput = document.getElementById('user-input');
+        const passInput = document.getElementById('pass-input');
+        const togglePassword = document.getElementById('toggle-password');
+        const passwordEyeIcon = document.getElementById('password-eye-icon');
+        const loginButton = document.getElementById('login-button');
+        const logoutButton = document.getElementById('logout-button');
+        const corsSelector = document.getElementById('cors-selector');
+        const activeServerDisplay = document.getElementById('active-server-display');
+        const activeUserDisplay = document.getElementById('active-user-display');
+        
+        const loader = document.getElementById('app-loader');
+        const loaderMessage = document.getElementById('loader-message');
+        const loaderProgress = document.getElementById('loader-progress');
+        
+        const categoryList = document.getElementById('category-list');
+        const categoryCount = document.getElementById('category-count');
+        const searchInput = document.getElementById('search-input');
+        const mediaGrid = document.getElementById('media-grid');
+        const emptyState = document.getElementById('empty-state');
+        
+        const mobileCategoryTrigger = document.getElementById('mobile-category-trigger');
+        const mobileCategoryLabel = document.getElementById('mobile-category-label');
+        const mobileCategoryModal = document.getElementById('mobile-category-modal');
+        const mobileCategoryList = document.getElementById('mobile-category-list');
+        const closeCategoryModal = document.getElementById('close-category-modal');
+        
+        const videoElement = document.getElementById('iptv-video');
+        const playerBanner = document.getElementById('player-banner');
+        const detailPane = document.getElementById('detail-pane');
+        const detailEmpty = document.getElementById('detail-empty');
+        const detailLogo = document.getElementById('detail-logo');
+        const detailType = document.getElementById('detail-type');
+        const detailCategory = document.getElementById('detail-category');
+        const detailName = document.getElementById('detail-name');
+        const streamUrlDisplay = document.getElementById('stream-url-display');
+        const vlcLauncher = document.getElementById('vlc-launcher');
+
+        // Initialize application on load
+        window.addEventListener('DOMContentLoaded', () => {
+            populateServers();
+            loadCachedCredentials();
+            setupEventListeners();
+        });
+
+        function populateServers() {
+            serverSelector.innerHTML = '';
+            PREDEFINED_SERVERS.forEach(srv => {
+                const opt = document.createElement('option');
+                opt.value = srv.baseUrl;
+                opt.textContent = srv.name;
+                serverSelector.appendChild(opt);
+            });
+        }
+
+        function loadCachedCredentials() {
+            const cachedUrl = localStorage.getItem('mk21_baseUrl');
+            const cachedUser = localStorage.getItem('mk21_username');
+            const cachedPass = localStorage.getItem('mk21_password');
+            const cachedCors = localStorage.getItem('mk21_cors');
+
+            if (cachedUrl) serverSelector.value = cachedUrl;
+            if (cachedUser) userInput.value = cachedUser;
+            if (cachedPass) passInput.value = cachedPass;
+            if (cachedCors) corsSelector.value = cachedCors;
+        }
+
+        function setupEventListeners() {
+            // Password toggle
+            togglePassword.addEventListener('click', () => {
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    passwordEyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+                } else {
+                    passInput.type = 'password';
+                    passwordEyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+                }
+            });
+
+            // Login execution
+            loginButton.addEventListener('click', performLogin);
+
+            // Logout execution
+            logoutButton.addEventListener('click', performLogout);
+
+            // Filter Tabs for Content Type
+            document.querySelectorAll('.type-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.type-filter-btn').forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('text-slate-400');
+                    });
+                    const targetBtn = e.currentTarget;
+                    targetBtn.classList.remove('text-slate-400');
+                    targetBtn.classList.add('bg-blue-600', 'text-white');
+
+                    activeType = targetBtn.dataset.type;
+                    activeCategory = 'ALL';
+                    mobileCategoryLabel.textContent = 'Todas as Categorias';
+                    renderCategories();
+                    renderMediaItems();
+                });
+            });
+
+            // Search execution
+            searchInput.addEventListener('input', () => {
+                renderMediaItems();
+            });
+
+            // Mobile Category modal triggers
+            mobileCategoryTrigger.addEventListener('click', () => {
+                mobileCategoryModal.classList.remove('hidden');
+                mobileCategoryModal.classList.add('flex');
+            });
+
+            const closeMod = () => {
+                mobileCategoryModal.classList.add('hidden');
+                mobileCategoryModal.classList.remove('flex');
+            };
+            closeCategoryModal.addEventListener('click', closeMod);
+            mobileCategoryModal.addEventListener('click', (e) => {
+                if (e.target === mobileCategoryModal) closeMod();
+            });
+        }
+
+        // Loader helper
+        function showLoader(message) {
+            loaderMessage.textContent = message;
+            loaderProgress.textContent = "0%";
+            loader.classList.remove('hidden');
+        }
+
+        function updateLoaderProgress(pct, message = null) {
+            loaderProgress.textContent = `${pct}%`;
+            if (message) loaderMessage.textContent = message;
+        }
+
+        function hideLoader() {
+            loader.classList.add('hidden');
+        }
+
+        // Action: Login
+        async function performLogin() {
+            const baseUrl = serverSelector.value;
+            const profileName = serverSelector.options[serverSelector.selectedIndex].text;
+            const user = userInput.value.trim();
+            const pass = passInput.value.trim();
+            const corsMethod = corsSelector.value;
+
+            if (!user || !pass) {
+                alert('Por favor, insira o usuário e a senha para conectar.');
+                return;
+            }
+
+            // Persistence
+            localStorage.setItem('mk21_baseUrl', baseUrl);
+            localStorage.setItem('mk21_username', user);
+            localStorage.setItem('mk21_password', pass);
+            localStorage.setItem('mk21_cors', corsMethod);
+
+            showLoader('Conectando ao canal de multisserviço...');
+
+            // Form absolute URL with encoded attributes
+            const encUser = encodeURIComponent(user);
+            const encPass = encodeURIComponent(pass);
+            const rawUrl = `${baseUrl}/get.php?username=${encUser}&password=${encPass}&type=m3u_plus&output=mpegts`;
+
+            let fetchUrl = rawUrl;
+            // Apply Proxy if selected
+            if (corsMethod === 'proxy1') {
+                fetchUrl = `https://thingproxy.freeboard.io/fetch/${rawUrl}`;
+            } else if (corsMethod === 'proxy2') {
+                fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+            }
+
+            try {
+                updateLoaderProgress(30, 'Baixando índice m3u_plus...');
+                const response = await fetch(fetchUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Servidor IP retornou código de erro: ${response.status}`);
+                }
+
+                updateLoaderProgress(60, 'Processando conteúdo da lista...');
+                const text = await response.text();
+
+                if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
+                    throw new Error('O servidor retornou uma página HTML ao invés da lista IPTV. Verifique CORS, usuário/senha ou troque o método de proxy.');
+                }
+
+                playlistItems = parseM3U(text);
+
+                if (playlistItems.length === 0) {
+                    throw new Error('Nenhum canal ativo foi decodificado. Confirme suas credenciais.');
+                }
+
+                updateLoaderProgress(95, 'Indexando canais, filmes e séries...');
+                
+                // Show player screen
+                loginScreen.classList.add('hidden');
+                playerScreen.classList.remove('hidden');
+                playerScreen.classList.add('flex');
+                setTimeout(() => {
+                    playerScreen.classList.remove('scale-95', 'opacity-0');
+                    playerScreen.classList.add('scale-100', 'opacity-100');
+                }, 50);
+
+                // Set headers
+                activeServerDisplay.textContent = profileName;
+                activeUserDisplay.textContent = user;
+
+                // Load initial content
+                activeType = 'LIVE';
+                activeCategory = 'ALL';
+                renderCategories();
+                renderMediaItems();
+
+            } catch (err) {
+                console.error(err);
+                alert(`Erro de Conectividade: ${err.message}\n\nDICA: Tente usar um plugin de "Allow CORS" no seu Chrome, ou mude o Método de Proxy para transpor limitações.`);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Action: Logout
+        function performLogout() {
+            if (confirm('Deseja realmente desconectar e voltar ao login?')) {
+                // Stop any running stream
+                stopStream();
+                
+                playerScreen.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    playerScreen.classList.add('hidden');
+                    playerScreen.classList.remove('flex');
+                    loginScreen.classList.remove('hidden');
+                }, 300);
+            }
+        }
+
+        // Parser Core logic
+        function parseM3U(content) {
+            const lines = content.split('\n');
+            const items = [];
+            let currentItem = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                
+                // Strip UTF-8 BOM
+                if (line.startsWith('\uFEFF')) {
+                    line = line.substring(1).trim();
+                }
+
+                if (line.isEmpty) continue;
+
+                if (line.toUpperCase().startsWith('#EXTINF:')) {
+                    currentItem = {};
+                    
+                    // Logo matches
+                    const logoMatch = line.match(/tvg-logo="([^"]+)"/i) || line.match(/logo="([^"]+)"/i);
+                    currentItem.logo = logoMatch ? logoMatch[1] : '';
+
+                    // Group / Category matches
+                    const groupMatch = line.match(/group-title="([^"]+)"/i);
+                    currentItem.category = groupMatch ? groupMatch[1].trim() : 'Canais Gerais';
+
+                    // Display name matches (last string after comma)
+                    const commaIndex = line.lastIndexOf(',');
+                    if (commaIndex !== -1 && commaIndex < line.length - 1) {
+                        currentItem.name = line.substring(commaIndex + 1).trim();
+                    } else {
+                        currentItem.name = 'Canal Desconhecido';
+                    }
+                } else if (line.startsWith('http://') || line.startsWith('https://')) {
+                    if (currentItem) {
+                        currentItem.url = line;
+                        
+                        // Smart content segmentation type (heuristic engine)
+                        const categoryUpper = currentItem.category.toUpperCase();
+                        const nameUpper = currentItem.name.toUpperCase();
+                        
+                        if (categoryUpper.includes('FILMES') || categoryUpper.includes('MOVIE') || categoryUpper.includes('VOD') || categoryUpper.includes('CINE') || categoryUpper.includes('LANCAMENTOS') || categoryUpper.includes('LANÇAMENTOS')) {
+                            currentItem.type = 'MOVIE';
+                        } else if (categoryUpper.includes('SERIE') || categoryUpper.includes('SÉRIE') || categoryUpper.includes('SERIES') || categoryUpper.includes('TEMPORADA') || categoryUpper.includes('EPISODIO')) {
+                            currentItem.type = 'SERIES';
+                        } else {
+                            currentItem.type = 'LIVE';
+                        }
+
+                        items.push(currentItem);
+                        currentItem = null;
+                    }
+                }
+            }
+            return items;
+        }
+
+        // Category Menu Creator
+        function renderCategories() {
+            // Get unique categorized list of parsed types
+            const filteredItems = playlistItems.filter(item => item.type === activeType);
+            const categoriesSet = new Set(filteredItems.map(item => item.category));
+            const categories = Array.from(categoriesSet).sort((a, b) => a.localeCompare(b));
+
+            categoryCount.textContent = categories.length;
+
+            // Build lists items
+            let html = `
+                <button data-cat="ALL" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === 'ALL' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:bg-slate-800' }">
+                    <span>Todas as Categorias</span>
+                    <span class="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded font-mono">${filteredItems.length}</span>
+                </button>
+            `;
+
+            categories.forEach(cat => {
+                const count = filteredItems.filter(i => i.category === cat).length;
+                html += `
+                    <button data-cat="${cat}" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === cat ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:bg-slate-800' }">
+                        <span class="truncate pr-2">${cat}</span>
+                        <span class="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded font-mono">${count}</span>
+                    </button>
+                `;
+            });
+
+            // Apply Desktop View
+            categoryList.innerHTML = html;
+            
+            // Apply Mobile View and map triggers
+            mobileCategoryList.innerHTML = html;
+
+            document.querySelectorAll('.cat-select-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const cat = e.currentTarget.dataset.cat;
+                    activeCategory = cat;
+                    mobileCategoryLabel.textContent = cat === 'ALL' ? 'Todas as Categorias' : cat;
+
+                    // Close mobile modal if open
+                    mobileCategoryModal.classList.add('hidden');
+                    
+                    renderCategories();
+                    renderMediaItems();
+                });
+            });
+        }
+
+        // Media Item lists Populator
+        function renderMediaItems() {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            // Match Category and Type filtering
+            let items = playlistItems.filter(item => item.type === activeType);
+            if (activeCategory !== 'ALL') {
+                items = items.filter(item => item.category === activeCategory);
+            }
+
+            // Match Search matching query
+            if (query) {
+                items = items.filter(item => item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query));
+            }
+
+            mediaGrid.innerHTML = '';
+
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Display list items cleanly
+            items.slice(0, 150).forEach(item => { // Slice rendering list to 150 items to keep UI responsive
+                const colCard = document.createElement('div');
+                colCard.className = "p-3 bg-slate-900/60 border border-slate-850 hover:border-blue-500/20 rounded-xl cursor-pointer hover:bg-slate-850/50 flex gap-3 transition-all";
+                
+                // Lazy fallback of images
+                const logoHtml = item.logo 
+                    ? `<img class="w-12 h-12 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-800" src="${item.logo}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232563EB%22 stroke-width=%222%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%224%22/><path d=%22m9%22 m12 l3 l-3 l-3%22/></svg>'" alt="logo">`
+                    : `<div class="w-12 h-12 rounded-lg bg-blue-900/30 text-blue-400 flex items-center justify-center font-bold text-lg border border-blue-500/10">${item.name.charAt(0).toUpperCase()}</div>`;
+
+                colCard.innerHTML = `
+                    ${logoHtml}
+                    <div class="flex-grow min-w-0 flex flex-col justify-center">
+                        <h4 class="font-bold text-xs truncate text-slate-100">${item.name}</h4>
+                        <span class="text-[10px] text-slate-500 truncate mt-0.5">${item.category}</span>
+                    </div>
+                `;
+
+                colCard.addEventListener('click', () => {
+                    playStream(item);
+                });
+
+                mediaGrid.appendChild(colCard);
+            });
+            
+            // Helpful loading more indicator
+            if (items.length > 150) {
+                const hint = document.createElement('div');
+                hint.className = "col-span-full py-4 text-center text-xs text-slate-600 font-medium";
+                hint.textContent = `Listando primeiros 150 de ${items.length} canais filtrados. Use a busca para filtrar mais.`;
+                mediaGrid.appendChild(hint);
+            }
+        }
+
+        // Play Execution
+        function playStream(item) {
+            currentStreamUrl = item.url;
+            
+            // Update Details Panel
+            detailEmpty.classList.add('hidden');
+            detailPane.classList.remove('hidden');
+
+            detailName.textContent = item.name;
+            detailCategory.textContent = item.category;
+            detailType.textContent = item.type === 'LIVE' ? 'Ao Vivo' : (item.type === 'MOVIE' ? 'Filme' : 'Série');
+            
+            if (item.logo) {
+                detailLogo.src = item.logo;
+                detailLogo.classList.remove('hidden');
+            } else {
+                detailLogo.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%232563EB" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="m9 m12 l3 l-3 l-3"/></svg>';
+            }
+
+            streamUrlDisplay.textContent = item.url;
+            vlcLauncher.href = `vlc://${item.url}`;
+
+            // Remove Floating Banner
+            playerBanner.classList.add('opacity-0');
+            setTimeout(() => {
+                playerBanner.classList.add('hidden');
+            }, 300);
+
+            // Attempt Reproduce
+            stopStream();
+
+            if (Hls.isSupported() && item.url.includes('.m3u8')) {
+                hlsPlayer.loadSource(item.url);
+                hlsPlayer.attachMedia(videoElement);
+                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                    videoElement.play().catch(e => {
+                        console.warn("Auto-play blocked: ", e);
+                    });
+                });
+            } else {
+                // Direct fallback browser play for MP4/WEBM or direct browser HLS
+                videoElement.src = item.url;
+                videoElement.play().catch(err => {
+                    console.log("No browser default support, requires VLC or External Player: ", err);
+                });
+            }
+        }
+
+        function stopStream() {
+            videoElement.pause();
+            hlsPlayer.destroy();
+            videoElement.removeAttribute('src');
+            videoElement.load();
+        }
+
+        function copyCurrentStreamUrl() {
+            if (!currentStreamUrl) return;
+            navigator.clipboard.writeText(currentStreamUrl)
+                .then(() => alert('Link de transmissão copiado para a área de transferência!'))
+                .catch(err => console.error(err));
+        }
+    </script>
+</body>
+</html>
