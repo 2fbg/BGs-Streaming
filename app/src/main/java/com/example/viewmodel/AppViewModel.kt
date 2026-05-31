@@ -1144,7 +1144,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             } else if (!base.startsWith("http://", ignoreCase = true)) {
                 base = "http://$base"
             }
-            return "$base/get.php?username=$user&password=$pass&type=m3u_plus&output=mpegts"
+            val encodedUser = try { java.net.URLEncoder.encode(user, "UTF-8") } catch (e: Exception) { user }
+            val encodedPass = try { java.net.URLEncoder.encode(pass, "UTF-8") } catch (e: Exception) { pass }
+            return "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3u_plus&output=mpegts"
         }
         
         // Is it a manual list?
