@@ -550,82 +550,89 @@ object LocalCastServer {
     }
 
     /**
-     * Background direct IP sweep for Smart TV description files
+     * Background direct IP sweep for Smart TV description files (Parallelized for maximum speed)
      */
     fun probeManualDevice(ip: String, onResult: (Boolean, DLNADevice?) -> Unit) {
-        Thread {
-            val commonPorts = listOf(49152, 1800, 50244, 49153, 8012, 8008, 55000, 8200)
-            var success = false
-            var foundDevice: DLNADevice? = null
-            
-            for (port in commonPorts) {
-                val urls = listOf(
-                    "http://$ip:$port/dlna/description.xml",
-                    "http://$ip:$port/description.xml",
-                    "http://$ip:$port/xml/device_description.xml",
-                    "http://$ip:$port/upnp/desc.xml",
-                    "http://$ip:$port/dd.xml"
-                )
-                for (u in urls) {
+        val commonPorts = listOf(49152, 1800, 50244, 49153, 8012, 8008, 55000, 8200)
+        val executor = Executors.newFixedThreadPool(16)
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        val activeTasks = java.util.concurrent.atomic.AtomicInteger(0)
+
+        for (port in commonPorts) {
+            val urls = listOf(
+                "http://$ip:$port/dlna/description.xml",
+                "http://$ip:$port/description.xml",
+                "http://$ip:$port/xml/device_description.xml",
+                "http://$ip:$port/upnp/desc.xml",
+                "http://$ip:$port/dd.xml"
+            )
+            for (u in urls) {
+                activeTasks.incrementAndGet()
+                executor.submit {
                     try {
-                        val url = URL(u)
-                        val conn = url.openConnection() as HttpURLConnection
-                        conn.connectTimeout = 400
-                        conn.readTimeout = 400
-                        if (conn.responseCode == 200) {
-                            val xmlText = conn.inputStream.bufferedReader().use { it.readText() }
-                            if (xmlText.contains("MediaRenderer") || xmlText.contains("AVTransport") || xmlText.contains("avtransport")) {
-                                var friendlyName = xmlText.substringAfter("<friendlyName>", "").substringBefore("</friendlyName>").trim()
-                                if (friendlyName.isEmpty()) friendlyName = "Smart TV ($ip)"
-                                
-                                val avTransportIndex = xmlText.indexOf("urn:schemas-upnp-org:service:AVTransport")
-                                var controlUrl = "/AVTransport/control"
-                                if (avTransportIndex != -1) {
-                                    val serviceBlock = xmlText.substring(avTransportIndex, xmlText.indexOf("</service>", avTransportIndex).coerceAtLeast(avTransportIndex))
-                                    val extracted = serviceBlock.substringAfter("<controlURL>", "").substringBefore("</controlURL>").trim()
-                                    if (extracted.isNotEmpty()) {
-                                        controlUrl = extracted
+                        if (!finished.get()) {
+                            val url = URL(u)
+                            val conn = url.openConnection() as HttpURLConnection
+                            conn.connectTimeout = 600
+                            conn.readTimeout = 600
+                            if (conn.responseCode == 200) {
+                                val xmlText = conn.inputStream.bufferedReader().use { it.readText() }
+                                if (xmlText.contains("MediaRenderer") || xmlText.contains("AVTransport") || xmlText.contains("avtransport")) {
+                                    if (finished.compareAndSet(false, true)) {
+                                        var friendlyName = xmlText.substringAfter("<friendlyName>", "").substringBefore("</friendlyName>").trim()
+                                        if (friendlyName.isEmpty()) friendlyName = "Smart TV ($ip)"
+
+                                        val avTransportIndex = xmlText.indexOf("urn:schemas-upnp-org:service:AVTransport")
+                                        var controlUrl = "/AVTransport/control"
+                                        if (avTransportIndex != -1) {
+                                            val serviceBlock = xmlText.substring(avTransportIndex, xmlText.indexOf("</service>", avTransportIndex).coerceAtLeast(avTransportIndex))
+                                            val extracted = serviceBlock.substringAfter("<controlURL>", "").substringBefore("</controlURL>").trim()
+                                            if (extracted.isNotEmpty()) {
+                                                controlUrl = extracted
+                                            }
+                                        }
+
+                                        val resolved = if (controlUrl.startsWith("http://") || controlUrl.startsWith("https://")) {
+                                            controlUrl
+                                        } else {
+                                            "http://$ip:$port" + (if (controlUrl.startsWith("/")) "" else "/") + controlUrl
+                                        }
+
+                                        val foundDevice = DLNADevice(
+                                            friendlyName = friendlyName,
+                                            controlUrl = resolved,
+                                            baseUrl = "http://$ip:$port/",
+                                            ipAddress = ip
+                                        )
+                                        executor.shutdownNow()
+                                        onResult(true, foundDevice)
+                                        return@submit
                                     }
                                 }
-                                
-                                val resolved = if (controlUrl.startsWith("http://") || controlUrl.startsWith("https://")) {
-                                    controlUrl
-                                } else {
-                                    "http://$ip:$port" + (if (controlUrl.startsWith("/")) "" else "/") + controlUrl
-                                }
-                                
-                                foundDevice = DLNADevice(
-                                    friendlyName = friendlyName,
-                                    controlUrl = resolved,
-                                    baseUrl = "http://$ip:$port/",
-                                    ipAddress = ip
-                                )
-                                success = true
-                                break
                             }
                         }
                     } catch (e: Exception) {
-                        // ignore and try next
+                        // ignore
+                    } finally {
+                        if (activeTasks.decrementAndGet() == 0 && !finished.get()) {
+                            if (finished.compareAndSet(false, true)) {
+                                executor.shutdown()
+                                // Fallback standard TV endpoints if none successfully replied
+                                val fallbackPort = 49152
+                                val fallbackControlUrl = "http://$ip:$fallbackPort/upnp/control/AVTransport"
+                                val fallbackDevice = DLNADevice(
+                                    friendlyName = "Smart TV ($ip)",
+                                    controlUrl = fallbackControlUrl,
+                                    baseUrl = "http://$ip:$fallbackPort/",
+                                    ipAddress = ip
+                                )
+                                onResult(true, fallbackDevice)
+                            }
+                        }
                     }
                 }
-                if (success) break
             }
-            
-            if (!success) {
-                // If standard SSDP is blocked or port scanning didn't identify XML, pre-build standard TV endpoints
-                val fallbackPort = 49152
-                val fallbackControlUrl = "http://$ip:$fallbackPort/upnp/control/AVTransport"
-                foundDevice = DLNADevice(
-                    friendlyName = "Smart TV ($ip)",
-                    controlUrl = fallbackControlUrl,
-                    baseUrl = "http://$ip:$fallbackPort/",
-                    ipAddress = ip
-                )
-                onResult(true, foundDevice)
-            } else {
-                onResult(true, foundDevice)
-            }
-        }.start()
+        }
     }
 
     /**
