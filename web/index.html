@@ -834,12 +834,22 @@
                     protocol = 'http';
                     urlBody = streamUrl.substring(7);
                 }
-                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;end`;
+                // Urgently add type=video/* to prevent "cannot play multiple medias" VLC error
+                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;type=video/*;end`;
             } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
                 return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
             } else {
                 return `vlc://${streamUrl}`;
             }
+        }
+
+        function getProxyUrl(url) {
+            if (!url) return "";
+            // Only proxy http streams on secure https pages to dodge browser mixed content and CORS restrictions
+            if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+                return `${window.location.protocol}//${window.location.host}/api/proxy?url=${encodeURIComponent(url)}`;
+            }
+            return url;
         }
 
         // Play Execution
@@ -883,13 +893,15 @@
             const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
             const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
             
+            const proxiedUrl = getProxyUrl(item.url);
+
             if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
-                console.log("Playing MPEG-TS natively via mpegts.js", item.url);
+                console.log("Playing MPEG-TS natively via mpegts.js", proxiedUrl);
                 try {
                     mpegtsPlayer = mpegts.createPlayer({
                         type: 'mpegts',
                         isLive: item.type === 'LIVE',
-                        url: item.url,
+                        url: proxiedUrl,
                         cors: true
                     }, {
                         enableWorker: true,
@@ -906,11 +918,11 @@
                     });
                 } catch (err) {
                     console.error("Failed to construct mpegts player:", err);
-                    videoElement.src = item.url;
+                    videoElement.src = proxiedUrl;
                     videoElement.play().catch(e => console.warn(e));
                 }
             } else if (Hls.isSupported() && !isStaticVideo) {
-                hlsPlayer.loadSource(item.url);
+                hlsPlayer.loadSource(proxiedUrl);
                 hlsPlayer.attachMedia(videoElement);
                 hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
                     videoElement.play().catch(e => {
@@ -919,7 +931,7 @@
                 });
             } else {
                 // Direct fallback browser play for MP4/WEBM or direct browser HLS
-                videoElement.src = item.url;
+                videoElement.src = proxiedUrl;
                 videoElement.play().catch(err => {
                     console.log("No browser default support, requires VLC or External Player: ", err);
                 });

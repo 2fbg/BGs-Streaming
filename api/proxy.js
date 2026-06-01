@@ -1,11 +1,16 @@
-// Vercel Serverless Function to act as a secure, fast, and dedicated CORS Proxy for MK21 IPTV Web.
+// Vercel Serverless Function to act as a secure, fast, and dedicated streaming CORS Proxy for MK21 IPTV Web.
 // Since Node/Vercel acts server-side, it bypasses browser CORS and Mixed Content blocks.
+// Pipes binary streams directly from the source to prevent out-of-memory errors and timeout limits.
 
-module.exports = async function handler(req, res) {
+const http = require('http');
+const https = require('https');
+const urlModule = require('url');
+
+module.exports = function handler(req, res) {
     // Set permissive CORS headers for the proxy
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', '*');
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
@@ -13,38 +18,51 @@ module.exports = async function handler(req, res) {
         return;
     }
 
-    const { url } = req.query;
+    const targetUrlStr = req.query.url;
 
-    if (!url) {
+    if (!targetUrlStr) {
         res.status(400).send('Falta o parâmetro url com o link de destino.');
         return;
     }
 
     try {
-        const decodedUrl = decodeURIComponent(url);
+        const decodedUrl = decodeURIComponent(targetUrlStr);
+        const parsedUrl = urlModule.parse(decodedUrl);
         
-        // Node.js 18+ has native fetch support
-        const response = await fetch(decodedUrl, {
+        const client = parsedUrl.protocol === 'https:' ? https : http;
+        
+        const options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: parsedUrl.path || parsedUrl.pathname + (parsedUrl.search || ''),
             method: 'GET',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Connection': 'keep-alive'
+                'Accept': '*/*'
             }
+        };
+
+        const proxyReq = client.request(options, (proxyRes) => {
+            // Forward HTTP status code & content type
+            res.writeHead(proxyRes.statusCode, {
+                'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': '*'
+            });
+            
+            // Pipe the data directly - this handles both text (M3U8) and binary (TS) perfectly with minimal memory footprint
+            proxyRes.pipe(res);
         });
 
-        if (!response.ok) {
-            res.status(response.status).send(`Erro retornado pelo servidor IPTV: ${response.status}`);
-            return;
-        }
+        proxyReq.on('error', (err) => {
+            console.error('IPTV Proxy Error:', err);
+            res.status(500).send(`Erro de conexão do proxy: ${err.message}`);
+        });
 
-        const contentType = response.headers.get('content-type') || 'text/plain';
-        const data = await response.text();
-        
-        res.setHeader('Content-Type', contentType.includes('utf') ? contentType : 'text/plain; charset=utf-8');
-        res.status(200).send(data);
+        proxyReq.end();
     } catch (error) {
-        console.error('IPTV Proxy Error:', error);
-        res.status(500).send(`Erro interno ao processar requisição através do Proxy: ${error.message}`);
+        console.error('IPTV Proxy Setup Error:', error);
+        res.status(500).send(`Erro ao configurar proxy: ${error.message}`);
     }
 };
