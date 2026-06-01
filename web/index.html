@@ -138,9 +138,12 @@
                         </label>
                         <div class="relative">
                             <select id="cors-selector" class="w-full px-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none outline-none">
-                                <option value="direct">Conexão Direta (Recomendado c/ Extensão CORS)</option>
-                                <option value="proxy1">Proxy Integrado 1 (ThingProxy)</option>
-                                <option value="proxy2">Proxy Integrado 2 (AllOrigin)</option>
+                                <option value="auto">⚡ Conexão Automática (Fallback Inteligente)</option>
+                                <option value="direct">Sem Proxy (Conexão Direta - Necessita Extensão CORS)</option>
+                                <option value="corsproxy">Proxy 1 (CorsProxy.io - Rápido e Eficiente)</option>
+                                <option value="allorigins">Proxy 2 (AllOrigins - Raw)</option>
+                                <option value="codetabs">Proxy 3 (CodeTabs - Conexão Alternativa)</option>
+                                <option value="thingproxy">Proxy 4 (ThingProxy - Standard API)</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -428,7 +431,11 @@
             if (cachedUrl) serverSelector.value = cachedUrl;
             if (cachedUser) userInput.value = cachedUser;
             if (cachedPass) passInput.value = cachedPass;
-            if (cachedCors) corsSelector.value = cachedCors;
+            if (cachedCors) {
+                corsSelector.value = cachedCors;
+            } else {
+                corsSelector.value = 'auto';
+            }
         }
 
         function setupEventListeners() {
@@ -531,29 +538,60 @@
             const encPass = encodeURIComponent(pass);
             const rawUrl = `${baseUrl}/get.php?username=${encUser}&password=${encPass}&type=m3u_plus&output=mpegts`;
 
-            let fetchUrl = rawUrl;
-            // Apply Proxy if selected
-            if (corsMethod === 'proxy1') {
-                fetchUrl = `https://thingproxy.freeboard.io/fetch/${rawUrl}`;
-            } else if (corsMethod === 'proxy2') {
-                fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+            let text = '';
+            let success = false;
+            let usedMethod = '';
+
+            const methods = [
+                { name: 'direct', label: 'Conexão Direta (sem proxy)', getUrl: (url) => url },
+                { name: 'corsproxy', label: 'Proxy CorsProxy.io', getUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+                { name: 'allorigins', label: 'Proxy AllOrigins (Raw)', getUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+                { name: 'codetabs', label: 'Proxy CodeTabs', getUrl: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` },
+                { name: 'thingproxy', label: 'Proxy ThingProxy', getUrl: (url) => `https://thingproxy.freeboard.io/fetch/${url}` }
+            ];
+
+            const methodsToTry = (corsMethod === 'auto') ? methods : methods.filter(m => m.name === corsMethod);
+
+            for (let idx = 0; idx < methodsToTry.length; idx++) {
+                const method = methodsToTry[idx];
+                const progressPct = 20 + Math.floor((idx / methodsToTry.length) * 60);
+                updateLoaderProgress(progressPct, `Tentando obter lista [Método: ${method.label}]...`);
+
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                    const fetchUrl = method.getUrl(rawUrl);
+                    const response = await fetch(fetchUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        const tempText = await response.text();
+                        if (tempText && !tempText.includes('<!DOCTYPE html>') && !tempText.includes('<html') && (tempText.includes('#EXTM3U') || tempText.includes('#EXTINF'))) {
+                            text = tempText;
+                            success = true;
+                            usedMethod = method.label;
+                            break;
+                        } else if (tempText && tempText.toLowerCase().includes('invalid username or password')) {
+                            throw new Error('Usuário ou senha inválidos.');
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Tentativa falhou para ${method.label}:`, err);
+                    if (err.message && err.message.includes('Usuário ou senha inválidos')) {
+                        hideLoader();
+                        alert(`Erro de Credenciais: Usuário ou senha incorretos no servidor ${profileName}.`);
+                        return;
+                    }
+                }
             }
 
             try {
-                updateLoaderProgress(30, 'Baixando índice m3u_plus...');
-                const response = await fetch(fetchUrl);
-
-                if (!response.ok) {
-                    throw new Error(`Servidor IP retornou código de erro: ${response.status}`);
+                if (!success) {
+                    throw new Error('Todos os métodos de conexão direta e proxies falharam em recuperar uma M3U válida. Verifique as credenciais ou a conexão do servidor.');
                 }
 
-                updateLoaderProgress(60, 'Processando conteúdo da lista...');
-                const text = await response.text();
-
-                if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
-                    throw new Error('O servidor retornou uma página HTML ao invés da lista IPTV. Verifique CORS, usuário/senha ou troque o método de proxy.');
-                }
-
+                updateLoaderProgress(85, 'Processando conteúdo da lista...');
                 playlistItems = parseM3U(text);
 
                 if (playlistItems.length === 0) {
@@ -583,7 +621,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert(`Erro de Conectividade: ${err.message}\n\nDICA: Tente usar um plugin de "Allow CORS" no seu Chrome, ou mude o Método de Proxy para transpor limitações.`);
+                alert(`Erro de Conectividade: ${err.message}\n\nDICA: Tente usar outro servidor ou verifique seu usuário/senha. Se persistir, tente habilitar um plugin CORS no seu navegador.`);
             } finally {
                 hideLoader();
             }
