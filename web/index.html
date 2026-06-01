@@ -255,7 +255,17 @@
                 </section>
 
                 <!-- COLUMN 3: Active Video & Media Screen details -->
-                <section class="hidden lg:flex w-[480px] xl:w-[600px] glass-card rounded-2xl flex-col overflow-hidden shrink-0">
+                <section id="player-column" class="fixed inset-0 z-50 bg-[#0d0f14] flex flex-col hidden lg:relative lg:flex lg:inset-auto lg:z-0 lg:w-[480px] lg:xl:w-[600px] lg:bg-transparent glass-card rounded-2xl overflow-hidden shrink-0">
+                    <!-- Mobile Close / Back Bar -->
+                    <div class="lg:hidden p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <button onclick="closeMobilePlayer()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold rounded-xl flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-left"></i>
+                            <span>Voltar para Lista</span>
+                        </button>
+                        <div class="text-right">
+                            <span class="text-[10px] text-blue-400 font-mono tracking-wider font-bold">REPRODUTOR MK21</span>
+                        </div>
+                    </div>
                     <!-- Video Player Container -->
                     <div class="w-full aspect-video bg-black relative group overflow-hidden border-b border-slate-800">
                         <video id="iptv-video" class="w-full h-full object-contain" controls preload="auto"></video>
@@ -812,6 +822,13 @@
         function playStream(item) {
             currentStreamUrl = item.url;
             
+            // Show player column on mobile if hidden
+            const playerCol = document.getElementById('player-column');
+            if (playerCol && window.innerWidth < 1024) {
+                playerCol.classList.remove('hidden');
+                playerCol.classList.add('flex');
+            }
+
             // Update Details Panel
             detailEmpty.classList.add('hidden');
             detailPane.classList.remove('hidden');
@@ -839,7 +856,8 @@
             // Attempt Reproduce
             stopStream();
 
-            if (Hls.isSupported() && item.url.includes('.m3u8')) {
+            const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
+            if (Hls.isSupported() && !isStaticVideo) {
                 hlsPlayer.loadSource(item.url);
                 hlsPlayer.attachMedia(videoElement);
                 hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -856,11 +874,31 @@
             }
         }
 
+        function closeMobilePlayer() {
+            stopStream();
+            const playerCol = document.getElementById('player-column');
+            if (playerCol && window.innerWidth < 1024) {
+                playerCol.classList.add('hidden');
+                playerCol.classList.remove('flex');
+            }
+        }
+
         function stopStream() {
             videoElement.pause();
-            hlsPlayer.destroy();
+            try {
+                hlsPlayer.stopLoad();
+                hlsPlayer.detachMedia();
+            } catch (e) {
+                console.warn("Stopping HLS player error:", e);
+            }
             videoElement.removeAttribute('src');
             videoElement.load();
+            
+            // Restore visual layout helper placeholder banner
+            const pb = document.getElementById('player-banner');
+            if (pb) {
+                pb.classList.remove('hidden', 'opacity-0');
+            }
         }
 
         function copyCurrentStreamUrl() {
