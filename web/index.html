@@ -10,6 +10,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Hls.js for HLS (.m3u8) playback in browsers -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Mpegts.js for raw MPEG-TS (.ts) stream playback without extensions -->
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         
@@ -374,6 +376,7 @@
             maxBufferLength: 20,
             autoStartLoad: true
         });
+        let mpegtsPlayer = null;
 
         // Elements
         const loginScreen = document.getElementById('login-screen');
@@ -818,6 +821,27 @@
             }
         }
 
+        function getVlcUrl(streamUrl) {
+            if (!streamUrl) return "";
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes('android')) {
+                let protocol = 'http';
+                let urlBody = streamUrl;
+                if (streamUrl.startsWith('https://')) {
+                    protocol = 'https';
+                    urlBody = streamUrl.substring(8);
+                } else if (streamUrl.startsWith('http://')) {
+                    protocol = 'http';
+                    urlBody = streamUrl.substring(7);
+                }
+                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;end`;
+            } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+                return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
+            } else {
+                return `vlc://${streamUrl}`;
+            }
+        }
+
         // Play Execution
         function playStream(item) {
             currentStreamUrl = item.url;
@@ -845,7 +869,7 @@
             }
 
             streamUrlDisplay.textContent = item.url;
-            vlcLauncher.href = `vlc://${item.url}`;
+            vlcLauncher.href = getVlcUrl(item.url);
 
             // Remove Floating Banner
             playerBanner.classList.add('opacity-0');
@@ -856,8 +880,36 @@
             // Attempt Reproduce
             stopStream();
 
+            const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
             const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
-            if (Hls.isSupported() && !isStaticVideo) {
+            
+            if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
+                console.log("Playing MPEG-TS natively via mpegts.js", item.url);
+                try {
+                    mpegtsPlayer = mpegts.createPlayer({
+                        type: 'mpegts',
+                        isLive: item.type === 'LIVE',
+                        url: item.url,
+                        cors: true
+                    }, {
+                        enableWorker: true,
+                        lazyLoadMaxKeepAliveDuration: 10,
+                        seekType: 'range'
+                    });
+                    mpegtsPlayer.attachMediaElement(videoElement);
+                    mpegtsPlayer.load();
+                    mpegtsPlayer.play().catch(e => {
+                        console.warn("Auto-play blocked inside MPEG-TS: ", e);
+                    });
+                    mpegtsPlayer.on(mpegts.Events.ERROR, (type, detail, info) => {
+                        console.error("MPEGTS player error:", type, detail, info);
+                    });
+                } catch (err) {
+                    console.error("Failed to construct mpegts player:", err);
+                    videoElement.src = item.url;
+                    videoElement.play().catch(e => console.warn(e));
+                }
+            } else if (Hls.isSupported() && !isStaticVideo) {
                 hlsPlayer.loadSource(item.url);
                 hlsPlayer.attachMedia(videoElement);
                 hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -890,6 +942,17 @@
                 hlsPlayer.detachMedia();
             } catch (e) {
                 console.warn("Stopping HLS player error:", e);
+            }
+            if (mpegtsPlayer) {
+                try {
+                    mpegtsPlayer.pause();
+                    mpegtsPlayer.unload();
+                    mpegtsPlayer.detachMediaElement();
+                    mpegtsPlayer.destroy();
+                } catch (e) {
+                    console.warn("Stopping MPEGTS player error:", e);
+                }
+                mpegtsPlayer = null;
             }
             videoElement.removeAttribute('src');
             videoElement.load();
