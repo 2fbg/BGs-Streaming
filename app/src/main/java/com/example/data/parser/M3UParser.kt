@@ -89,12 +89,17 @@ object M3UParser {
     }
 
     private fun parseUrlOnly(streamUrl: String, playlistSource: String): PlaylistItem {
+        val finalUrl = if (streamUrl.startsWith("https://", ignoreCase = true)) {
+            "http://" + streamUrl.substring(8)
+        } else {
+            streamUrl
+        }
         val uri = try {
-            URI(streamUrl)
+            URI(finalUrl)
         } catch (e: Exception) {
             null
         }
-        val path = uri?.path ?: streamUrl
+        val path = uri?.path ?: finalUrl
         val lastSegment = path.substringAfterLast('/')
         val displayName = if (lastSegment.isNotEmpty()) {
             lastSegment.substringBeforeLast('.')
@@ -102,10 +107,10 @@ object M3UParser {
             "Canal Manual"
         }
         val category = "Canais Gerais"
-        val contentType = determineType(displayName, category, streamUrl)
+        val contentType = determineType(displayName, category, finalUrl)
         return PlaylistItem(
             name = displayName.ifEmpty { "Canal Manual" },
-            url = streamUrl,
+            url = finalUrl,
             logoUrl = null,
             category = category,
             contentType = contentType.name,
@@ -137,15 +142,21 @@ object M3UParser {
             displayName = tvgName
         }
 
+        val finalUrl = if (streamUrl.startsWith("https://", ignoreCase = true)) {
+            "http://" + streamUrl.substring(8)
+        } else {
+            streamUrl
+        }
+
         // Determine content-type (Ao Vivo, Filmes, Séries)
-        val contentType = determineType(displayName, category, streamUrl)
+        val contentType = determineType(displayName, category, finalUrl)
 
         // Check for adult content
         val isAdult = isAdultContent(displayName, category)
 
         return PlaylistItem(
             name = displayName,
-            url = streamUrl,
+            url = finalUrl,
             logoUrl = logoUrl,
             category = category,
             contentType = contentType.name,
@@ -192,23 +203,38 @@ object M3UParser {
         val uppercaseCategory = category.uppercase()
         val uppercaseUrl = url.uppercase()
 
-        // Explicit movie keywords
-        val movieCategories = listOf(
-            "FILMES", "MOVIES", "VOD", "CINEMA", "BLOCKBUSTER", "LANCAMENTOS", "LANÇAMENTOS",
-            "PREMIUM FILMES", "CINE", "ACTION", "COMEDY", "DRAMA", "HORROR", "TERROR"
-        )
+        // Explicit URL check first to capitalize on Xtream classification format
+        if (uppercaseUrl.contains("/SERIES/")) {
+            return com.example.data.model.ContentType.SERIES
+        }
+        if (uppercaseUrl.contains("/MOVIE/")) {
+            return com.example.data.model.ContentType.MOVIE
+        }
+        if (uppercaseUrl.contains("/LIVE/")) {
+            return com.example.data.model.ContentType.LIVE
+        }
+
         // Explicit series keywords
         val seriesCategories = listOf(
             "SERIES", "SÉRIES", "SERIADOS", "SEASON", "TEMPORADA", "EPISODIOS", "EPISÓDIOS",
             "ANIME", "ANIMES", "NOVELAS", "NOVELA"
         )
+        // Explicit movie keywords
+        val movieCategories = listOf(
+            "FILMES", "MOVIES", "VOD", "CINEMA", "BLOCKBUSTER", "LANCAMENTOS", "LANÇAMENTOS",
+            "PREMIUM FILMES", "CINE", "ACTION", "COMEDY", "DRAMA", "HORROR", "TERROR"
+        )
 
-        // Look in category first
+        // Look for series patterns in category name or stream title first
+        if (seriesCategories.any { uppercaseCategory.contains(it) } || 
+            uppercaseName.contains("S0") || uppercaseName.contains("E0") ||
+            uppercaseName.contains("TEMPORADA") || uppercaseName.contains("CAPITULO") || uppercaseName.contains("EPISODIO")) {
+            return com.example.data.model.ContentType.SERIES
+        }
+
+        // Look for movie patterns in category next
         if (movieCategories.any { uppercaseCategory.contains(it) }) {
             return com.example.data.model.ContentType.MOVIE
-        }
-        if (seriesCategories.any { uppercaseCategory.contains(it) }) {
-            return com.example.data.model.ContentType.SERIES
         }
 
         // Fallbacks based on URL extensions

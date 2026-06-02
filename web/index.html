@@ -579,7 +579,12 @@
 
         // Action: Login
         async function performLogin() {
-            const baseUrl = serverSelector.value;
+            let baseUrl = serverSelector.value;
+            if (baseUrl.startsWith('https://')) {
+                baseUrl = 'http://' + baseUrl.substring(8);
+            } else if (!baseUrl.startsWith('http://')) {
+                baseUrl = 'http://' + baseUrl;
+            }
             const profileName = serverSelector.options[serverSelector.selectedIndex].text;
             const user = userInput.value.trim();
             const pass = passInput.value.trim();
@@ -744,16 +749,27 @@
                     }
                 } else if (line.startsWith('http://') || line.startsWith('https://')) {
                     if (currentItem) {
-                        currentItem.url = line;
+                        let streamUrl = line;
+                        if (streamUrl.startsWith('https://')) {
+                            streamUrl = 'http://' + streamUrl.substring(8);
+                        }
+                        currentItem.url = streamUrl;
                         
                         // Smart content segmentation type (heuristic engine)
                         const categoryUpper = currentItem.category.toUpperCase();
                         const nameUpper = currentItem.name.toUpperCase();
+                        const urlUpper = streamUrl.toUpperCase();
                         
-                        if (categoryUpper.includes('FILMES') || categoryUpper.includes('MOVIE') || categoryUpper.includes('VOD') || categoryUpper.includes('CINE') || categoryUpper.includes('LANCAMENTOS') || categoryUpper.includes('LANÇAMENTOS')) {
-                            currentItem.type = 'MOVIE';
-                        } else if (categoryUpper.includes('SERIE') || categoryUpper.includes('SÉRIE') || categoryUpper.includes('SERIES') || categoryUpper.includes('TEMPORADA') || categoryUpper.includes('EPISODIO')) {
+                        if (urlUpper.includes('/SERIES/')) {
                             currentItem.type = 'SERIES';
+                        } else if (urlUpper.includes('/MOVIE/')) {
+                            currentItem.type = 'MOVIE';
+                        } else if (urlUpper.includes('/LIVE/')) {
+                            currentItem.type = 'LIVE';
+                        } else if (categoryUpper.includes('SERIE') || categoryUpper.includes('SÉRIE') || categoryUpper.includes('SERIES') || categoryUpper.includes('TEMPORADA') || categoryUpper.includes('EPISODIO') || categoryUpper.includes('NOVELA') || categoryUpper.includes('ANIME') || categoryUpper.includes('ANIMES') || nameUpper.includes('S0') || nameUpper.includes('E0')) {
+                            currentItem.type = 'SERIES';
+                        } else if (categoryUpper.includes('FILMES') || categoryUpper.includes('MOVIE') || categoryUpper.includes('VOD') || categoryUpper.includes('CINE') || categoryUpper.includes('LANCAMENTOS') || categoryUpper.includes('LANÇAMENTOS')) {
+                            currentItem.type = 'MOVIE';
                         } else {
                             currentItem.type = 'LIVE';
                         }
