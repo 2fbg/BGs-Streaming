@@ -279,6 +279,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val requestBuilder = original.newBuilder()
+            if (original.header("User-Agent") == null) {
+                requestBuilder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            }
+            if (original.header("Accept") == null) {
+                requestBuilder.header("Accept", "*/*")
+            }
+            chain.proceed(requestBuilder.build())
+        }
         .build()
 
     private fun loadCachedServers() {

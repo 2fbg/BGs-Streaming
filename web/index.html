@@ -298,6 +298,40 @@
 
                             <!-- Integration Tips & External Player Launchers -->
                             <div class="space-y-4">
+                                <div id="mixed-content-warning" class="hidden bg-amber-950/20 border border-amber-900/30 rounded-2xl p-4 text-xs text-amber-300 leading-relaxed space-y-3">
+                                    <div class="flex items-start gap-2.5">
+                                        <i class="fa-solid fa-triangle-exclamation text-base mt-0.5 text-amber-400"></i>
+                                        <div>
+                                            <span class="font-bold text-white block">Bloqueio de Segurança do Navegador (Mixed Content)</span>
+                                            Este canal de transmissão usa <strong class="text-amber-200">HTTP simples</strong>, mas o site está carregado via <strong class="text-amber-200">HTTPS seguro</strong>. Navegadores modernos (como Brave e Chrome) bloqueiam a reprodução web direta neste cenário por padrão.
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="pt-2.5 border-t border-amber-900/30 flex flex-col gap-2">
+                                        <button onclick="accessViaHttp()" class="w-full px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all outline-none">
+                                            <i class="fa-solid fa-unlock"></i> Acessar por Conexão HTTP (Sem Bloqueio)
+                                        </button>
+                                        
+                                        <div class="bg-slate-950/50 p-2.5 rounded-lg text-slate-300 space-y-1.5 leading-snug">
+                                            <span class="font-bold text-amber-200 block text-[10px] uppercase tracking-wider">Como assistir sem travamento ou bloqueio:</span>
+                                            
+                                            <!-- Dedicated Vercel streaming warning -->
+                                            <div id="vercel-redirect-tip" class="hidden pb-2 mb-2 border-b border-slate-800/80">
+                                                <p class="text-[10px] text-slate-300">
+                                                    💡 <strong>Recomendado:</strong> Vimos que você possui um deploy no Vercel! Acesse o app por <a href="https://bgstreaming.vercel.app" target="_blank" class="text-blue-400 underline font-bold">bgstreaming.vercel.app</a>. Lá, o nosso <strong>Proxy Vercel Dedicado</strong> funciona de forma 100% nativa para transmitir canais ao vivo em tempo real sem bloqueios!
+                                                </p>
+                                            </div>
+
+                                            <ol class="list-decimal pl-4 space-y-1 text-slate-400 text-[10px]">
+                                                <li>Clique no ícone de <strong class="text-slate-200">configurações / cadeado</strong> (à esquerda do endereço da URL do site lá em cima).</li>
+                                                <li>Acesse <strong class="text-slate-200">"Configurações do site"</strong>.</li>
+                                                <li>Procure a permissão de <strong class="text-slate-200">"Conteúdo não seguro"</strong> (Insecure Content) e mude para <strong class="text-slate-200">Permitir</strong>.</li>
+                                                <li>Selecione o proxy <strong class="text-slate-200">"Sem Proxy (Conexão Direta)"</strong> abaixo e recarregue para assistir!</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-2xl p-4">
                                     <h4 class="font-bold text-xs uppercase tracking-widest text-indigo-400 mb-2">Alternativas de Reprodução</h4>
                                     <p class="text-xs text-slate-400 mb-3 leading-relaxed">
@@ -838,6 +872,13 @@
             }
         }
 
+        function accessViaHttp() {
+            if (window.location.protocol === 'https:') {
+                const httpUrl = 'http://' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
+                window.location.href = httpUrl;
+            }
+        }
+
         function getVlcUrl(streamUrl) {
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
@@ -864,9 +905,14 @@
             if (!url) return "";
             
             let corsMethod = localStorage.getItem('mk21_cors') || 'auto';
-            if (corsMethod === 'auto' || corsMethod === 'vercel') {
-                // Since local serverless functions are not executed under static deployment, fallback to CorsProxy
-                corsMethod = 'corsproxy';
+            
+            // If auto connection, resolve based on hosting provider
+            if (corsMethod === 'auto') {
+                if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
+                    corsMethod = 'vercel';
+                } else {
+                    corsMethod = 'corsproxy';
+                }
             }
             
             if (corsMethod === 'direct') {
@@ -874,6 +920,8 @@
             }
             
             switch (corsMethod) {
+                case 'vercel':
+                    return `${window.location.protocol}//${window.location.host}/api/proxy?url=${encodeURIComponent(url)}`;
                 case 'corsproxy':
                     return `https://corsproxy.io/?${encodeURIComponent(url)}`;
                 case 'allorigins':
@@ -941,6 +989,25 @@
 
             streamUrlDisplay.textContent = item.url;
             vlcLauncher.href = getVlcUrl(item.url);
+
+            // Toggle mixed content warning
+            const mixedWarning = document.getElementById('mixed-content-warning');
+            if (mixedWarning) {
+                if (window.location.protocol === 'https:' && item.url.startsWith('http://')) {
+                    mixedWarning.classList.remove('hidden');
+                    // Show vercel redirect tip if they are browsing from github pages
+                    const vercelTip = document.getElementById('vercel-redirect-tip');
+                    if (vercelTip) {
+                        if (window.location.hostname.includes('github.io')) {
+                            vercelTip.classList.remove('hidden');
+                        } else {
+                            vercelTip.classList.add('hidden');
+                        }
+                    }
+                } else {
+                    mixedWarning.classList.add('hidden');
+                }
+            }
 
             // Remove Floating Banner
             playerBanner.classList.add('opacity-0');
