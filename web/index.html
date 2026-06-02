@@ -57,7 +57,7 @@
 <body class="glowing-bg min-h-screen flex flex-col overflow-x-hidden antialiased select-none">
 
     <!-- Top Glow Header Bar -->
-    <div class="h-1 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 w-full"></div>
+    <div class="h-1 bg-gradient-to-r from-red-650 via-red-600 to-black w-full"></div>
 
     <!-- MAIN APP CONTAINER -->
     <main class="flex-grow flex flex-col justify-center items-center p-4">
@@ -67,10 +67,10 @@
             <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
                 <!-- Branding -->
                 <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 mb-4 ring-4 ring-blue-500/10">
-                        <i class="fa-solid fa-circle-play text-3xl text-white"></i>
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#E50914] to-red-800 shadow-lg shadow-red-950/40 mb-4 ring-4 ring-red-500/10 hover:scale-105 transition-transform duration-300">
+                        <i class="fa-solid fa-circle-play text-3xl text-white animate-pulse"></i>
                     </div>
-                    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-blue-400 bg-clip-text text-transparent">
+                    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-rose-500 bg-clip-text text-transparent animate-fade-in">
                         MK21 MultiServidor
                     </h1>
                     <p class="text-slate-400 text-sm mt-2">Versão Web IPTV de Alto Desempenho</p>
@@ -155,7 +155,7 @@
                     </div>
 
                     <!-- Action Button -->
-                    <button id="login-button" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 outline-none text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2">
+                    <button id="login-button" class="w-full py-4 bg-gradient-to-r from-[#E50914] to-red-750 outline-none text-white font-semibold rounded-2xl shadow-lg shadow-red-950/40 hover:shadow-red-500/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2">
                         <span>Acessar Portal IPTV</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
@@ -188,7 +188,7 @@
 
                 <!-- Quick Section / Content Type Filters -->
                 <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                    <button data-type="LIVE" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition-all duration-200">
+                    <button data-type="LIVE" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg bg-[#E50914] text-white shadow-md shadow-red-950/20 transition-all duration-200 animate-fade-in">
                         <i class="fa-solid fa-tv mr-2"></i>Canais Ao Vivo
                     </button>
                     <button data-type="MOVIE" class="type-filter-btn px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all duration-200">
@@ -246,6 +246,16 @@
 
                     <!-- Items Grid / List -->
                     <div id="media-items-scroller" class="flex-grow overflow-y-auto p-4">
+                        <!-- Continue Watching Row (Netflix Style) -->
+                        <div id="continue-watching-section" class="hidden mb-6">
+                            <h3 class="text-[11px] font-black uppercase tracking-[0.1em] text-red-500 mb-2.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-play text-xs"></i> Continue Assistindo
+                            </h3>
+                            <div id="continue-watching-list" class="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x touch-pan-x">
+                                <!-- Dynamic horizontal cards loaded here -->
+                            </div>
+                        </div>
+
                         <div id="media-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <!-- Items loaded dynamically -->
                         </div>
@@ -283,16 +293,44 @@
                     <!-- Selected Channel Details / Info -->
                     <div class="p-6 flex-grow flex flex-col overflow-y-auto">
                         <div id="detail-pane" class="hidden">
-                            <div class="flex items-start gap-4 mb-6">
+                            <div class="flex items-start gap-4 mb-3">
                                 <div id="detail-logo-container" class="w-20 h-20 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border border-slate-800">
                                     <img id="detail-logo" class="w-full h-full object-cover" src="" alt="logo">
                                 </div>
-                                <div class="flex-grow">
-                                    <div class="flex items-center gap-2 mb-1.5">
-                                        <span id="detail-type" class="px-2 py-0.5 bg-blue-900/30 text-[10px] uppercase font-bold text-blue-400 rounded-md jetbrains tracking-wider">LIVE</span>
-                                        <span id="detail-category" class="text-xs text-slate-400 font-medium">Canais Gerais</span>
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex items-center justify-between gap-1 mb-1.5">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                            <span id="detail-type" class="px-2 py-0.5 bg-red-950/40 text-[10px] uppercase font-bold text-red-500 border border-red-900/20 rounded-md jetbrains tracking-wider">LIVE</span>
+                                            <span id="detail-category" class="text-xs text-slate-400 font-medium truncate">Canais Gerais</span>
+                                        </div>
+                                        
+                                        <!-- Favoritar -->
+                                        <button id="detail-fav-btn" onclick="onDetailFavoriteClick()" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/20 rounded-xl text-slate-400 hover:text-red-500 transition-all outline-none" title="Favoritar">
+                                            <i id="detail-fav-icon" class="fa-regular fa-heart"></i>
+                                        </button>
                                     </div>
                                     <h2 id="detail-name" class="font-extrabold text-xl leading-tight">Nome da Mídia</h2>
+                                </div>
+                            </div>
+
+                            <!-- Netflix Series Season & Episode Hub -->
+                            <div id="episodes-container" class="hidden my-4 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl">
+                                <div class="flex items-center justify-between gap-4 mb-3">
+                                    <h4 class="text-[11px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-folder-open"></i> Temporadas & Episódios
+                                    </h4>
+                                    <!-- Season Selector Dropdown -->
+                                    <div class="relative w-32 shrink-0">
+                                        <select id="season-selector" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 text-slate-200 text-[10px] font-extrabold rounded-lg focus:ring-1 focus:ring-red-500 appearance-none outline-none">
+                                            <!-- Managed in JS -->
+                                        </select>
+                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-400">
+                                            <i class="fa-solid fa-chevron-down text-[8px]"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="episodes-list" class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                                    <!-- Dynamic episode lists generated in JS -->
                                 </div>
                             </div>
 
@@ -422,6 +460,8 @@
         let activeCategory = 'ALL';
         let currentStreamUrl = '';
         let currentActiveItem = null;
+        let currentActiveShow = null; // Selected Show object (for Series)
+        let currentActiveEpisodeItem = null; // Selected episode item currently playing
         const hlsPlayer = new Hls({
             maxBufferSize: 30 * 1024 * 1024,
             maxBufferLength: 20,
@@ -525,18 +565,19 @@
             document.querySelectorAll('.type-filter-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     document.querySelectorAll('.type-filter-btn').forEach(b => {
-                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.remove('bg-[#E50914]', 'text-white', 'shadow-md', 'shadow-red-950/20');
                         b.classList.add('text-slate-400');
                     });
                     const targetBtn = e.currentTarget;
                     targetBtn.classList.remove('text-slate-400');
-                    targetBtn.classList.add('bg-blue-600', 'text-white');
+                    targetBtn.classList.add('bg-[#E50914]', 'text-white', 'shadow-md', 'shadow-red-950/20');
 
                     activeType = targetBtn.dataset.type;
                     activeCategory = 'ALL';
                     mobileCategoryLabel.textContent = 'Todas as Categorias';
                     renderCategories();
                     renderMediaItems();
+                    renderContinueWatching();
                 });
             });
 
@@ -689,6 +730,7 @@
                 activeCategory = 'ALL';
                 renderCategories();
                 renderMediaItems();
+                renderContinueWatching();
 
             } catch (err) {
                 console.error(err);
@@ -710,6 +752,437 @@
                     playerScreen.classList.remove('flex');
                     loginScreen.classList.remove('hidden');
                 }, 300);
+            }
+        }
+
+        // ==========================================
+        // TOAST / NOTIFICATION UTILITY
+        // ==========================================
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-5 right-5 z-[9999] px-4 py-3 rounded-xl border font-bold text-xs shadow-xl flex items-center gap-2.5 transition-all duration-350 transform translate-y-12 opacity-0`;
+            
+            if (type === 'success') {
+                toast.className += ' bg-emerald-950/90 border-emerald-500/30 text-emerald-400';
+                toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${message}`;
+            } else if (type === 'error') {
+                toast.className += ' bg-red-950/90 border-red-500/30 text-red-500';
+                toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> ${message}`;
+            } else {
+                toast.className += ' bg-slate-900/95 border-slate-800 text-slate-300';
+                toast.innerHTML = `<i class="fa-solid fa-circle-info text-red-500"></i> ${message}`;
+            }
+            
+            document.body.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-12', 'opacity-0');
+            }, 50);
+            
+            // Auto hide
+            setTimeout(() => {
+                toast.classList.add('translate-y-12', 'opacity-0');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        // ==========================================
+        // CONTINUE WATCHING (CONTINUE ASSISTINDO)
+        // ==========================================
+        function getContinueWatching() {
+            try {
+                return JSON.parse(localStorage.getItem('mk21_continue')) || [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function addToContinueWatching(item) {
+            let list = getContinueWatching();
+            // Evita duplicados (checa por URL ou nome de mídia)
+            list = list.filter(i => i.url !== item.url && i.name !== item.name);
+            
+            list.unshift({
+                name: item.name,
+                logo: item.logo,
+                category: item.category,
+                url: item.url,
+                type: item.type,
+                timestamp: Date.now()
+            });
+            
+            // Limita a 12 items para design Netflix limpo
+            if (list.length > 12) {
+                list = list.slice(0, 12);
+            }
+            
+            localStorage.setItem('mk21_continue', JSON.stringify(list));
+            renderContinueWatching();
+        }
+
+        function removeContinueItem(url) {
+            let list = getContinueWatching();
+            list = list.filter(i => i.url !== url);
+            localStorage.setItem('mk21_continue', JSON.stringify(list));
+            renderContinueWatching();
+            showNotification('Item removido do histórico.', 'info');
+        }
+
+        function renderContinueWatching() {
+            const container = document.getElementById('continue-watching-section');
+            const listGrid = document.getElementById('continue-watching-list');
+            if (!container || !listGrid) return;
+            
+            const list = getContinueWatching();
+            if (list.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            listGrid.innerHTML = '';
+            
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "flex-shrink-0 w-36 bg-slate-900/60 p-2.5 border border-slate-850 hover:border-red-600/30 rounded-xl cursor-pointer hover:bg-slate-850 transition-all flex flex-col relative group snap-start";
+                
+                const logoHtml = item.logo 
+                    ? `<img class="w-full h-16 rounded-lg object-contain bg-slate-950 p-1 border border-slate-800 group-hover:scale-105 transition-transform duration-300" src="${item.logo}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23E50914%22 stroke-width=%222%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%224%22/><path d=%22m9%22 m12 l3 l-3 l-3%22/></svg>'" alt="">`
+                    : `<div class="w-full h-16 rounded-lg bg-red-950/20 text-red-500 font-extrabold text-sm flex items-center justify-center border border-red-500/10 group-hover:scale-105 transition-transform duration-300">${item.name.charAt(0).toUpperCase()}</div>`;
+                
+                let sBadge = '';
+                if (item.type === 'LIVE') sBadge = '<span class="absolute top-3 left-3 z-10 px-1.5 py-0.5 bg-[#E50914] text-white text-[8px] font-black uppercase rounded shadow-md tracking-wider">AO VIVO</span>';
+                else if (item.type === 'MOVIE') sBadge = '<span class="absolute top-3 left-3 z-10 px-1.5 py-0.5 bg-black/80 text-slate-305 border border-slate-800 text-[8px] font-black uppercase rounded shadow-md tracking-wider">FILME</span>';
+                else if (item.type === 'SERIES') sBadge = '<span class="absolute top-3 left-3 z-10 px-1.5 py-0.5 bg-rose-600 text-white text-[8px] font-black uppercase rounded shadow-md tracking-wider">SÉRIE</span>';
+
+                card.innerHTML = `
+                    ${sBadge}
+                    <div class="relative overflow-hidden rounded-lg w-full mb-2">
+                        ${logoHtml}
+                        <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <i class="fa-solid fa-play text-white text-sm bg-[#E50914] p-2 rounded-full shadow shadow-red-950/50"></i>
+                        </div>
+                    </div>
+                    <div class="min-w-0 flex flex-col justify-between flex-grow h-7">
+                        <h4 class="font-extrabold text-[10px] leading-tight text-slate-200 truncate group-hover:text-red-500 transition-colors">${item.name}</h4>
+                        <div class="flex items-center justify-between text-[8px] text-slate-500 font-medium pb-0.5">
+                            <span class="truncate max-w-[85px]">${item.category}</span>
+                            <button class="remove-history-btn p-1 text-slate-600 hover:text-red-500 rounded transition-colors" data-url="${item.url}" title="Remover histórico">
+                                <i class="fa-solid fa-trash-can text-[8px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', (e) => {
+                    const deleteBtn = e.target.closest('.remove-history-btn');
+                    if (deleteBtn) {
+                        e.stopPropagation();
+                        removeContinueItem(deleteBtn.dataset.url);
+                        return;
+                    }
+                    playStream(item);
+                });
+                
+                listGrid.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // MEUS FAVORITOS (LOCAL PERSISTENCE)
+        // ==========================================
+        function getFavorites() {
+            try {
+                return JSON.parse(localStorage.getItem('mk21_favorites')) || [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function isFavorite(item) {
+            if (!item) return false;
+            const favs = getFavorites();
+            return favs.some(f => f.url === item.url && f.name === item.name);
+        }
+
+        function toggleFavorite(item) {
+            if (!item) return;
+            let list = getFavorites();
+            const index = list.findIndex(f => f.url === item.url && f.name === item.name);
+            
+            if (index === -1) {
+                list.push({
+                    name: item.name,
+                    logo: item.logo,
+                    category: item.category,
+                    url: item.url,
+                    type: item.type
+                });
+                showNotification('Adicionado aos Favoritos ❤️', 'success');
+            } else {
+                list.splice(index, 1);
+                showNotification('Removido dos Favoritos', 'success');
+            }
+            
+            localStorage.setItem('mk21_favorites', JSON.stringify(list));
+            updateFavoriteButtonUI(item);
+            
+            // Re-render categories layout and counters if needed
+            renderCategories();
+            
+            // If active category is FAVORITES, update the grid lists
+            if (activeCategory === 'FAVORITES') {
+                renderMediaItems();
+            }
+        }
+
+        function updateFavoriteButtonUI(item) {
+            const favBtn = document.getElementById('detail-fav-btn');
+            const favIcon = document.getElementById('detail-fav-icon');
+            if (!favBtn || !favIcon) return;
+            
+            if (item && isFavorite(item)) {
+                favIcon.className = "fa-solid fa-heart text-[#E50914] scale-110 transition-transform duration-200";
+                favBtn.title = "Remover dos Favoritos";
+                favBtn.className = "p-2 bg-red-950/20 hover:bg-slate-800 border border-red-500/20 hover:border-slate-700 rounded-xl transition-all outline-none";
+            } else {
+                favIcon.className = "fa-regular fa-heart text-slate-400 hover:scale-110 transition-transform duration-200";
+                favBtn.title = "Adicionar aos Favoritos";
+                favBtn.className = "p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/20 rounded-xl transition-all outline-none";
+            }
+        }
+
+        function onDetailFavoriteClick() {
+            // Favorita o item ativo
+            if (currentActiveEpisodeItem) {
+                toggleFavorite(currentActiveEpisodeItem);
+            } else if (currentActiveItem) {
+                toggleFavorite(currentActiveItem);
+            } else if (currentActiveShow) {
+                // Se for um grupo de série, podemos favoritar o primeiro episódio ou registrar interesse
+                if (currentActiveShow.episodes && currentActiveShow.episodes.length > 0) {
+                    toggleFavorite(currentActiveShow.episodes[0].originalItem);
+                }
+            }
+        }
+
+        // ==========================================
+        // SERIES GROUPING (NETFLIX ENGINE)
+        // ==========================================
+        function groupSeriesItems(items) {
+            const shows = {}; // Title -> Show details
+            
+            items.forEach(item => {
+                const name = item.name;
+                let showTitle = name;
+                let seasonNum = 1;
+                let episodeNum = 1;
+                let epTitle = "";
+                
+                // Exemplo: Rooster (2026) S01E03 ou The Pitt S01E02
+                const s01e01 = name.match(/^(.*?)\s+S(\d+)\s*E(\d+)(.*)$/i);
+                if (s01e01) {
+                    showTitle = s01e01[1].trim();
+                    seasonNum = parseInt(s01e01[2], 10);
+                    episodeNum = parseInt(s01e01[3], 10);
+                    epTitle = s01e01[4].trim();
+                } else {
+                    const altSe = name.match(/^(.*?)\s+S(\d+)[\s_-]*EP?(\d+)(.*)$/i);
+                    if (altSe) {
+                        showTitle = altSe[1].trim();
+                        seasonNum = parseInt(altSe[2], 10);
+                        episodeNum = parseInt(altSe[3], 10);
+                        epTitle = altSe[4].trim();
+                    } else {
+                        const xPattern = name.match(/^(.*?)\s+(\d+)x(\d+)(.*)$/i);
+                        if (xPattern) {
+                            showTitle = xPattern[1].trim();
+                            seasonNum = parseInt(xPattern[2], 10);
+                            episodeNum = parseInt(xPattern[3], 10);
+                            epTitle = xPattern[4].trim();
+                        } else {
+                            const wordS = name.match(/^(.*?)\s+Temporada\s*(\d+)\s+Episodio\s*(\d+)(.*)$/i) || 
+                                          name.match(/^(.*?)\s+Season\s*(\d+)\s+Episode\s*(\d+)(.*)$/i);
+                            if (wordS) {
+                                showTitle = wordS[1].trim();
+                                seasonNum = parseInt(wordS[2], 10);
+                                episodeNum = parseInt(wordS[3], 10);
+                                epTitle = wordS[4].trim();
+                            } else {
+                                const epOnly = name.match(/^(.*?)\s+EP?(\d+)(.*)$/i);
+                                if (epOnly) {
+                                    showTitle = epOnly[1].trim();
+                                    seasonNum = 1;
+                                    episodeNum = parseInt(epOnly[2], 10);
+                                    epTitle = epOnly[3].trim();
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Limpeza de hífens, colchetes, pipes no título da série
+                showTitle = showTitle.replace(/\s*[-–—:|\[\]\(\)]\s*$/, "").trim();
+                if (!showTitle) {
+                    showTitle = name;
+                }
+                
+                if (!shows[showTitle]) {
+                    shows[showTitle] = {
+                        title: showTitle,
+                        category: item.category,
+                        logo: item.logo,
+                        type: 'SERIES',
+                        episodes: []
+                    };
+                }
+                
+                if (!shows[showTitle].logo && item.logo) {
+                    shows[showTitle].logo = item.logo;
+                }
+                
+                // Formata o título do episódio de forma bonita
+                let cleanEpTitle = epTitle.replace(/^\s*[-–—:|]\s*/, "").trim();
+                if (!cleanEpTitle) {
+                    cleanEpTitle = `Episódio ${episodeNum}`;
+                }
+                
+                shows[showTitle].episodes.push({
+                    originalItem: item,
+                    name: item.name,
+                    season: seasonNum,
+                    episode: episodeNum,
+                    title: cleanEpTitle,
+                    url: item.url,
+                    logo: item.logo || shows[showTitle].logo
+                });
+            });
+            
+            // Ordenação interna de temporadas e episódios
+            Object.values(shows).forEach(show => {
+                show.episodes.sort((a, b) => {
+                    if (a.season !== b.season) return a.season - b.season;
+                    return a.episode - b.episode;
+                });
+            });
+            
+            return Object.values(shows);
+        }
+
+        function selectShow(show) {
+            currentActiveShow = show;
+            currentActiveEpisodeItem = null;
+            
+            // Show details panel
+            detailEmpty.classList.add('hidden');
+            detailPane.classList.remove('hidden');
+            
+            detailName.textContent = show.title;
+            detailCategory.textContent = show.category;
+            detailType.textContent = "Série";
+            
+            if (show.logo) {
+                detailLogo.src = show.logo;
+                detailLogo.classList.remove('hidden');
+            } else {
+                detailLogo.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23E50914" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="m9 m12 l3 l-3 l-3"/></svg>';
+            }
+            
+            // Sync Favorites icon
+            if (show.episodes && show.episodes.length > 0) {
+                updateFavoriteButtonUI(show.episodes[0].originalItem);
+            }
+            
+            // Build Seasons selector
+            const seasonSelector = document.getElementById('season-selector');
+            const episodesContainer = document.getElementById('episodes-container');
+            seasonSelector.innerHTML = '';
+            
+            // Get unique sorted list of seasons
+            const seasonsSet = new Set(show.episodes.map(ev => ev.season));
+            const seasons = Array.from(seasonsSet).sort((a, b) => a - b);
+            
+            seasons.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = `Temporada ${s}`;
+                seasonSelector.appendChild(opt);
+            });
+            
+            episodesContainer.classList.remove('hidden');
+            
+            // Trigger rendering of Episode list for first season
+            if (seasons.length > 0) {
+                seasonSelector.value = seasons[0];
+                renderEpisodesForSeason(seasons[0]);
+            }
+            
+            // Se possuir episódios, bota o primeiro no player para ficar pronto
+            if (show.episodes && show.episodes.length > 0) {
+                const epObj = show.episodes[0];
+                if (window.innerWidth >= 1024) {
+                    playStream(epObj.originalItem, true); // true avoids clearing series selector layout
+                } else {
+                    currentStreamUrl = epObj.originalItem.url;
+                    currentActiveItem = epObj.originalItem;
+                    currentActiveEpisodeItem = epObj.originalItem;
+                    streamUrlDisplay.textContent = epObj.originalItem.url;
+                    vlcLauncher.href = getVlcUrl(epObj.originalItem.url);
+                }
+            }
+            
+            // On mobile, slide open player panel
+            const playerCol = document.getElementById('player-column');
+            if (playerCol && window.innerWidth < 1024) {
+                playerCol.classList.remove('hidden');
+                playerCol.classList.add('flex');
+            }
+        }
+
+        function renderEpisodesForSeason(seasonNum) {
+            const listEl = document.getElementById('episodes-list');
+            if (!listEl || !currentActiveShow) return;
+            
+            listEl.innerHTML = '';
+            
+            const seasonEpisodes = currentActiveShow.episodes.filter(ep => ep.season === parseInt(seasonNum, 10));
+            
+            seasonEpisodes.forEach(ep => {
+                const isSelected = currentActiveEpisodeItem && currentActiveEpisodeItem.url === ep.url;
+                
+                const epRow = document.createElement('div');
+                epRow.className = `p-2.5 rounded-xl cursor-pointer border flex items-center gap-3 transition-all ${
+                    isSelected 
+                        ? 'bg-red-950/25 border-red-500/40 text-red-400 font-extrabold shadow shadow-red-950/40' 
+                        : 'bg-slate-950/40 border-slate-900/60 hover:bg-slate-800/80 hover:border-slate-700 text-slate-350'
+                }`;
+                
+                epRow.innerHTML = `
+                    <div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center font-mono text-[10px] font-bold text-slate-400 shrink-0">
+                        ${ep.episode < 10 ? '0' + ep.episode : ep.episode}
+                    </div>
+                    <div class="flex-grow min-w-0">
+                        <h5 class="text-[11px] truncate leading-tight">${ep.title}</h5>
+                        <p class="text-[9px] text-slate-500 truncate font-semibold mt-0.5">Mídia: S${ep.season < 10 ? '0' + ep.season : ep.season}E${ep.episode < 10 ? '0' + ep.episode : ep.episode}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <i class="fa-solid ${isSelected ? 'fa-volume-high text-red-500 animate-pulse' : 'fa-circle-play text-slate-500 hover:text-red-500'} text-xs"></i>
+                    </div>
+                `;
+                
+                epRow.addEventListener('click', () => {
+                    playStream(ep.originalItem, true); // true is preserveLayout context
+                });
+                
+                listEl.appendChild(epRow);
+            });
+        }
+
+        function changeSeason() {
+            const seasonSelector = document.getElementById('season-selector');
+            if (seasonSelector) {
+                renderEpisodesForSeason(seasonSelector.value);
             }
         }
 
@@ -793,16 +1266,22 @@
 
             // Build lists items
             let html = `
-                <button data-cat="ALL" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === 'ALL' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:bg-slate-800' }">
-                    <span>Todas as Categorias</span>
+                <button data-cat="ALL" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === 'ALL' ? 'bg-red-600/10 text-red-500 border border-red-500/20 font-black' : 'text-slate-400 hover:bg-slate-800' }">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-list-ul text-[10px]"></i> Todas as Categorias</span>
                     <span class="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded font-mono">${filteredItems.length}</span>
                 </button>
+                
+                <button data-cat="FAVORITES" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === 'FAVORITES' ? 'bg-red-600/10 text-red-400 border border-red-500/20 font-black' : 'text-slate-400 hover:bg-slate-800' }">
+                    <span class="flex items-center gap-1.5 text-red-500"><i class="fa-solid fa-heart text-[10px] text-red-500"></i> Meus Favoritos</span>
+                    <span id="fav-count-badge" class="text-[10px] bg-red-950/40 text-red-400 border border-red-900/10 px-1.5 py-0.5 rounded font-mono">${getFavorites().filter(i => i.type === activeType).length}</span>
+                </button>
+                <div class="h-[1px] bg-slate-800/40 my-2"></div>
             `;
 
             categories.forEach(cat => {
                 const count = filteredItems.filter(i => i.category === cat).length;
                 html += `
-                    <button data-cat="${cat}" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === cat ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:bg-slate-800' }">
+                    <button data-cat="${cat}" class="cat-select-btn w-full text-left px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-all ${activeCategory === cat ? 'bg-red-600/10 text-red-500 border border-red-500/20 font-black' : 'text-slate-400 hover:bg-slate-800' }">
                         <span class="truncate pr-2">${cat}</span>
                         <span class="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded font-mono">${count}</span>
                     </button>
@@ -819,7 +1298,7 @@
                 btn.addEventListener('click', (e) => {
                     const cat = e.currentTarget.dataset.cat;
                     activeCategory = cat;
-                    mobileCategoryLabel.textContent = cat === 'ALL' ? 'Todas as Categorias' : cat;
+                    mobileCategoryLabel.textContent = cat === 'ALL' ? 'Todas as Categorias' : (cat === 'FAVORITES' ? 'Meus Favoritos ❤️' : cat);
 
                     // Close mobile modal if open
                     mobileCategoryModal.classList.add('hidden');
@@ -836,7 +1315,9 @@
             
             // Match Category and Type filtering
             let items = playlistItems.filter(item => item.type === activeType);
-            if (activeCategory !== 'ALL') {
+            if (activeCategory === 'FAVORITES') {
+                items = items.filter(item => isFavorite(item));
+            } else if (activeCategory !== 'ALL') {
                 items = items.filter(item => item.category === activeCategory);
             }
 
@@ -847,6 +1328,59 @@
 
             mediaGrid.innerHTML = '';
 
+            // Handle SERIES ( Netflix TV Show Grouping )
+            if (activeType === 'SERIES') {
+                const groupedShows = groupSeriesItems(items);
+                
+                if (groupedShows.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                } else {
+                    emptyState.classList.add('hidden');
+                }
+                
+                groupedShows.slice(0, 150).forEach(show => {
+                    const colCard = document.createElement('div');
+                    colCard.className = "p-3 bg-slate-900/60 border border-slate-850 hover:border-red-500/20 rounded-xl cursor-pointer hover:bg-slate-850/50 flex gap-3 transition-all";
+                    
+                    const countShow = show.episodes.length;
+                    const seasonsSet = new Set(show.episodes.map(e => e.season));
+                    const countSeas = seasonsSet.size;
+                    
+                    const epText = countShow === 1 ? '1 ep' : `${countShow} eps`;
+                    const seText = countSeas === 1 ? '1 temp' : `${countSeas} temps`;
+                    
+                    const logoHtml = show.logo
+                        ? `<img class="w-12 h-12 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-800" src="${show.logo}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23E50914%22 stroke-width=%222%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%224%22/><path d=%22m9%22 m12 l3 l-3 l-3%22/></svg>'" alt="logo">`
+                        : `<div class="w-12 h-12 rounded-lg bg-red-950/20 text-red-500 font-extrabold flex items-center justify-center text-lg border border-red-500/10">${show.title.charAt(0).toUpperCase()}</div>`;
+                        
+                    colCard.innerHTML = `
+                        ${logoHtml}
+                        <div class="flex-grow min-w-0 flex flex-col justify-center">
+                            <h4 class="font-extrabold text-xs truncate text-slate-100">${show.title}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[9px] text-[#E50914] bg-red-950/20 border border-red-900/15 px-1.5 py-0.2 rounded font-black uppercase tracking-wider">${seText}</span>
+                                <span class="text-[9px] text-slate-400 bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800 font-mono">${epText}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    colCard.addEventListener('click', () => {
+                        selectShow(show);
+                    });
+                    
+                    mediaGrid.appendChild(colCard);
+                });
+                
+                if (groupedShows.length > 150) {
+                    const hint = document.createElement('div');
+                    hint.className = "col-span-full py-4 text-center text-xs text-slate-600 font-medium";
+                    hint.textContent = `Listando primeiras 150 de ${groupedShows.length} séries filtradas. Use a busca para filtrar mais.`;
+                    mediaGrid.appendChild(hint);
+                }
+                return;
+            }
+
             if (items.length === 0) {
                 emptyState.classList.remove('hidden');
                 return;
@@ -854,15 +1388,15 @@
                 emptyState.classList.add('hidden');
             }
 
-            // Display list items cleanly
+            // Display list items cleanly (Live Channels and Movies)
             items.slice(0, 150).forEach(item => { // Slice rendering list to 150 items to keep UI responsive
                 const colCard = document.createElement('div');
-                colCard.className = "p-3 bg-slate-900/60 border border-slate-850 hover:border-blue-500/20 rounded-xl cursor-pointer hover:bg-slate-850/50 flex gap-3 transition-all";
+                colCard.className = "p-3 bg-slate-900/60 border border-slate-850 hover:border-red-500/20 rounded-xl cursor-pointer hover:bg-slate-850/50 flex gap-3 transition-all";
                 
                 // Lazy fallback of images
                 const logoHtml = item.logo 
-                    ? `<img class="w-12 h-12 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-800" src="${item.logo}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232563EB%22 stroke-width=%222%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%224%22/><path d=%22m9%22 m12 l3 l-3 l-3%22/></svg>'" alt="logo">`
-                    : `<div class="w-12 h-12 rounded-lg bg-blue-900/30 text-blue-400 flex items-center justify-center font-bold text-lg border border-blue-500/10">${item.name.charAt(0).toUpperCase()}</div>`;
+                    ? `<img class="w-12 h-12 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-800" src="${item.logo}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23E50914%22 stroke-width=%222%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%224%22/><path d=%22m9%22 m12 l3 l-3 l-3%22/></svg>'" alt="logo">`
+                    : `<div class="w-12 h-12 rounded-lg bg-red-950/20 text-red-500 flex items-center justify-center font-bold text-lg border border-red-500/10">${item.name.charAt(0).toUpperCase()}</div>`;
 
                 colCard.innerHTML = `
                     ${logoHtml}
@@ -971,9 +1505,8 @@
         }
 
         // Play Execution
-        function playStream(item) {
+        function playStream(item, preserveLayout = false) {
             currentStreamUrl = item.url;
-            currentActiveItem = item;
             
             // Show player column on mobile if hidden
             const playerCol = document.getElementById('player-column');
@@ -992,19 +1525,49 @@
             detailEmpty.classList.add('hidden');
             detailPane.classList.remove('hidden');
 
-            detailName.textContent = item.name;
-            detailCategory.textContent = item.category;
-            detailType.textContent = item.type === 'LIVE' ? 'Ao Vivo' : (item.type === 'MOVIE' ? 'Filme' : 'Série');
-            
-            if (item.logo) {
-                detailLogo.src = item.logo;
-                detailLogo.classList.remove('hidden');
+            const episodesContainer = document.getElementById('episodes-container');
+
+            if (preserveLayout) {
+                // It is a series episode click
+                currentActiveEpisodeItem = item;
+                // Keep show logo and title, but update VLC and stream text display
+                streamUrlDisplay.textContent = item.url;
+                vlcLauncher.href = getVlcUrl(item.url);
+                updateFavoriteButtonUI(item);
+                
+                // Keep episode selection glowing in list
+                const seasonSelector = document.getElementById('season-selector');
+                if (seasonSelector) {
+                    renderEpisodesForSeason(seasonSelector.value);
+                }
             } else {
-                detailLogo.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%232563EB" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="m9 m12 l3 l-3 l-3"/></svg>';
+                // Standard Movie / Live play click
+                currentActiveItem = item;
+                currentActiveEpisodeItem = null;
+                currentActiveShow = null;
+                
+                if (episodesContainer) {
+                    episodesContainer.classList.add('hidden');
+                }
+
+                detailName.textContent = item.name;
+                detailCategory.textContent = item.category;
+                detailType.textContent = item.type === 'LIVE' ? 'Ao Vivo' : (item.type === 'MOVIE' ? 'Filme' : 'Série');
+                
+                if (item.logo) {
+                    detailLogo.src = item.logo;
+                    detailLogo.classList.remove('hidden');
+                } else {
+                    detailLogo.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23E50914" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="m9 m12 l3 l-3 l-3"/></svg>';
+                }
+
+                streamUrlDisplay.textContent = item.url;
+                vlcLauncher.href = getVlcUrl(item.url);
+                updateFavoriteButtonUI(item);
             }
 
-            streamUrlDisplay.textContent = item.url;
-            vlcLauncher.href = getVlcUrl(item.url);
+            // Record to continue watching list
+            addToContinueWatching(item);
 
             // Toggle mixed content warning
             const mixedWarning = document.getElementById('mixed-content-warning');
