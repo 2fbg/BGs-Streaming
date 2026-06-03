@@ -2246,7 +2246,8 @@ fun HomeScreen(
                     onClosePlayback = { viewModel.closePlayback() },
                     onPlayPrevious = { viewModel.playPrevious() },
                     onPlayNext = { viewModel.playNext() },
-                    isInPipMode = isInPipMode
+                    isInPipMode = isInPipMode,
+                    viewModel = viewModel
                 )
             }
         }
@@ -2910,13 +2911,18 @@ fun VideoPlayerUI(
     onClosePlayback: () -> Unit,
     onPlayPrevious: () -> Unit,
     onPlayNext: () -> Unit,
-    isInPipMode: Boolean = false
+    isInPipMode: Boolean = false,
+    viewModel: AppViewModel
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     
     var isPlaying by remember { mutableStateOf(true) }
+    
+    LaunchedEffect(isPlaying) {
+        viewModel.isPlayerPlaying.value = isPlaying
+    }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBuffering by remember { mutableStateOf(true) }
     
@@ -3063,6 +3069,11 @@ fun VideoPlayerUI(
     }
 
     DisposableEffect(exoPlayer) {
+        viewModel.togglePlayPauseAction = {
+            isPlaying = !isPlaying
+            exoPlayer.playWhenReady = isPlaying
+        }
+        
         // Apply Wakelock equivalent flag on creation to keep screen active
         val window = activity?.window
         if (activity?.isFinishing == false && activity?.isDestroyed == false) {
@@ -3091,6 +3102,7 @@ fun VideoPlayerUI(
         exoPlayer.addListener(listener)
 
         onDispose {
+            viewModel.togglePlayPauseAction = null
             try {
                 LocalCastServer.stopServer()
             } catch (e: Exception) {

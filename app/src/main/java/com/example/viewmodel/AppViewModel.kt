@@ -110,6 +110,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _isInPipMode.value = inPip
     }
 
+    val isPlayerPlaying = MutableStateFlow(true)
+    var togglePlayPauseAction: (() -> Unit)? = null
+    fun togglePlayPause() {
+        togglePlayPauseAction?.invoke()
+    }
+
     private val _useAmoledMode = MutableStateFlow(preferencesService.useAmoledMode)
     val useAmoledMode = _useAmoledMode.asStateFlow()
 
