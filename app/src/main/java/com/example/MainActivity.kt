@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun getPipParams(isPlaying: Boolean): android.app.PictureInPictureParams? {
+    fun getPipParams(isPlaying: Boolean): android.app.PictureInPictureParams? {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val actions = ArrayList<android.app.RemoteAction>()
             
@@ -121,7 +121,9 @@ class MainActivity : ComponentActivity() {
             val nextAction = android.app.RemoteAction(nextIcon, "Próximo", "Próximo Canal", nextIntent)
             actions.add(nextAction)
 
+            val aspectRational = android.util.Rational(16, 9)
             return android.app.PictureInPictureParams.Builder()
+                .setAspectRatio(aspectRational)
                 .setActions(actions)
                 .build()
         }

@@ -3089,6 +3089,10 @@ fun VideoPlayerUI(
                 isBuffering = state == Player.STATE_BUFFERING
             }
 
+            override fun onIsPlayingChanged(isPlayingParam: Boolean) {
+                isPlaying = isPlayingParam
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 errorMessage = "Impossível reproduzir canal/mídia. Conexão terminada pelo link."
                 isBuffering = false
@@ -3489,7 +3493,8 @@ fun VideoPlayerUI(
                             onClick = {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                     try {
-                                        val params = android.app.PictureInPictureParams.Builder().build()
+                                        val mainAct = activity as? com.example.MainActivity
+                                        val params = mainAct?.getPipParams(isPlaying) ?: android.app.PictureInPictureParams.Builder().build()
                                         activity?.enterPictureInPictureMode(params)
                                     } catch (e: Exception) {
                                         android.widget.Toast.makeText(
