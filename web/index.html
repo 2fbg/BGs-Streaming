@@ -375,11 +375,14 @@
                                     <p class="text-xs text-slate-400 mb-3 leading-relaxed">
                                         Se o reprodutor web do seu navegador apresentar falhas ou problemas de codec / CORS com este stream, copie o link abaixo ou assista no VLC Player.
                                     </p>
-                                    <div class="flex gap-2">
+                                    <div class="flex flex-wrap gap-2">
                                         <button onclick="copyCurrentStreamUrl()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
                                             <i class="fa-solid fa-copy"></i> Copiar Link
                                         </button>
-                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                        <button id="pip-button" onclick="togglePictureInPicture()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5" title="Reproduzir em Mini Player">
+                                            <i class="fa-solid fa-window-restore"></i> Mini Player (PiP)
+                                        </button>
+                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
                                             <i class="fa-solid fa-video"></i> Abrir no VLC
                                         </a>
                                     </div>
@@ -515,6 +518,15 @@
             populateServers();
             loadCachedCredentials();
             setupEventListeners();
+
+            // Check and handle Picture-in-Picture support
+            const pipBtn = document.getElementById('pip-button');
+            if (pipBtn) {
+                const isPipSupported = document.pictureInPictureEnabled || (videoElement && typeof videoElement.requestPictureInPicture === 'function');
+                if (!isPipSupported) {
+                    pipBtn.classList.add('hidden');
+                }
+            }
         });
 
         function populateServers() {
@@ -1432,21 +1444,10 @@
         function getVlcUrl(streamUrl) {
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
-            if (ua.includes('android')) {
-                let protocol = 'http';
-                let urlBody = streamUrl;
-                if (streamUrl.startsWith('https://')) {
-                    protocol = 'https';
-                    urlBody = streamUrl.substring(8);
-                } else if (streamUrl.startsWith('http://')) {
-                    protocol = 'http';
-                    urlBody = streamUrl.substring(7);
-                }
-                // Urgently add type=video/* to prevent "cannot play multiple medias" VLC error
-                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;type=video/*;end`;
-            } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+            if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
                 return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
             } else {
+                // For Android and Desktop, using the direct vlc:// scheme plays the stream perfectly and avoids intent parsing errors
                 return `vlc://${streamUrl}`;
             }
         }
@@ -1688,6 +1689,25 @@
             navigator.clipboard.writeText(currentStreamUrl)
                 .then(() => alert('Link de transmissão copiado para a área de transferência!'))
                 .catch(err => console.error(err));
+        }
+
+        async function togglePictureInPicture() {
+            if (!videoElement) return;
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else {
+                    const isPipSupported = document.pictureInPictureEnabled || typeof videoElement.requestPictureInPicture === 'function';
+                    if (isPipSupported) {
+                        await videoElement.requestPictureInPicture();
+                    } else {
+                        alert('Picture-in-Picture não é suportado ou está desativado no seu navegador.');
+                    }
+                }
+            } catch (error) {
+                console.error("Erro no Picture-in-Picture:", error);
+                alert('Não foi possível ativar o modo Mini Player (PiP) agora. Certifique-se de que a mídia foi iniciada e está sendo reproduzida.');
+            }
         }
     </script>
 </body>
