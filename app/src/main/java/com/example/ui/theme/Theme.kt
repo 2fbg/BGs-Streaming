@@ -19,12 +19,28 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = LightGrey
 )
 
+private val AmoledColorScheme = darkColorScheme(
+    primary = NetflixRed,
+    secondary = GoldPremium,
+    tertiary = HotAccent,
+    background = Color(0xFF000000),
+    surface = Color(0xFF000000),
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onBackground = WhiteText,
+    onSurface = WhiteText,
+    surfaceVariant = Color(0xFF000000),
+    onSurfaceVariant = LightGrey
+)
+
 @Composable
 fun MyApplicationTheme(
+    useAmoledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val colors = if (useAmoledMode) AmoledColorScheme else DarkColorScheme
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = colors,
         typography = Typography,
         content = content
     )

@@ -65,15 +65,19 @@
         <!-- 1. LOGIN / GATEWAY SCREEN -->
         <div id="login-screen" class="w-full max-w-lg transition-all duration-300 transform scale-100 block">
             <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
-                <!-- Branding -->
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#E50914] to-red-800 shadow-lg shadow-red-950/40 mb-4 ring-4 ring-red-500/10 hover:scale-105 transition-transform duration-300">
-                        <i class="fa-solid fa-circle-play text-3xl text-white animate-pulse"></i>
+                <!-- Branding: Reconstrução fiel do Logo Oficial MK21 -->
+                <div class="text-center mb-8 flex flex-col items-center select-none">
+                    <div class="inline-flex items-center justify-center gap-1 hover:scale-105 transition-transform duration-300 cursor-pointer mb-2">
+                        <!-- "MK" em Degradê Prata Metálico Cromado -->
+                        <span class="text-5xl font-black italic tracking-tighter bg-gradient-to-b from-white via-slate-300 to-slate-500 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">MK</span>
+                        <!-- "21" em Degradê Vermelho Laser Brilhante -->
+                        <span class="text-6xl font-black italic tracking-tighter bg-gradient-to-b from-red-500 to-red-700 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(239,68,68,0.6)] -ml-1">21</span>
                     </div>
-                    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-rose-500 bg-clip-text text-transparent animate-fade-in">
-                        MK21 MultiServidor
-                    </h1>
-                    <p class="text-slate-400 text-sm mt-2">Versão Web IPTV de Alto Desempenho</p>
+                    <!-- Slogan Oficial do Logo -->
+                    <p class="text-[9px] uppercase tracking-[0.25em] font-extrabold text-slate-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] leading-none mb-4">
+                        MAIS QUE UM NÚMERO É RESULTADO
+                    </p>
+                    <p class="text-[11px] text-slate-400 font-medium pb-1 border-b border-slate-800/40 w-4/5 mx-auto">Versão Web IPTV de Alto Desempenho</p>
                 </div>
 
                 <!-- Form -->
@@ -152,6 +156,7 @@
                                 <i class="fa-solid fa-chevron-down"></i>
                             </div>
                         </div>
+                        <div id="latency-status-indicator" class="mt-2 text-xs text-slate-400 hidden"></div>
                     </div>
 
                     <!-- Action Button -->
@@ -518,6 +523,9 @@
             populateServers();
             loadCachedCredentials();
             setupEventListeners();
+            
+            // Auto run parallel proxy latency check in background
+            runProxyLatencyCheck();
 
             // Check and handle Picture-in-Picture support
             const pipBtn = document.getElementById('pip-button');
@@ -674,7 +682,17 @@
                 { name: 'thingproxy', label: 'Proxy ThingProxy', getUrl: (url) => `https://thingproxy.freeboard.io/fetch/${url}` }
             ];
 
-            const methodsToTry = (corsMethod === 'auto') ? methods : methods.filter(m => m.name === corsMethod);
+            // If Auto is selected, dynamically sort the proxy methods by their tested latency so the fastest is tried first
+            let sortedMethods = [...methods];
+            if (corsMethod === 'auto') {
+                sortedMethods.sort((a, b) => {
+                    const latA = (proxyLatencies[a.name] !== undefined) ? proxyLatencies[a.name] : 5000;
+                    const latB = (proxyLatencies[b.name] !== undefined) ? proxyLatencies[b.name] : 5000;
+                    return latA - latB;
+                });
+            }
+
+            const methodsToTry = (corsMethod === 'auto') ? sortedMethods : sortedMethods.filter(m => m.name === corsMethod);
 
             for (let idx = 0; idx < methodsToTry.length; idx++) {
                 const method = methodsToTry[idx];
@@ -1441,13 +1459,117 @@
             }
         }
 
+        let proxyLatencies = {};
+        let fastestCalculatedProxy = null;
+        let isTestingLatency = false;
+
+        async function runProxyLatencyCheck() {
+            if (isTestingLatency) return;
+            isTestingLatency = true;
+            
+            const targetUrl = 'https://www.cloudflare.com/cdn-cgi/trace';
+            const methodsToTest = [
+                { name: 'vercel', label: 'Proxy Vercel Dedicado', getUrl: (url) => `${window.location.origin}/api/proxy?url=${encodeURIComponent(url)}` },
+                { name: 'corsproxy', label: 'Proxy CorsProxy.io', getUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+                { name: 'allorigins', label: 'Proxy AllOrigins (Raw)', getUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+                { name: 'codetabs', label: 'Proxy CodeTabs', getUrl: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` }
+            ];
+
+            const indicatorEl = document.getElementById('latency-status-indicator');
+            if (indicatorEl) {
+                indicatorEl.classList.remove('hidden');
+                indicatorEl.innerHTML = `
+                    <div class="flex items-center gap-2 text-xs text-blue-400 py-1">
+                        <i class="fa-solid fa-spinner animate-spin text-sm"></i>
+                        <span>Testando latência dos proxies...</span>
+                    </div>
+                `;
+            }
+
+            const pingPromises = methodsToTest.map(async (m) => {
+                const startTime = performance.now();
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s timeout for latency testing
+                    
+                    const fetchUrl = m.getUrl(targetUrl);
+                    const response = await fetch(fetchUrl, { 
+                        method: 'GET',
+                        signal: controller.signal,
+                        cache: 'no-store'
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const duration = Math.round(performance.now() - startTime);
+                        return { name: m.name, label: m.label, latency: duration, ok: true };
+                    }
+                } catch (e) {
+                    // Ignore fail
+                }
+                return { name: m.name, label: m.label, latency: 9999, ok: false };
+            });
+
+            const resolvedResults = await Promise.all(pingPromises);
+            const successfulResults = resolvedResults.filter(r => r.ok && r.latency < 9999);
+            
+            if (successfulResults.length > 0) {
+                successfulResults.sort((a, b) => a.latency - b.latency);
+                fastestCalculatedProxy = successfulResults[0].name;
+                
+                const fastest = successfulResults[0];
+                console.log(`[Proxy Checker] Fastest proxy: ${fastest.label} (${fastest.latency}ms)`);
+                
+                successfulResults.forEach(r => {
+                    proxyLatencies[r.name] = r.latency;
+                });
+
+                if (indicatorEl) {
+                    indicatorEl.innerHTML = `
+                        <div class="flex flex-col gap-1 bg-emerald-950/25 border border-emerald-900/30 rounded-xl p-3 mt-1.5 animate-fade-in text-left">
+                            <div class="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                                <i class="fa-solid fa-circle-check text-sm animate-pulse"></i>
+                                <span>Aceleração de Conexão Ativada</span>
+                            </div>
+                            <span class="text-[10px] text-slate-300 leading-normal">
+                                O proxy mais rápido encontrado foi <strong class="text-emerald-300">${fastest.label}</strong> com apenas <strong class="text-emerald-400">${fastest.latency}ms</strong> de latência, sendo definido como o padrão para sua navegação! <button onclick="runProxyLatencyCheck(); event.preventDefault();" class="text-blue-400 hover:underline inline ml-1 font-bold whitespace-nowrap"><i class="fa-solid fa-arrows-rotate text-[9px] mr-0.5"></i>Recalcular</button>
+                            </span>
+                        </div>
+                    `;
+                }
+            } else {
+                console.warn('[Proxy Checker] All proxies failed latency testing, using default sequence.');
+                if (indicatorEl) {
+                    indicatorEl.innerHTML = `
+                        <div class="flex items-center gap-2 text-xs text-amber-400 py-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Sem resposta dos proxies. Usando ordenamento padrão de fallback.</span>
+                        </div>
+                    `;
+                }
+            }
+            isTestingLatency = false;
+        }
+
         function getVlcUrl(streamUrl) {
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
-            if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+            if (ua.includes('android')) {
+                let protocol = 'http';
+                let urlBody = streamUrl;
+                if (streamUrl.startsWith('https://')) {
+                    protocol = 'https';
+                    urlBody = streamUrl.substring(8);
+                } else if (streamUrl.startsWith('http://')) {
+                    protocol = 'http';
+                    urlBody = streamUrl.substring(7);
+                }
+                // Correctly structured Android intent without the faulty video/* MIME parameter
+                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;end`;
+            } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
                 return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
             } else {
-                // For Android and Desktop, using the direct vlc:// scheme plays the stream perfectly and avoids intent parsing errors
                 return `vlc://${streamUrl}`;
             }
         }
@@ -1457,9 +1579,12 @@
             
             let corsMethod = localStorage.getItem('mk21_cors') || 'auto';
             
-            // If auto connection, resolve based on hosting provider
             if (corsMethod === 'auto') {
-                if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
+                if (window.location.protocol === 'http:') {
+                    corsMethod = 'direct';
+                } else if (fastestCalculatedProxy) {
+                    corsMethod = fastestCalculatedProxy;
+                } else if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
                     corsMethod = 'vercel';
                 } else {
                     corsMethod = 'corsproxy';
@@ -1696,10 +1821,14 @@
             try {
                 if (document.pictureInPictureElement) {
                     await document.exitPictureInPicture();
+                } else if (videoElement.webkitPresentationMode === 'picture-in-picture') {
+                    videoElement.webkitSetPresentationMode('inline');
                 } else {
                     const isPipSupported = document.pictureInPictureEnabled || typeof videoElement.requestPictureInPicture === 'function';
                     if (isPipSupported) {
                         await videoElement.requestPictureInPicture();
+                    } else if (videoElement.webkitSupportsPresentationMode && typeof videoElement.webkitSetPresentationMode === 'function') {
+                        videoElement.webkitSetPresentationMode('picture-in-picture');
                     } else {
                         alert('Picture-in-Picture não é suportado ou está desativado no seu navegador.');
                     }

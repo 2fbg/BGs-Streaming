@@ -88,6 +88,10 @@ class PreferencesService(context: Context) {
         set(value) { try { prefs.edit().putBoolean(KEY_USE_SAME_CREDENTIALS, value).apply() } catch (e: Throwable) {} }
 
     // New configuration properties for fully functional settings screen
+    var useAmoledMode: Boolean
+        get() = try { prefs.getBoolean("use_amoled_mode", false) } catch (e: Throwable) { false }
+        set(value) { try { prefs.edit().putBoolean("use_amoled_mode", value).apply() } catch (e: Throwable) {} }
+
     var hideLiveCategories: Boolean
         get() = try { prefs.getBoolean("hide_live_categories", false) } catch (e: Throwable) { false }
         set(value) { try { prefs.edit().putBoolean("hide_live_categories", value).apply() } catch (e: Throwable) {} }

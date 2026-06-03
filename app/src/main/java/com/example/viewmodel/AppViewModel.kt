@@ -103,6 +103,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentPlayingItem = MutableStateFlow<PlaylistItem?>(null)
     val currentPlayingItem = _currentPlayingItem.asStateFlow()
 
+    private val _isInPipMode = MutableStateFlow(false)
+    val isInPipMode = _isInPipMode.asStateFlow()
+
+    fun setIsInPipMode(inPip: Boolean) {
+        _isInPipMode.value = inPip
+    }
+
+    private val _useAmoledMode = MutableStateFlow(preferencesService.useAmoledMode)
+    val useAmoledMode = _useAmoledMode.asStateFlow()
+
+    fun setUseAmoledMode(enabled: Boolean) {
+        preferencesService.useAmoledMode = enabled
+        _useAmoledMode.value = enabled
+    }
+
     // Content types filtering
     private val _selectedContentType = MutableStateFlow(ContentType.LIVE)
     val selectedContentType = _selectedContentType.asStateFlow()

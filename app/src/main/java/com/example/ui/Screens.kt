@@ -201,7 +201,7 @@ fun TrialExpiredScreen(viewModel: AppViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0C0A0A))
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -561,7 +561,7 @@ fun StartupGateScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(com.example.ui.theme.SophisticatedBg),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -592,13 +592,20 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     var editingPlaylist by remember { mutableStateOf<com.example.data.model.ManualPlaylist?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Predef, 1: Manual List
 
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(com.example.ui.theme.SophisticatedBg, Color(0xFF0F0F12))
-                )
+            .then(
+                if (isAmoled) {
+                    Modifier.background(Color.Black)
+                } else {
+                    Modifier.background(
+                        Brush.verticalGradient(
+                            colors = listOf(com.example.ui.theme.SophisticatedBg, Color(0xFF0F0F12))
+                        )
+                    )
+                }
             )
             .statusBarsPadding()
             .navigationBarsPadding()
@@ -1282,7 +1289,7 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(com.example.ui.theme.SophisticatedBg)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -2233,11 +2240,13 @@ fun HomeScreen(
                     viewModel.closePlayback()
                 }
             } else {
+                val isInPipMode by viewModel.isInPipMode.collectAsState()
                 VideoPlayerUI(
                     playlistItem = currentPlayingItem!!,
                     onClosePlayback = { viewModel.closePlayback() },
                     onPlayPrevious = { viewModel.playPrevious() },
-                    onPlayNext = { viewModel.playNext() }
+                    onPlayNext = { viewModel.playNext() },
+                    isInPipMode = isInPipMode
                 )
             }
         }
@@ -2900,7 +2909,8 @@ fun VideoPlayerUI(
     playlistItem: PlaylistItem,
     onClosePlayback: () -> Unit,
     onPlayPrevious: () -> Unit,
-    onPlayNext: () -> Unit
+    onPlayNext: () -> Unit,
+    isInPipMode: Boolean = false
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -2931,7 +2941,7 @@ fun VideoPlayerUI(
     
     var overlayDismissJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val activity = context as? Activity
+    val activity = remember(context) { context.findActivity() }
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     val toggleMute: () -> Unit = {
@@ -3114,7 +3124,8 @@ fun VideoPlayerUI(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(Unit) {
+            .pointerInput(isInPipMode) {
+                if (isInPipMode) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     var dragSide = if (down.position.x < size.width / 2f) 1 else 2 // 1: Left (Brightness), 2: Right (Volume)
@@ -3359,7 +3370,7 @@ fun VideoPlayerUI(
 
         // Cinematic Dark transparent gradient vignette overlay behind controls
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && !isInPipMode,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize()
@@ -3381,7 +3392,7 @@ fun VideoPlayerUI(
 
         // Animated Interactive Control Center HUD
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && !isInPipMode,
             enter = fadeIn() + slideInVertically { it / 3 },
             exit = fadeOut() + slideOutVertically { it / 3 },
             modifier = Modifier.fillMaxSize()
@@ -3457,6 +3468,47 @@ fun VideoPlayerUI(
                             tint = GoldPremium,
                             modifier = Modifier.size(20.dp)
                         )
+                    }
+
+                    val supportsPiP = activity?.packageManager?.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE) == true
+                    if (supportsPiP) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    try {
+                                        val params = android.app.PictureInPictureParams.Builder().build()
+                                        activity?.enterPictureInPictureMode(params)
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Não foi possível ativar o PiP.",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    try {
+                                        activity?.enterPictureInPictureMode()
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Não foi possível ativar o PiP.",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .testTag("player_pip_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PictureInPicture,
+                                contentDescription = "Mini Player (PiP)",
+                                tint = GoldPremium,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
@@ -4984,6 +5036,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
     val isPremiumActive by viewModel.isPremiumActive.collectAsState()
     val trialDaysLeft by viewModel.trialDaysLeft.collectAsState()
+    val useAmoledMode by viewModel.useAmoledMode.collectAsState()
     val adultPin = viewModel.preferencesService.adultPin
     
     var snackbarVisible by remember { mutableStateOf(false) }
@@ -5016,7 +5069,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F0E0E))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -5069,6 +5122,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         "Carregamento em etapas" to Icons.Default.List,
                         "Importar do Painel" to Icons.Default.Edit,
                         "Licença e Ativação" to Icons.Default.VpnKey,
+                        "Modo AMOLED" to Icons.Default.DarkMode,
                         "Espelhar com a TV" to Icons.Default.ConnectedTv
                     )
 
@@ -5088,6 +5142,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                             "Carregamento em etapas" -> showStagedLoadingDialog = true
                                             "Importar do Painel" -> showImportTextDialog = true
                                             "Licença e Ativação" -> showLicenseDialog = true
+                                            "Modo AMOLED" -> viewModel.setUseAmoledMode(!useAmoledMode)
                                             "Espelhar com a TV" -> showCastTutorialDialog = true
                                         }
                                     },
@@ -5141,6 +5196,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                                 }
                                                 "Importar do Painel" -> "Carregar texto do painel"
                                                 "Licença e Ativação" -> if (isPremiumActive) "Premium Ativo" else "$trialDaysLeft dias"
+                                                "Modo AMOLED" -> if (useAmoledMode) "Ativo (Preto Absoluto)" else "Inativo (Padrão)"
                                                 "Espelhar com a TV" -> "Como sincronizar com a TV"
                                                 else -> ""
                                             }
@@ -6725,4 +6781,19 @@ fun groupEpisodesBySeason(episodes: List<com.example.data.model.PlaylistItem>): 
         val num = Regex("\\d+").find(key)?.value?.toIntOrNull() ?: 0
         num
     })
+}
+
+/**
+ * Robustly unwraps ContextWrappers (like Theme or Tint Wrappers) to extract the primary Activity reference.
+ * Essential for Jetpack Compose views that need to request window parameters, picture-in-picture, or configuration tasks.
+ */
+fun android.content.Context.findActivity(): android.app.Activity? {
+    var cur = this
+    while (cur is android.content.ContextWrapper) {
+        if (cur is android.app.Activity) {
+            return cur
+        }
+        cur = cur.baseContext
+    }
+    return null
 }
