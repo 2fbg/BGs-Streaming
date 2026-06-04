@@ -293,6 +293,21 @@
                             <h3 class="font-bold text-lg text-slate-300">Pronto para Reproduzir</h3>
                             <p class="text-xs text-slate-500 max-w-sm mt-1">Selecione algum canal ou vídeo ao lado para iniciar a transmissão imediatamente no navegador.</p>
                         </div>
+
+                        <!-- Overlay Custom Error Banner when media fails -->
+                        <div id="player-error-overlay" class="absolute inset-0 bg-slate-950/95 hidden flex-col items-center justify-center text-center p-6 transition-all duration-300 z-10 border-b border-slate-800">
+                            <i class="fa-solid fa-circle-exclamation text-5xl text-rose-500 mb-3 animate-pulse"></i>
+                            <h3 class="font-bold text-base text-slate-200">Não foi possível reproduzir no player web</h3>
+                            <p class="text-[11px] text-slate-400 max-w-sm mt-1.5 leading-relaxed">Muitas transmissões (como canais .ts) não são suportadas nativamente pelo seu navegador web ou possuem bloqueios de codec/CORS. Use as opções abaixo para assistir de forma perfeita:</p>
+                            <div class="flex flex-wrap justify-center gap-2 mt-4">
+                                <a id="overlay-vlc-btn" href="" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-orange-950/20 decoration-none">
+                                    <i class="fa-solid fa-video"></i> Abrir no VLC
+                                </a>
+                                <a id="overlay-chooser-btn" href="" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-blue-950/20 decoration-none">
+                                    <i class="fa-solid fa-share-nodes"></i> Abrir com...
+                                </a>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Selected Channel Details / Info -->
@@ -624,6 +639,25 @@
             mobileCategoryModal.addEventListener('click', (e) => {
                 if (e.target === mobileCategoryModal) closeMod();
             });
+
+            // Handle video tag errors for fallback layouts
+            videoElement.addEventListener('error', () => {
+                showPlayerError();
+            });
+        }
+
+        function showPlayerError() {
+            if (!currentStreamUrl) return;
+            const errorOverlay = document.getElementById('player-error-overlay');
+            if (errorOverlay) {
+                errorOverlay.classList.remove('hidden');
+                errorOverlay.classList.add('flex');
+
+                const overlayVlcBtn = document.getElementById('overlay-vlc-btn');
+                const overlayChooserBtn = document.getElementById('overlay-chooser-btn');
+                if (overlayVlcBtn) overlayVlcBtn.href = getVlcUrl(currentStreamUrl);
+                if (overlayChooserBtn) overlayChooserBtn.href = getExternalPlayerUrl(currentStreamUrl);
+            }
         }
 
         // Loader helper
@@ -1561,20 +1595,20 @@
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
             if (ua.includes('android')) {
-                let scheme = 'http';
-                let hostAndPath = streamUrl;
-                if (streamUrl.startsWith('https://')) {
-                    scheme = 'https';
-                    hostAndPath = streamUrl.substring(8);
-                } else if (streamUrl.startsWith('http://')) {
-                    scheme = 'http';
-                    hostAndPath = streamUrl.substring(7);
-                }
-                // Correct Chrome intent format using scheme extra to avoid colon getting stripped in path conversion.
-                return `intent://${hostAndPath}#Intent;scheme=${scheme};type=video/*;package=org.videolan.vlc;end`;
+                // Correct Chrome intent format using standard intent:http://... syntax.
+                // This preserves colons and ports perfectly without standard intent:// parsing issues,
+                // and explicitly sets ACTION_VIEW with a video mime type to launch VLC on all mobile browsers.
+                return `intent:${streamUrl}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end`;
             } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
                 return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
             } else {
+                // For desktop (Windows/Mac/Linux), map to correct vlc:// or vlcs:// scheme.
+                // Removing nested protocol prevents browser URL parsers from corrupting or stripping second colons.
+                if (streamUrl.startsWith('https://')) {
+                    return `vlcs://${streamUrl.substring(8)}`;
+                } else if (streamUrl.startsWith('http://')) {
+                    return `vlc://${streamUrl.substring(7)}`;
+                }
                 return `vlc://${streamUrl}`;
             }
         }
@@ -1583,17 +1617,8 @@
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
             if (ua.includes('android')) {
-                let scheme = 'http';
-                let hostAndPath = streamUrl;
-                if (streamUrl.startsWith('https://')) {
-                    scheme = 'https';
-                    hostAndPath = streamUrl.substring(8);
-                } else if (streamUrl.startsWith('http://')) {
-                    scheme = 'http';
-                    hostAndPath = streamUrl.substring(7);
-                }
-                // No package name specified means Android system will show the default system chooser ("Abrir com") list, exactly like the APK does!
-                return `intent://${hostAndPath}#Intent;scheme=${scheme};type=video/*;end`;
+                // Using standard packagesless intent to invoke Android's default video player chooser ("Abrir com")
+                return `intent:${streamUrl}#Intent;action=android.intent.action.VIEW;type=video/*;end`;
             } else {
                 return streamUrl;
             }
@@ -1749,6 +1774,11 @@
 
             // Attempt Reproduce
             stopStream();
+            const errorOverlay = document.getElementById('player-error-overlay');
+            if (errorOverlay) {
+                errorOverlay.classList.add('hidden');
+                errorOverlay.classList.remove('flex');
+            }
 
             const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
             const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
@@ -1775,6 +1805,7 @@
                     });
                     mpegtsPlayer.on(mpegts.Events.ERROR, (type, detail, info) => {
                         console.error("MPEGTS player error:", type, detail, info);
+                        showPlayerError();
                     });
                 } catch (err) {
                     console.error("Failed to construct mpegts player:", err);
@@ -1809,6 +1840,11 @@
 
         function stopStream() {
             videoElement.pause();
+            const errorOverlay = document.getElementById('player-error-overlay');
+            if (errorOverlay) {
+                errorOverlay.classList.add('hidden');
+                errorOverlay.classList.remove('flex');
+            }
             try {
                 hlsPlayer.stopLoad();
                 hlsPlayer.detachMedia();
