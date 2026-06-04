@@ -1158,7 +1158,7 @@
                     currentActiveItem = epObj.originalItem;
                     currentActiveEpisodeItem = epObj.originalItem;
                     streamUrlDisplay.textContent = epObj.originalItem.url;
-                    vlcLauncher.href = getVlcUrl(epObj.originalItem.url);
+                    vlcLauncher.href = getVlcUrl(getProxyUrl(epObj.originalItem.url));
                 }
             }
             
@@ -1658,7 +1658,7 @@
                 currentActiveEpisodeItem = item;
                 // Keep show logo and title, but update VLC and stream text display
                 streamUrlDisplay.textContent = item.url;
-                vlcLauncher.href = getVlcUrl(item.url);
+                vlcLauncher.href = getVlcUrl(getProxyUrl(item.url));
                 updateFavoriteButtonUI(item);
                 
                 // Keep episode selection glowing in list
@@ -1688,7 +1688,7 @@
                 }
 
                 streamUrlDisplay.textContent = item.url;
-                vlcLauncher.href = getVlcUrl(item.url);
+                vlcLauncher.href = getVlcUrl(getProxyUrl(item.url));
                 updateFavoriteButtonUI(item);
             }
 
