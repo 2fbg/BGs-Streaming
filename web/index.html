@@ -1593,29 +1593,8 @@
 
         function getVlcUrl(streamUrl) {
             if (!streamUrl) return "";
-            
-            // Unconditionally use custom local player schema structure
-            // This is clean and avoids any Android Intent browser parsing/validation bugs
-            if (streamUrl.startsWith('https://')) {
-                return `vlcs://${streamUrl.substring(8)}`;
-            } else if (streamUrl.startsWith('http://')) {
-                return `vlc://${streamUrl.substring(7)}`;
-            }
-            return `vlc://${streamUrl}`;
-        }
-
-        function getExternalPlayerUrl(streamUrl) {
-            if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
-            
-            // Clean the URL from port 80 or port 443 which cause parser failures in standard Intents or Player URL parsing
-            let cleanedUrl = streamUrl;
-            if (cleanedUrl.includes(':80/')) {
-                cleanedUrl = cleanedUrl.replace(':80/', '/');
-            }
-            if (cleanedUrl.includes(':443/')) {
-                cleanedUrl = cleanedUrl.replace(':443/', '/');
-            }
+            const cleanedUrl = streamUrl.replace(':80/', '/').replace(':443/', '/');
             
             if (ua.includes('android')) {
                 let scheme = 'http';
@@ -1627,7 +1606,34 @@
                     scheme = 'http';
                     hostAndPath = cleanedUrl.substring(7);
                 }
-                // Construct standard Chrome intent format with no colons inside the hostAndPath string to guarantee success
+                return `intent://${hostAndPath}#Intent;scheme=${scheme};type=video/*;package=org.videolan.vlc;end`;
+            } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+                return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(cleanedUrl)}`;
+            } else {
+                if (cleanedUrl.startsWith('https://')) {
+                    return `vlcs://${cleanedUrl.substring(8)}`;
+                } else if (cleanedUrl.startsWith('http://')) {
+                    return `vlc://${cleanedUrl.substring(7)}`;
+                }
+                return `vlc://${cleanedUrl}`;
+            }
+        }
+
+        function getExternalPlayerUrl(streamUrl) {
+            if (!streamUrl) return "";
+            const ua = navigator.userAgent.toLowerCase();
+            const cleanedUrl = streamUrl.replace(':80/', '/').replace(':443/', '/');
+            
+            if (ua.includes('android')) {
+                let scheme = 'http';
+                let hostAndPath = cleanedUrl;
+                if (cleanedUrl.startsWith('https://')) {
+                    scheme = 'https';
+                    hostAndPath = cleanedUrl.substring(8);
+                } else if (cleanedUrl.startsWith('http://')) {
+                    scheme = 'http';
+                    hostAndPath = cleanedUrl.substring(7);
+                }
                 return `intent://${hostAndPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;type=video/*;end`;
             } else {
                 return cleanedUrl;
