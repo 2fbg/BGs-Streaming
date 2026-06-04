@@ -1158,7 +1158,7 @@
                     currentActiveItem = epObj.originalItem;
                     currentActiveEpisodeItem = epObj.originalItem;
                     streamUrlDisplay.textContent = epObj.originalItem.url;
-                    vlcLauncher.href = getVlcUrl(getProxyUrl(epObj.originalItem.url));
+                    vlcLauncher.href = getVlcUrl(epObj.originalItem.url);
                 }
             }
             
@@ -1556,17 +1556,10 @@
             if (!streamUrl) return "";
             const ua = navigator.userAgent.toLowerCase();
             if (ua.includes('android')) {
-                let protocol = 'http';
-                let urlBody = streamUrl;
-                if (streamUrl.startsWith('https://')) {
-                    protocol = 'https';
-                    urlBody = streamUrl.substring(8);
-                } else if (streamUrl.startsWith('http://')) {
-                    protocol = 'http';
-                    urlBody = streamUrl.substring(7);
-                }
-                // Correctly structured Android intent without the faulty video/* MIME parameter
-                return `intent://${urlBody}#Intent;scheme=${protocol};package=org.videolan.vlc;end`;
+                // Return the standard, raw Intent configuration with streamUrl as the fully-qualified data URI.
+                // This preserves colons and ports perfectly without standard intent:// parsing issues.
+                // It also specifies type=video/* to tell VLC it is a media stream!
+                return `intent:${streamUrl}#Intent;package=org.videolan.vlc;type=video/*;end`;
             } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
                 return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
             } else {
@@ -1658,7 +1651,7 @@
                 currentActiveEpisodeItem = item;
                 // Keep show logo and title, but update VLC and stream text display
                 streamUrlDisplay.textContent = item.url;
-                vlcLauncher.href = getVlcUrl(getProxyUrl(item.url));
+                vlcLauncher.href = getVlcUrl(item.url);
                 updateFavoriteButtonUI(item);
                 
                 // Keep episode selection glowing in list
@@ -1688,7 +1681,7 @@
                 }
 
                 streamUrlDisplay.textContent = item.url;
-                vlcLauncher.href = getVlcUrl(getProxyUrl(item.url));
+                vlcLauncher.href = getVlcUrl(item.url);
                 updateFavoriteButtonUI(item);
             }
 
