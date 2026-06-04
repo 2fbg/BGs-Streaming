@@ -6315,6 +6315,43 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             }
                         }
 
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Shortcut to launcher Keygen if desired
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF231E12))
+                                .border(BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    try {
+                                        val intent = android.content.Intent(context, com.example.KeygenActivity::class.java)
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        // Ignore
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VpnKey,
+                                contentDescription = "Gerador",
+                                tint = GoldPremium,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "ABRIR GERADOR DE CHAVES (ADMIN)",
+                                color = GoldPremium,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
 
                         if (licenseStatusMsg != null) {
