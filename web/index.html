@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>MK21 MultiServidor Web</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,47 +12,10 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <!-- Mpegts.js for raw MPEG-TS (.ts) stream playback without extensions -->
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-        
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0d0f14;
-            color: #f3f4f6;
-        }
-
-        .jetbrains {
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Ambient glowing effects */
-        .glowing-bg {
-            background: radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.15) 0%, rgba(13, 15, 20, 0) 60%);
-        }
-
-        /* Glassmorphism utility */
-        .glass-card {
-            background: rgba(22, 28, 41, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        /* Custom scrollbars */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(13, 15, 20, 0.5);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(59, 130, 246, 0.3);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(59, 130, 246, 0.5);
-        }
-    </style>
+    
+    <!-- Local Optimized CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body class="glowing-bg min-h-screen flex flex-col overflow-x-hidden antialiased select-none">
 
@@ -539,6 +502,11 @@
 
         // Initialize application on load
         window.addEventListener('DOMContentLoaded', () => {
+            // Initialize SEO, performance, and accessibility managers
+            if (typeof seoManager !== 'undefined') seoManager.init();
+            if (typeof performanceOptimizer !== 'undefined') performanceOptimizer.initLazyLoading();
+            if (typeof accessibilityManager !== 'undefined') accessibilityManager.init();
+
             populateServers();
             loadCachedCredentials();
             setupEventListeners();
@@ -1918,5 +1886,10 @@
             }
         }
     </script>
+    
+    <!-- Accessibility, SEO, and Performance Modules -->
+    <script src="js/performance.js"></script>
+    <script src="js/accessibility.js"></script>
+    <script src="js/seo-meta.js"></script>
 </body>
 </html>
