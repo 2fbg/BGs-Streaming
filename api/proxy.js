@@ -14,55 +14,107 @@ module.exports = function handler(req, res) {
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
+        res.statusCode = 200;
+        res.end();
         return;
     }
 
-    const targetUrlStr = req.query.url;
+    // Get the target URL parameter
+    // Support both standard Node.js query as well as Vercel helper req.query
+    let targetUrlStr = null;
+    if (req.query && req.query.url) {
+        targetUrlStr = req.query.url;
+    } else {
+        const parsedQueryStr = urlModule.parse(req.url, true).query;
+        targetUrlStr = parsedQueryStr.url;
+    }
 
     if (!targetUrlStr) {
-        res.status(400).send('Falta o parâmetro url com o link de destino.');
+        res.statusCode = 400;
+        res.end('Falta o parâmetro url com o link de destino.');
         return;
     }
 
     try {
         const decodedUrl = decodeURIComponent(targetUrlStr);
-        const parsedUrl = urlModule.parse(decodedUrl);
-        
-        const client = parsedUrl.protocol === 'https:' ? https : http;
-        
-        const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-            path: parsedUrl.path || parsedUrl.pathname + (parsedUrl.search || ''),
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': '*/*'
+        const maxRedirects = 6;
+
+        function handleRequest(urlStr, redirectCount = 0) {
+            if (redirectCount > maxRedirects) {
+                res.statusCode = 502;
+                res.end('Erro: Excesso de redirecionamentos (Redirect Loop)');
+                return;
             }
-        };
 
-        const proxyReq = client.request(options, (proxyRes) => {
-            // Forward HTTP status code & content type
-            res.writeHead(proxyRes.statusCode, {
-                'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                'Access-Control-Allow-Headers': '*'
-            });
+            const parsedUrl = urlModule.parse(urlStr);
+            const client = parsedUrl.protocol === 'https:' ? https : http;
             
-            // Pipe the data directly - this handles both text (M3U8) and binary (TS) perfectly with minimal memory footprint
-            proxyRes.pipe(res);
-        });
+            const options = {
+                hostname: parsedUrl.hostname,
+                port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+                path: parsedUrl.path || parsedUrl.pathname + (parsedUrl.search || ''),
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Connection': 'keep-alive'
+                }
+            };
 
-        proxyReq.on('error', (err) => {
-            console.error('IPTV Proxy Error:', err);
-            res.status(500).send(`Erro de conexão do proxy: ${err.message}`);
-        });
+            const proxyReq = client.request(options, (proxyRes) => {
+                const statusCode = proxyRes.statusCode;
 
-        proxyReq.end();
+                // Check for HTTP Redirection redirects and follow them internally
+                if ((statusCode === 301 || statusCode === 302 || statusCode === 303 || statusCode === 307 || statusCode === 308) && proxyRes.headers.location) {
+                    let redirUrl = proxyRes.headers.location;
+                    if (!redirUrl.startsWith('http://') && !redirUrl.startsWith('https://')) {
+                        redirUrl = urlModule.resolve(urlStr, redirUrl);
+                    }
+                    console.log(`Proxy following redirect to (depth ${redirectCount}): ${redirUrl}`);
+                    handleRequest(redirUrl, redirectCount + 1);
+                    return;
+                }
+
+                // Copy stream and media relevant response headers
+                const responseHeaders = {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': '*'
+                };
+                
+                if (proxyRes.headers['content-type']) {
+                    responseHeaders['Content-Type'] = proxyRes.headers['content-type'];
+                }
+                if (proxyRes.headers['content-length']) {
+                    responseHeaders['Content-Length'] = proxyRes.headers['content-length'];
+                }
+                if (proxyRes.headers['content-range']) {
+                    responseHeaders['Content-Range'] = proxyRes.headers['content-range'];
+                }
+                if (proxyRes.headers['accept-ranges']) {
+                    responseHeaders['Accept-Ranges'] = proxyRes.headers['accept-ranges'];
+                }
+
+                res.writeHead(statusCode, responseHeaders);
+                
+                // Stream binary chunks from source to local client response
+                proxyRes.pipe(res);
+            });
+
+            proxyReq.on('error', (err) => {
+                console.error('IPTV Proxy Request Error:', err);
+                res.statusCode = 502;
+                res.end(`Erro de conexão do proxy: ${err.message}`);
+            });
+
+            proxyReq.end();
+        }
+
+        handleRequest(decodedUrl);
+
     } catch (error) {
-        console.error('IPTV Proxy Setup Error:', error);
-        res.status(500).send(`Erro ao configurar proxy: ${error.message}`);
+        console.error('IPTV Proxy Exception:', error);
+        res.statusCode = 500;
+        res.end(`Erro ao configurar proxy: ${error.message}`);
     }
 };

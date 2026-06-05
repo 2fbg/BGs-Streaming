@@ -169,6 +169,12 @@
 
                 <!-- Right Controls: Logout / Quick Switch -->
                 <div class="flex items-center gap-3">
+                    <!-- Background Sync Indicator -->
+                    <div id="bg-sync-indicator" class="hidden items-center gap-1.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-[9px] text-slate-300 font-bold shadow-lg animate-pulse">
+                        <i class="fa-solid fa-cloud-arrow-down text-[#E50914] animate-bounce"></i>
+                        <span>Importando Filmes/Séries:</span>
+                        <span id="bg-sync-progress" class="font-extrabold text-[#E50914]">0%</span>
+                    </div>
                     <button id="logout-button" class="px-4 py-2.5 bg-slate-800 hover:bg-red-950/40 hover:text-red-400 text-slate-300 text-xs font-bold rounded-xl outline-none transition-all duration-200 flex items-center gap-2">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Sair</span>
@@ -708,6 +714,12 @@
                 if (e.target === mobileCategoryModal) closeMod();
             });
 
+            // Season Selector event binding
+            const seasonSelector = document.getElementById('season-selector');
+            if (seasonSelector) {
+                seasonSelector.addEventListener('change', changeSeason);
+            }
+
             // Handle video tag errors for fallback layouts
             videoElement.addEventListener('error', () => {
                 showPlayerError();
@@ -840,15 +852,23 @@
                 }
 
                 updateLoaderProgress(85, 'Processando conteúdo da lista...');
-                playlistItems = parseM3U(text);
+                const segments = parseM3UProgressively(text);
 
-                if (playlistItems.length === 0) {
+                if (segments.lives.length === 0 && segments.movies.length === 0 && segments.series.length === 0) {
                     throw new Error('Nenhum canal ativo foi decodificado. Confirme suas credenciais.');
                 }
 
-                updateLoaderProgress(95, 'Indexando canais, filmes e séries...');
+                updateLoaderProgress(95, 'Indexando canais ao vivo...');
                 
-                // Show player screen
+                // Initialize with LIVE streams first for fast initial rendering
+                playlistItems = segments.lives;
+                
+                // If there are no live channels on the IPTV but we have movies/series, load them
+                if (playlistItems.length === 0) {
+                    playlistItems = [...segments.movies, ...segments.series];
+                }
+
+                // Show player screen right away
                 loginScreen.classList.add('hidden');
                 playerScreen.classList.remove('hidden');
                 playerScreen.classList.add('flex');
@@ -861,11 +881,15 @@
                 activeServerDisplay.textContent = profileName;
                 activeUserDisplay.textContent = user;
 
-                // Load initial content
+                // Load initial content (LIVE channels first)
                 activeType = 'LIVE';
                 activeCategory = 'ALL';
                 renderCategories();
                 renderMediaItems();
+                renderContinueWatching();
+
+                // Trigger background loading for movies and series in parallel background chunks
+                startBackgroundLoading(segments.movies, segments.series);
                 renderContinueWatching();
 
             } catch (err) {
@@ -881,6 +905,18 @@
             if (confirm('Deseja realmente desconectar e voltar ao login?')) {
                 // Stop any running stream
                 stopStream();
+
+                // Clear background loading
+                if (backgroundLoadingTimeout) {
+                    clearTimeout(backgroundLoadingTimeout);
+                    backgroundLoadingTimeout = null;
+                }
+                const syncIndicator = document.getElementById('bg-sync-indicator');
+                if (syncIndicator) {
+                    syncIndicator.classList.add('hidden');
+                    syncIndicator.classList.remove('flex');
+                }
+                playlistItems = [];
                 
                 playerScreen.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
@@ -1346,10 +1382,12 @@
             }
         }
 
-        // Parser Core logic
-        function parseM3U(content) {
+        // Progressive Parser Core logic that separates types instantly
+        function parseM3UProgressively(content) {
             const lines = content.split('\n');
-            const items = [];
+            const lives = [];
+            const movies = [];
+            const series = [];
             let currentItem = null;
 
             for (let i = 0; i < lines.length; i++) {
@@ -1360,7 +1398,7 @@
                     line = line.substring(1).trim();
                 }
 
-                if (line.isEmpty) continue;
+                if (!line) continue;
 
                 if (line.toUpperCase().startsWith('#EXTINF:')) {
                     currentItem = {};
@@ -1393,26 +1431,96 @@
                         const nameUpper = currentItem.name.toUpperCase();
                         const urlUpper = streamUrl.toUpperCase();
                         
+                        let streamType = 'LIVE';
                         if (urlUpper.includes('/SERIES/')) {
-                            currentItem.type = 'SERIES';
+                            streamType = 'SERIES';
                         } else if (urlUpper.includes('/MOVIE/')) {
-                            currentItem.type = 'MOVIE';
+                            streamType = 'MOVIE';
                         } else if (urlUpper.includes('/LIVE/')) {
-                            currentItem.type = 'LIVE';
+                            streamType = 'LIVE';
                         } else if (categoryUpper.includes('SERIE') || categoryUpper.includes('SÉRIE') || categoryUpper.includes('SERIES') || categoryUpper.includes('TEMPORADA') || categoryUpper.includes('EPISODIO') || categoryUpper.includes('NOVELA') || categoryUpper.includes('ANIME') || categoryUpper.includes('ANIMES') || nameUpper.includes('S0') || nameUpper.includes('E0')) {
-                            currentItem.type = 'SERIES';
+                            streamType = 'SERIES';
                         } else if (categoryUpper.includes('FILMES') || categoryUpper.includes('MOVIE') || categoryUpper.includes('VOD') || categoryUpper.includes('CINE') || categoryUpper.includes('LANCAMENTOS') || categoryUpper.includes('LANÇAMENTOS')) {
-                            currentItem.type = 'MOVIE';
+                            streamType = 'MOVIE';
                         } else {
-                            currentItem.type = 'LIVE';
+                            streamType = 'LIVE';
                         }
 
-                        items.push(currentItem);
+                        currentItem.type = streamType;
+
+                        if (streamType === 'LIVE') {
+                            lives.push(currentItem);
+                        } else if (streamType === 'MOVIE') {
+                            movies.push(currentItem);
+                        } else {
+                            series.push(currentItem);
+                        }
                         currentItem = null;
                     }
                 }
             }
-            return items;
+
+            return { lives, movies, series };
+        }
+
+        // Background chunk loading manager for movies and series
+        let backgroundLoadingTimeout = null;
+        function startBackgroundLoading(movies, series) {
+            // Cancel any old background workers
+            if (backgroundLoadingTimeout) clearTimeout(backgroundLoadingTimeout);
+
+            const allWaiting = [...movies, ...series];
+            if (allWaiting.length === 0) return;
+
+            const chunkSize = 1500; // Efficient block size for performance
+            let currentIndex = 0;
+
+            const syncIndicator = document.getElementById('bg-sync-indicator');
+            if (syncIndicator) {
+                syncIndicator.classList.remove('hidden');
+                syncIndicator.classList.add('flex');
+            }
+
+            function loadNextChunk() {
+                if (currentIndex >= allWaiting.length) {
+                    if (syncIndicator) {
+                        syncIndicator.classList.add('hidden');
+                        syncIndicator.classList.remove('flex');
+                    }
+                    showNotification('Sincronização completa de filmes e séries concluída! 🎉', 'success');
+                    return;
+                }
+
+                const chunk = allWaiting.slice(currentIndex, currentIndex + chunkSize);
+                playlistItems = playlistItems.concat(chunk);
+                currentIndex += chunkSize;
+
+                // Dynamically update lists if they are browsing these tabs
+                if (activeType === 'MOVIE' || activeType === 'SERIES') {
+                    renderCategories();
+                    renderMediaItems();
+                } else {
+                    renderCategories();
+                }
+
+                if (syncIndicator) {
+                    const pct = Math.min(100, Math.floor((currentIndex / allWaiting.length) * 100));
+                    const progressText = document.getElementById('bg-sync-progress');
+                    if (progressText) progressText.textContent = `${pct}%`;
+                }
+
+                // 250ms spacing to maintain peak 60fps scrolling and play performance on light devices/tv boxes
+                backgroundLoadingTimeout = setTimeout(loadNextChunk, 250);
+            }
+
+            // Start loading background chunk after 1.5s
+            backgroundLoadingTimeout = setTimeout(loadNextChunk, 1500);
+        }
+
+        // Backward compatibility hook mapping
+        function parseM3U(content) {
+            const res = parseM3UProgressively(content);
+            return [...res.lives, ...res.movies, ...res.series];
         }
 
         // Category Menu Creator
