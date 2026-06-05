@@ -146,10 +146,22 @@
                         MK
                     </div>
                     <div>
-                        <h2 class="font-bold text-lg leading-tight" id="active-server-display">VLOG</h2>
-                        <span class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Conectado: <span id="active-user-display" class="font-semibold"></span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] text-[#E50914] uppercase tracking-widest font-black select-none bg-red-950/40 border border-red-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <i class="fa-solid fa-server animate-pulse"></i> Servidor
+                            </span>
+                            <div class="relative flex items-center">
+                                <select id="active-server-display" class="bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-100 text-xs font-black rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-red-500 outline-none cursor-pointer appearance-none pr-8 transition-all duration-200">
+                                    <!-- Populated dynamically via populateHeaderServers() -->
+                                </select>
+                                <div class="pointer-events-none absolute right-2.5 flex items-center text-slate-400 text-[9px]">
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-[11px] text-emerald-400 flex items-center gap-1.5 font-semibold mt-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Conectado: <span id="active-user-display" class="font-bold text-slate-200"></span>
                         </span>
                     </div>
                 </div>
@@ -640,6 +652,45 @@
             });
         }
 
+        function populateHeaderServers() {
+            if (!activeServerDisplay) return;
+            activeServerDisplay.innerHTML = '';
+            
+            let currentBaseUrl = localStorage.getItem('mk21_baseUrl') || '';
+            if (currentBaseUrl.startsWith('https://')) {
+                currentBaseUrl = 'http://' + currentBaseUrl.substring(8);
+            } else if (currentBaseUrl && !currentBaseUrl.startsWith('http://')) {
+                currentBaseUrl = 'http://' + currentBaseUrl;
+            }
+            
+            let found = false;
+            PREDEFINED_SERVERS.forEach(srv => {
+                let srvBaseUrl = srv.baseUrl;
+                if (srvBaseUrl.startsWith('https://')) {
+                    srvBaseUrl = 'http://' + srvBaseUrl.substring(8);
+                } else if (!srvBaseUrl.startsWith('http://')) {
+                    srvBaseUrl = 'http://' + srvBaseUrl;
+                }
+                const opt = document.createElement('option');
+                opt.value = srv.baseUrl;
+                opt.textContent = srv.name;
+                
+                if (srvBaseUrl.replace(/\/$/, "") === currentBaseUrl.replace(/\/$/, "")) {
+                    opt.selected = true;
+                    found = true;
+                }
+                activeServerDisplay.appendChild(opt);
+            });
+            
+            if (!found && currentBaseUrl) {
+                const opt = document.createElement('option');
+                opt.value = currentBaseUrl;
+                opt.textContent = "CUSTOMIZADO";
+                opt.selected = true;
+                activeServerDisplay.appendChild(opt);
+            }
+        }
+
         function loadCachedCredentials() {
             const cachedUrl = localStorage.getItem('mk21_baseUrl');
             const cachedUser = localStorage.getItem('mk21_username');
@@ -724,6 +775,47 @@
             videoElement.addEventListener('error', () => {
                 showPlayerError();
             });
+
+            // Header Server Switcher event binding (Fast server quick switch, identical to APK)
+            if (activeServerDisplay) {
+                activeServerDisplay.addEventListener('change', () => {
+                    const selectedVal = activeServerDisplay.value;
+                    const selectedText = activeServerDisplay.options[activeServerDisplay.selectedIndex].text;
+                    
+                    if (serverSelector) {
+                        let optExists = false;
+                        for (let i = 0; i < serverSelector.options.length; i++) {
+                            if (serverSelector.options[i].value === selectedVal) {
+                                optExists = true;
+                                serverSelector.selectedIndex = i;
+                                break;
+                            }
+                        }
+                        if (!optExists) {
+                            const customOpt = document.createElement('option');
+                            customOpt.value = selectedVal;
+                            customOpt.textContent = selectedText;
+                            customOpt.selected = true;
+                            serverSelector.appendChild(customOpt);
+                            serverSelector.value = selectedVal;
+                        } else {
+                            serverSelector.value = selectedVal;
+                        }
+                    }
+
+                    // Store new baseUrl cached value so login/switch routine uses it correctly index-wide
+                    localStorage.setItem('mk21_baseUrl', selectedVal);
+
+                    // Show notification
+                    showNotification(`Conectando ao servidor: ${selectedText}... 🔄`, 'success');
+
+                    // If stream is active, stop it
+                    stopStream();
+
+                    // Re-run the login routine automatically with same parameters!
+                    performLogin();
+                });
+            }
         }
 
         function showPlayerError() {
@@ -758,6 +850,18 @@
 
         // Action: Login
         async function performLogin() {
+            // Clear old background loading & items to avoid conflicts or mixing playlists on server switch
+            if (typeof backgroundLoadingTimeout !== 'undefined' && backgroundLoadingTimeout) {
+                clearTimeout(backgroundLoadingTimeout);
+                backgroundLoadingTimeout = null;
+            }
+            const syncIndicator = document.getElementById('bg-sync-indicator');
+            if (syncIndicator) {
+                syncIndicator.classList.add('hidden');
+                syncIndicator.classList.remove('flex');
+            }
+            playlistItems = [];
+
             let baseUrl = serverSelector.value;
             if (baseUrl.startsWith('https://')) {
                 baseUrl = 'http://' + baseUrl.substring(8);
@@ -878,7 +982,11 @@
                 }, 50);
 
                 // Set headers
-                activeServerDisplay.textContent = profileName;
+                if (activeServerDisplay && activeServerDisplay.tagName === 'SELECT') {
+                    populateHeaderServers();
+                } else if (activeServerDisplay) {
+                    activeServerDisplay.textContent = profileName;
+                }
                 activeUserDisplay.textContent = user;
 
                 // Load initial content (LIVE channels first)
