@@ -140,9 +140,12 @@
         <!-- 2. MAIN PLAYER / CONTENT SCREEN -->
         <div id="player-screen" class="w-full max-w-[1600px] flex-col h-[calc(100vh-4rem)] transition-all duration-300 transform scale-95 opacity-0 hidden">
             <!-- App Dashboard Header -->
-            <header class="glass-card rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 mb-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#E50914] to-black flex items-center justify-center text-white text-xl font-black drop-shadow-[0_2px_4px_rgba(229,9,20,0.4)] border border-red-950/40">
+            <header class="glass-card rounded-2xl px-4 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-3 md:gap-4 mb-3 md:mb-4 select-none">
+                <div class="flex items-center gap-3 md:gap-4">
+                    <button id="sidebar-toggle" class="hidden md:flex p-2.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-xs transition-all outline-none" title="Ocultar/Exibir Categorias">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#E50914] to-black flex items-center justify-center text-white text-xl font-black drop-shadow-[0_2px_4px_rgba(229,9,20,0.4)] border border-red-950/40 shrink-0">
                         MK
                     </div>
                     <div>
@@ -198,7 +201,7 @@
             <div class="flex-grow flex gap-4 overflow-hidden h-[calc(100%-6.5rem)]">
                 
                 <!-- COLUMN 1: Category Selector (Accordion design) -->
-                <aside class="w-72 glass-card rounded-2xl flex flex-col overflow-hidden shrink-0 hidden md:flex">
+                <aside id="desktop-category-sidebar" class="w-72 glass-card rounded-2xl flex flex-col overflow-hidden shrink-0 hidden md:flex transition-all duration-300 transform origin-left">
                     <div class="p-4 border-b border-slate-800">
                         <h3 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center justify-between">
                             <span>Categorias</span>
@@ -373,16 +376,31 @@
                         </div>
 
                         <!-- Overlay Custom Error Banner when media fails -->
-                        <div id="player-error-overlay" class="absolute inset-0 bg-slate-950/95 hidden flex-col items-center justify-center text-center p-6 transition-all duration-300 z-30 border-b border-slate-800">
-                            <i class="fa-solid fa-circle-exclamation text-5xl text-rose-500 mb-3 animate-pulse" aria-hidden="true"></i>
-                            <h3 class="font-bold text-base text-slate-200">Não foi possível reproduzir no player web</h3>
-                            <p class="text-[11px] text-slate-400 max-w-sm mt-1.5 leading-relaxed font-semibold">Muitas transmissões (como canais .ts) não são suportadas nativamente pelo seu navegador web ou possuem bloqueios de codec/CORS. Use as opções abaixo para assistir de forma perfeita:</p>
-                            <div class="flex flex-wrap justify-center gap-2 mt-4">
-                                <a id="overlay-vlc-btn" href="" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-orange-950/20 decoration-none">
-                                    <i class="fa-solid fa-video"></i> Abrir no VLC
+                        <div id="player-error-overlay" class="absolute inset-0 bg-slate-950/98 hidden flex-col items-center justify-center text-center p-6 transition-all duration-300 z-30 border-b border-slate-800">
+                            <i class="fa-solid fa-triangle-exclamation text-4xl text-amber-500 mb-2 animate-pulse" aria-hidden="true"></i>
+                            <h3 class="font-extrabold text-base text-slate-100 uppercase tracking-wide">Restrição de Protocolo ou Codec (Navegador)</h3>
+                            <p class="text-[11.5px] text-slate-350 max-w-md mt-2 leading-relaxed px-2 font-medium">
+                                Esta transmissão utiliza o formato <strong class="text-amber-400 font-bold">MPEG-TS (.ts)</strong> ou possui conexão insegura <strong class="text-amber-400 font-bold">HTTP (port :80)</strong>, sendo impedida de rodar pelo navegador por segurança.
+                            </p>
+                            
+                            <div class="bg-black/60 border border-slate-850 rounded-xl p-3 my-3 text-left w-full max-w-md space-y-1.5 shadow-inner">
+                                <span class="text-[10px] uppercase font-black tracking-wider text-[#E50914] block">💡 Soluções Rápidas & Garantidas:</span>
+                                <div class="flex items-start gap-1.5 text-[10.5px] text-slate-300">
+                                    <span class="text-emerald-500 select-none">✔</span>
+                                    <span><strong>Abrir no VLC:</strong> Recomendado! O VLC decodifica fluxos de canais e vídeos ao vivo nativamente sem nenhuma restrição do navegador Chrome.</span>
+                                </div>
+                                <div class="flex items-start gap-1.5 text-[10.5px] text-slate-300">
+                                    <span class="text-emerald-500 select-none">✔</span>
+                                    <span><strong>Aplicativo Nativo:</strong> Use a versão Android instalada em seu celular. O aplicativo nativo MK21 utiliza ExoPlayer de alta aceleração sem qualquer bloqueio.</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-wrap justify-center gap-2">
+                                <a id="overlay-vlc-btn" href="" class="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-lg shadow-orange-950/30 decoration-none">
+                                    <i class="fa-solid fa-play-circle text-base"></i> Abrir no VLC Player
                                 </a>
-                                <a id="overlay-chooser-btn" href="" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-750 text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-black/30 decoration-none">
-                                    <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com...
+                                <a id="overlay-chooser-btn" href="" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-black/40 decoration-none">
+                                    <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com outro player...
                                 </a>
                             </div>
                         </div>
@@ -492,7 +510,9 @@
                                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Proxy de Entrada do Player Web</label>
                                         <div class="relative">
                                             <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-3 py-2 bg-black border border-slate-800 text-slate-100 text-xs rounded-lg focus:ring-1 focus:ring-[#E50914] appearance-none outline-none font-semibold">
-                                                <option value="corsproxy">Proxy 1 (CorsProxy.io - Recomendado)</option>
+                                                <option value="auto">⚡ Conexão Automática (Sugerido)</option>
+                                                 <option value="vercel">🛡️ Proxy Integrado Dedicado (Recomendado)</option>
+                                                 <option value="corsproxy">Proxy 1 (CorsProxy.io)</option>
                                                 <option value="allorigins">Proxy 2 (AllOrigins - Alternativo)</option>
                                                 <option value="codetabs">Proxy 3 (CodeTabs - Alternativo)</option>
                                                 <option value="thingproxy">Proxy 4 (ThingProxy)</option>
@@ -726,6 +746,20 @@
 
             // Logout execution
             logoutButton.addEventListener('click', performLogout);
+
+            // Desktop Sidebar toggle logic
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const desktopSidebar = document.getElementById('desktop-category-sidebar');
+            if (sidebarToggle && desktopSidebar) {
+                const isSidebarCollapsed = localStorage.getItem('mk21_sidebar_collapsed') === 'true';
+                if (isSidebarCollapsed) {
+                    desktopSidebar.classList.add('md:hidden');
+                }
+                sidebarToggle.addEventListener('click', () => {
+                    const collapsed = desktopSidebar.classList.toggle('md:hidden');
+                    localStorage.setItem('mk21_sidebar_collapsed', collapsed ? 'true' : 'false');
+                });
+            }
 
             // Filter Tabs for Content Type
             document.querySelectorAll('.type-filter-btn').forEach(btn => {
@@ -2077,10 +2111,10 @@
             if (corsMethod === 'auto') {
                 if (window.location.protocol === 'http:') {
                     corsMethod = 'direct';
+                } else if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('run.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
+                    corsMethod = 'vercel';
                 } else if (fastestCalculatedProxy) {
                     corsMethod = fastestCalculatedProxy;
-                } else if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
-                    corsMethod = 'vercel';
                 } else {
                     corsMethod = 'corsproxy';
                 }

@@ -49,16 +49,25 @@ module.exports = function handler(req, res) {
             const parsedUrl = urlModule.parse(urlStr);
             const client = parsedUrl.protocol === 'https:' ? https : http;
             
+            const forwardHeaders = {
+                'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': req.headers['accept'] || '*/*',
+                'Connection': 'keep-alive'
+            };
+            
+            if (req.headers['range']) {
+                forwardHeaders['Range'] = req.headers['range'];
+            }
+            if (req.headers['if-range']) {
+                forwardHeaders['If-Range'] = req.headers['if-range'];
+            }
+            
             const options = {
                 hostname: parsedUrl.hostname,
                 port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
                 path: parsedUrl.path || parsedUrl.pathname + (parsedUrl.search || ''),
                 method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': '*/*',
-                    'Connection': 'keep-alive'
-                }
+                headers: forwardHeaders
             };
 
             const proxyReq = client.request(options, (proxyRes) => {
