@@ -93,15 +93,37 @@
     </div>
 
     <script>
-        const PREDEFINED_SERVERS = [{ name: "Servidor Principal", baseUrl: "http://example.com" }];
+        const PREDEFINED_SERVERS = [
+            { id: "server_1", name: "VLOG", baseUrl: "http://vlogmk.de" },
+            { id: "server_2", name: "LUB TV", baseUrl: "http://triimundial.shop" },
+            { id: "server_3", name: "CINELON21", baseUrl: "http://infinixparcerias.site" },
+            { id: "server_4", name: "TANNIX", baseUrl: "http://unituf.online" },
+            { id: "server_5", name: "CB6000", baseUrl: "http://cb6.fun" },
+            { id: "server_6", name: "MK21 TV", baseUrl: "http://appsmk.org" },
+            { id: "server_7", name: "NOVA+", baseUrl: "http://novamk21.win" }
+        ];
+
         let playlistItems = [], activeType = 'LIVE', activeCategory = 'ALL', advancedPlayer = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             const srvSel = document.getElementById('server-selector');
             PREDEFINED_SERVERS.forEach(s => {
-                const o = document.createElement('option'); o.value = s.baseUrl; o.textContent = s.name; srvSel.appendChild(o);
+                const o = document.createElement('option'); 
+                o.value = s.baseUrl; 
+                o.textContent = s.name; 
+                srvSel.appendChild(o);
             });
             
+            // Restore last selected server
+            const lastSrv = localStorage.getItem('mk21_baseUrl');
+            if (lastSrv) srvSel.value = lastSrv;
+            
+            const lastUser = localStorage.getItem('mk21_username');
+            if (lastUser) document.getElementById('user-input').value = lastUser;
+            
+            const lastPass = localStorage.getItem('mk21_password');
+            if (lastPass) document.getElementById('pass-input').value = lastPass;
+
             advancedPlayer = new AdvancedPlayer(document.getElementById('iptv-video'));
             setupListeners();
         });
@@ -124,7 +146,12 @@
             const baseUrl = document.getElementById('server-selector').value;
             if (!user || !pass) return alert('Preencha tudo!');
 
-            const loader = document.getElementById('app-loader'); loader.classList.remove('hidden');
+            localStorage.setItem('mk21_baseUrl', baseUrl);
+            localStorage.setItem('mk21_username', user);
+            localStorage.setItem('mk21_password', pass);
+
+            const loader = document.getElementById('app-loader'); 
+            loader.classList.remove('hidden');
             const url = `${baseUrl}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=mpegts`;
             const proxiedUrl = proxyManager.getProxyUrl(url);
 
@@ -132,11 +159,13 @@
                 const res = await fetch(proxiedUrl);
                 const text = await res.text();
                 playlistItems = parseM3U(text);
+                if (playlistItems.length === 0) throw new Error('Lista vazia ou erro nas credenciais.');
+                
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('player-screen').classList.remove('hidden');
                 document.getElementById('logout-button').classList.remove('hidden');
                 renderCategories(); renderMediaItems();
-            } catch (e) { alert('Erro ao conectar'); }
+            } catch (e) { alert('Erro ao conectar: ' + e.message); }
             finally { loader.classList.add('hidden'); }
         }
 
@@ -146,8 +175,13 @@
             for (let l of lines) {
                 l = l.trim();
                 if (l.startsWith('#EXTINF:')) {
-                    cur = { name: l.split(',')[1], logo: l.match(/tvg-logo="(.*?)"/)?.[1], category: l.match(/group-title="(.*?)"/)?.[1] };
-                    cur.type = l.includes('movie') ? 'MOVIE' : (l.includes('series') ? 'SERIES' : 'LIVE');
+                    const name = l.split(',')[1] || "Sem Nome";
+                    cur = { 
+                        name: name, 
+                        logo: l.match(/tvg-logo="(.*?)"/)?.[1], 
+                        category: l.match(/group-title="(.*?)"/)?.[1] || "Outros"
+                    };
+                    cur.type = l.toLowerCase().includes('movie') ? 'MOVIE' : (l.toLowerCase().includes('series') ? 'SERIES' : 'LIVE');
                 } else if (l.startsWith('http') && cur) {
                     cur.url = l; items.push(cur); cur = null;
                 }
@@ -172,10 +206,10 @@
             const q = document.getElementById('search-input').value.toLowerCase();
             const filtered = playlistItems.filter(i => i.type === activeType && (activeCategory === 'ALL' || i.category === activeCategory) && i.name.toLowerCase().includes(q));
             const grid = document.getElementById('media-grid'); grid.innerHTML = '';
-            filtered.slice(0, 50).forEach(item => {
+            filtered.slice(0, 100).forEach(item => {
                 const d = document.createElement('div');
                 d.className = 'bg-slate-900 rounded-lg overflow-hidden cursor-pointer border border-slate-800 hover:border-red-500 transition-all';
-                d.innerHTML = `<div class="aspect-[2/3] flex items-center justify-center p-2">${item.logo ? `<img src="${item.logo}" class="w-full h-full object-contain">` : `<i class="fas fa-play text-slate-800 text-xl"></i>`}</div><div class="p-2"><p class="text-[10px] font-bold truncate">${item.name}</p></div>`;
+                d.innerHTML = `<div class="aspect-[2/3] flex items-center justify-center p-2">${item.logo ? `<img src="${item.logo}" class="w-full h-full object-contain" loading="lazy">` : `<i class="fas fa-play text-slate-800 text-xl"></i>`}</div><div class="p-2"><p class="text-[10px] font-bold truncate">${item.name}</p></div>`;
                 d.onclick = () => playStream(item);
                 grid.appendChild(d);
             });
@@ -187,6 +221,7 @@
             document.getElementById('detail-name').textContent = item.name;
             document.getElementById('detail-category').textContent = item.category;
             document.getElementById('vlc-launcher').href = `vlc://${item.url}`;
+            document.getElementById('external-launcher').href = `intent://${item.url.replace(/^https?:\/\//, '')}#Intent;scheme=http;type=video/*;package=com.mxtech.videoplayer.ad;end`;
             
             const proxiedUrl = proxyManager.getProxyUrl(item.url);
             await advancedPlayer.play(proxiedUrl, { isLive: item.type === 'LIVE' });
