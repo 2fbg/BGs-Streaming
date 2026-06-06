@@ -522,11 +522,11 @@
     </main>
 
     <!-- MOBILE DIALOG / POPUP: CATEGORY PICKER -->
-    <div id="mobile-category-modal" class="fixed inset-0 bg-black/80 z-50 backdrop-blur-sm justify-center items-end hidden">
-        <div class="bg-slate-900 w-full rounded-t-3xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-                <h3 class="font-bold text-lg text-white">Selecionar Categoria</h3>
-                <button id="close-category-modal" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center">
+    <div id="mobile-category-modal" class="fixed inset-0 bg-black/85 z-50 backdrop-blur-md justify-center items-end hidden">
+        <div class="bg-black border-t border-red-950/50 w-full rounded-t-3xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-slate-900/60 flex items-center justify-between">
+                <h3 class="font-extrabold text-lg text-white">Selecionar Categoria</h3>
+                <button id="close-category-modal" class="w-8 h-8 rounded-full bg-slate-950 text-slate-450 border border-slate-900 hover:text-white flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -562,6 +562,8 @@
         let playlistItems = [];
         let activeType = 'LIVE'; // LIVE, MOVIE, SERIES
         let activeCategory = 'ALL';
+        let itemsLimit = 30;
+        let upgradedHttpsAttempted = false;
         let currentStreamUrl = '';
         let currentActiveItem = null;
         let currentActiveShow = null; // Selected Show object (for Series)
@@ -738,6 +740,7 @@
 
                     activeType = targetBtn.dataset.type;
                     activeCategory = 'ALL';
+                    itemsLimit = 30;
                     mobileCategoryLabel.textContent = 'Todas as Categorias';
                     renderCategories();
                     renderMediaItems();
@@ -747,6 +750,7 @@
 
             // Search execution
             searchInput.addEventListener('input', () => {
+                itemsLimit = 30;
                 renderMediaItems();
             });
 
@@ -773,6 +777,63 @@
 
             // Handle video tag errors for fallback layouts
             videoElement.addEventListener('error', () => {
+                if (!upgradedHttpsAttempted && currentStreamUrl && currentStreamUrl.startsWith('http://') && window.location.protocol === 'https:') {
+                    upgradedHttpsAttempted = true;
+                    const upgradedUrl = currentStreamUrl.replace(/^http:\/\//i, 'https://').replace(/:80\//i, '/');
+                    console.log("[PLAYER] Direct HTTP playback restricted/failed under HTTPS and Mixed Content. Attempting automatic HTTPS protocol upgrade to:", upgradedUrl);
+                    
+                    showNotification("Problema de protocolo detectado. Tentando upgrade automático para HTTPS seguro...", "info");
+                    
+                    const upgradedProxiedUrl = getProxyUrl(upgradedUrl);
+                    
+                    const isMpegTs = upgradedUrl.includes('/ts') || upgradedUrl.includes('.ts') || upgradedUrl.includes('output=mpegts') || upgradedUrl.includes('type=mpegts');
+                    const isStaticVideo = upgradedUrl.includes('.mp4') || upgradedUrl.includes('.mkv') || upgradedUrl.includes('.webm') || upgradedUrl.includes('.avi');
+                    
+                    if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
+                        try {
+                            if (mpegtsPlayer) {
+                                mpegtsPlayer.pause();
+                                mpegtsPlayer.unload();
+                                mpegtsPlayer.detachMediaElement();
+                                mpegtsPlayer.destroy();
+                                mpegtsPlayer = null;
+                            }
+                            mpegtsPlayer = mpegts.createPlayer({
+                                type: 'mpegts',
+                                isLive: currentActiveItem ? currentActiveItem.type === 'LIVE' : true,
+                                url: upgradedProxiedUrl,
+                                cors: true
+                            }, {
+                                enableWorker: true,
+                                lazyLoadMaxKeepAliveDuration: 10,
+                                seekType: 'range'
+                            });
+                            mpegtsPlayer.attachMediaElement(videoElement);
+                            mpegtsPlayer.load();
+                            mpegtsPlayer.play().catch(e => {
+                                console.warn("Auto-play blocked inside upgraded MPEG-TS: ", e);
+                            });
+                        } catch (err) {
+                            videoElement.src = upgradedProxiedUrl;
+                            videoElement.play().catch(e => console.warn(e));
+                        }
+                    } else if (Hls.isSupported() && !isStaticVideo) {
+                        try {
+                            hlsPlayer.loadSource(upgradedProxiedUrl);
+                            hlsPlayer.attachMedia(videoElement);
+                            videoElement.play().catch(e => console.warn(e));
+                        } catch(err) {
+                            videoElement.src = upgradedProxiedUrl;
+                            videoElement.play().catch(e => console.warn(e));
+                        }
+                    } else {
+                        videoElement.src = upgradedProxiedUrl;
+                        videoElement.play().catch(err => {
+                            console.log("Direct upgraded fallback error:", err);
+                        });
+                    }
+                    return;
+                }
                 showPlayerError();
             });
 
@@ -1675,6 +1736,7 @@
                 btn.addEventListener('click', (e) => {
                     const cat = e.currentTarget.dataset.cat;
                     activeCategory = cat;
+                    itemsLimit = 30;
                     mobileCategoryLabel.textContent = cat === 'ALL' ? 'Todas as Categorias' : (cat === 'FAVORITES' ? 'Meus Favoritos ❤️' : cat);
 
                     // Close mobile modal if open
@@ -1723,7 +1785,7 @@
                     emptyState.classList.add('hidden');
                 }
                 
-                groupedShows.slice(0, 150).forEach(show => {
+                groupedShows.slice(0, itemsLimit).forEach(show => {
                     const colCard = document.createElement('div');
                     colCard.className = "group relative bg-slate-900/80 hover:bg-slate-850/80 border border-slate-800/60 hover:border-red-500/30 rounded-2xl overflow-hidden cursor-pointer flex flex-col transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-red-950/10";
                     
@@ -1765,11 +1827,16 @@
                     mediaGrid.appendChild(colCard);
                 });
                 
-                if (groupedShows.length > 150) {
-                    const hint = document.createElement('div');
-                    hint.className = "col-span-full py-4 text-center text-xs text-slate-600 font-medium";
-                    hint.textContent = `Listando primeiras 150 de ${groupedShows.length} séries filtradas. Use a busca para filtrar mais.`;
-                    mediaGrid.appendChild(hint);
+                if (groupedShows.length > itemsLimit) {
+                    const loadMoreBtn = document.createElement('button');
+                    loadMoreBtn.className = "col-span-full py-3.5 px-6 my-4 bg-gradient-to-r from-red-950/25 to-slate-900 border border-slate-800 hover:border-[#E50914]/40 hover:bg-[#E50914]/10 rounded-2xl text-slate-250 text-xs font-bold transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 outline-none shadow-md shadow-black/40";
+                    loadMoreBtn.innerHTML = `<i class="fa-solid fa-circle-chevron-down text-[#E50914] text-sm animate-bounce"></i> Mostrar mais séries (Exibindo ${itemsLimit} de ${groupedShows.length})`;
+                    loadMoreBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        itemsLimit += 30;
+                        renderMediaItems();
+                    });
+                    mediaGrid.appendChild(loadMoreBtn);
                 }
                 return;
             }
@@ -1782,7 +1849,7 @@
             }
 
             // Display list items cleanly (Live Channels and Movies)
-            items.slice(0, 150).forEach(item => { // Slice rendering list to 150 items to keep UI responsive
+            items.slice(0, itemsLimit).forEach(item => { // Slice rendering list to itemsLimit items to keep UI responsive
                 const colCard = document.createElement('div');
                 
                 if (activeType === 'MOVIE') {
@@ -1839,11 +1906,17 @@
             });
             
             // Helpful loading more indicator
-            if (items.length > 150) {
-                const hint = document.createElement('div');
-                hint.className = "col-span-full py-4 text-center text-xs text-slate-600 font-medium";
-                hint.textContent = `Listando primeiros 150 de ${items.length} canais filtrados. Use a busca para filtrar mais.`;
-                mediaGrid.appendChild(hint);
+            if (items.length > itemsLimit) {
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.className = "col-span-full py-3.5 px-6 my-4 bg-gradient-to-r from-red-950/25 to-slate-900 border border-slate-800 hover:border-[#E50914]/40 hover:bg-[#E50914]/10 rounded-2xl text-slate-200 text-xs font-bold transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 outline-none shadow-md shadow-black/40";
+                const itemTypeName = activeType === 'LIVE' ? 'canais' : 'filmes';
+                loadMoreBtn.innerHTML = `<i class="fa-solid fa-circle-chevron-down text-[#E50914] text-sm animate-bounce"></i> Mostrar mais ${itemTypeName} (Exibindo ${itemsLimit} de ${items.length})`;
+                loadMoreBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    itemsLimit += 30;
+                    renderMediaItems();
+                });
+                mediaGrid.appendChild(loadMoreBtn);
             }
         }
 
@@ -2055,6 +2128,7 @@
         // Play Execution
         function playStream(item, preserveLayout = false) {
             currentStreamUrl = item.url;
+            upgradedHttpsAttempted = false;
             
             // Show player column on mobile if hidden
             const playerCol = document.getElementById('player-column');
