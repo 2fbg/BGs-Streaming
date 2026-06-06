@@ -51,11 +51,11 @@
                             Selecionar Servidor
                         </label>
                         <div class="relative">
-                            <select id="server-selector" class="w-full px-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none outline-none">
+                            <select id="server-selector" class="w-full px-4 py-3 bg-black border border-slate-800 text-slate-100 rounded-xl focus:ring-2 focus:ring-[#E50914] focus:border-transparent transition-all duration-200 appearance-none outline-none font-semibold">
                                 <!-- Loaded dynamically via JS -->
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                                <i class="fa-solid fa-chevron-down"></i>
+                                <i class="fa-solid fa-chevron-down text-[#E50914]"></i>
                             </div>
                         </div>
                     </div>
@@ -66,10 +66,10 @@
                             Usuário
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-[#E50914]">
                                 <i class="fa-solid fa-user"></i>
                             </span>
-                            <input id="user-input" type="text" autocomplete="username" placeholder="Digite seu usuário" class="w-full pl-11 pr-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200">
+                            <input id="user-input" type="text" autocomplete="username" placeholder="Digite seu usuário" class="w-full pl-11 pr-4 py-3 bg-black border border-slate-800 text-slate-100 rounded-xl focus:ring-2 focus:ring-[#E50914] focus:border-transparent outline-none transition-all duration-200 font-semibold">
                         </div>
                     </div>
 
@@ -79,20 +79,20 @@
                             Senha
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-[#E50914]">
                                 <i class="fa-solid fa-lock"></i>
                             </span>
-                            <input id="pass-input" type="password" autocomplete="current-password" placeholder="Digite sua senha" class="w-full pl-11 pr-12 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200">
-                            <button id="toggle-password" type="button" class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-white transition-colors">
+                            <input id="pass-input" type="password" autocomplete="current-password" placeholder="Digite sua senha" class="w-full pl-11 pr-12 py-3 bg-black border border-slate-800 text-slate-100 rounded-xl focus:ring-2 focus:ring-[#E50914] focus:border-transparent outline-none transition-all duration-200 font-semibold">
+                            <button id="toggle-password" type="button" class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-[#E50914] transition-colors">
                                 <i class="fa-solid fa-eye-slash" id="password-eye-icon"></i>
                             </button>
                         </div>
                     </div>
 
                     <!-- Access CORS Settings / Info -->
-                    <div class="bg-blue-950/20 border border-blue-900/30 rounded-2xl p-4 text-xs font-medium text-blue-300 leading-relaxed shadow-sm">
+                    <div class="bg-red-950/15 border border-red-900/35 rounded-2xl p-4 text-xs font-medium text-red-100 leading-relaxed shadow-sm">
                         <div class="flex items-start gap-3">
-                            <i class="fa-solid fa-triangle-exclamation text-base mt-0.5 text-blue-400"></i>
+                            <i class="fa-solid fa-circle-exclamation text-base mt-0.5 text-[#E50914] animate-pulse"></i>
                             <div>
                                 <span class="font-bold text-white block mb-1">Informação sobre Navegadores (CORS):</span>
                                 A maioria dos servidores IPTV limita conexões web diretas (CORS). Se a lista falhar ao carregar, habilite uma extensão CORS (ex: "Allow CORS" na Chrome Store) ou use a opção de Proxy abaixo.
@@ -106,7 +106,7 @@
                             Método de Conexão (Proxy)
                         </label>
                         <div class="relative">
-                            <select id="cors-selector" class="w-full px-4 py-3 bg-slate-900/80 border border-slate-750 text-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none outline-none">
+                            <select id="cors-selector" class="w-full px-4 py-3 bg-black border border-slate-800 text-slate-100 rounded-xl focus:ring-2 focus:ring-[#E50914] focus:border-transparent transition-all duration-200 appearance-none outline-none font-semibold">
                                 <option value="auto">⚡ Conexão Automática (Fallback Inteligente c/ Vercel)</option>
                                 <option value="vercel">🛡️ Proxy Vercel Dedicado (Recomendado - 100% Funcional)</option>
                                 <option value="direct">Sem Proxy (Conexão Direta - Necessita Extensão CORS)</option>
@@ -116,14 +116,14 @@
                                 <option value="thingproxy">Proxy 4 (ThingProxy - Standard API)</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                                <i class="fa-solid fa-chevron-down"></i>
+                                <i class="fa-solid fa-chevron-down text-[#E50914]"></i>
                             </div>
                         </div>
                         <div id="latency-status-indicator" class="mt-2 text-xs text-slate-400 hidden"></div>
                     </div>
 
                     <!-- Action Button -->
-                    <button id="login-button" class="w-full py-4 bg-gradient-to-r from-[#E50914] to-red-750 outline-none text-white font-semibold rounded-2xl shadow-lg shadow-red-950/40 hover:shadow-red-500/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2">
+                    <button id="login-button" class="w-full py-4 bg-gradient-to-r from-[#E50914] to-red-650 outline-none text-white font-semibold rounded-2xl shadow-lg shadow-red-950/40 hover:shadow-red-500/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2">
                         <span>Acessar Portal IPTV</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
@@ -142,7 +142,7 @@
             <!-- App Dashboard Header -->
             <header class="glass-card rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#E50914] to-black flex items-center justify-center text-white text-xl font-black drop-shadow-[0_2px_4px_rgba(229,9,20,0.4)] border border-red-950/40">
                         MK
                     </div>
                     <div>
@@ -151,7 +151,7 @@
                                 <i class="fa-solid fa-server animate-pulse"></i> Servidor
                             </span>
                             <div class="relative flex items-center">
-                                <select id="active-server-display" class="bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-100 text-xs font-black rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-red-500 outline-none cursor-pointer appearance-none pr-8 transition-all duration-200">
+                                <select id="active-server-display" class="bg-black hover:bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-100 text-xs font-black rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-[#E50914] outline-none cursor-pointer appearance-none pr-8 transition-all duration-200">
                                     <!-- Populated dynamically via populateHeaderServers() -->
                                 </select>
                                 <div class="pointer-events-none absolute right-2.5 flex items-center text-slate-400 text-[9px]">
@@ -202,7 +202,7 @@
                     <div class="p-4 border-b border-slate-800">
                         <h3 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center justify-between">
                             <span>Categorias</span>
-                            <span id="category-count" class="px-2 py-0.5 bg-slate-900 rounded-md text-[10px] text-blue-400 tracking-normal jetbrains">0</span>
+                            <span id="category-count" class="px-2 py-0.5 bg-black rounded-md text-[10px] text-[#E50914] border border-red-950/40 tracking-normal jetbrains">0</span>
                         </h3>
                     </div>
                     <div id="category-list" class="flex-grow overflow-y-auto p-2 space-y-1">
@@ -218,7 +218,7 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                                 <i class="fa-solid fa-magnifying-glass text-sm"></i>
                             </span>
-                            <input id="search-input" type="text" placeholder="Buscar canal, filme ou série..." class="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-850 text-slate-200 placeholder-slate-500 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all duration-200">
+                            <input id="search-input" type="text" placeholder="Buscar canal, filme ou série..." class="w-full pl-10 pr-4 py-2.5 bg-black border border-slate-800 text-slate-100 placeholder-slate-500 rounded-xl outline-none focus:ring-2 focus:ring-[#E50914] text-sm transition-all duration-200">
                         </div>
 
                         <!-- Mobile Category Button Trigger -->
@@ -253,15 +253,15 @@
                 </section>
 
                 <!-- COLUMN 3: Active Video & Media Screen details -->
-                <section id="player-column" class="fixed inset-0 z-50 bg-[#0d0f14] flex flex-col hidden lg:relative lg:flex lg:inset-auto lg:z-0 lg:w-[480px] lg:xl:w-[600px] lg:bg-transparent glass-card rounded-2xl overflow-hidden shrink-0">
+                <section id="player-column" class="fixed inset-0 z-50 bg-[#040405] flex flex-col hidden lg:relative lg:flex lg:inset-auto lg:z-0 lg:w-[480px] lg:xl:w-[600px] lg:bg-transparent glass-card rounded-2xl overflow-hidden shrink-0">
                     <!-- Mobile Close / Back Bar -->
-                    <div class="lg:hidden p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
-                        <button onclick="closeMobilePlayer()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold rounded-xl flex items-center gap-2">
-                            <i class="fa-solid fa-arrow-left"></i>
+                    <div class="lg:hidden p-4 bg-slate-950 border-b border-slate-900 flex items-center justify-between shrink-0">
+                        <button onclick="closeMobilePlayer()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-slate-350 hover:text-white text-xs font-bold rounded-xl flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-left text-[#E50914]"></i>
                             <span>Voltar para Lista</span>
                         </button>
                         <div class="text-right">
-                            <span class="text-[10px] text-blue-400 font-mono tracking-wider font-bold">REPRODUTOR MK21</span>
+                            <span class="text-[10px] text-[#E50914] font-mono tracking-wider font-bold">REPRODUTOR MK21</span>
                         </div>
                     </div>
                     <!-- Video Player Container (YouTube Style) -->
@@ -381,8 +381,8 @@
                                 <a id="overlay-vlc-btn" href="" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-orange-950/20 decoration-none">
                                     <i class="fa-solid fa-video"></i> Abrir no VLC
                                 </a>
-                                <a id="overlay-chooser-btn" href="" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-blue-950/30 decoration-none">
-                                    <i class="fa-solid fa-share-nodes"></i> Abrir com...
+                                <a id="overlay-chooser-btn" href="" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-750 text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-black/30 decoration-none">
+                                    <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com...
                                 </a>
                             </div>
                         </div>
@@ -468,30 +468,30 @@
                                     </div>
                                 </div>
 
-                                <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-2xl p-4">
-                                    <h4 class="font-bold text-xs uppercase tracking-widest text-indigo-400 mb-2">Alternativas de Reprodução</h4>
+                                <div class="bg-red-950/10 border border-red-900/20 rounded-2xl p-4">
+                                    <h4 class="font-bold text-xs uppercase tracking-widest text-[#E50914] mb-2">Alternativas de Reprodução</h4>
                                     <p class="text-xs text-slate-400 mb-3 leading-relaxed">
                                         Se o reprodutor web do seu navegador apresentar falhas ou problemas de codec / CORS com este stream, copie o link abaixo ou assista no VLC Player.
                                     </p>
                                     <div class="flex flex-wrap gap-2">
-                                        <button onclick="copyCurrentStreamUrl()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-                                            <i class="fa-solid fa-copy"></i> Copiar Link
+                                        <button onclick="copyCurrentStreamUrl()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                                            <i class="fa-solid fa-copy text-[#E50914]"></i> Copiar Link
                                         </button>
-                                        <button id="pip-button" onclick="togglePictureInPicture()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5" title="Reproduzir em Mini Player">
-                                            <i class="fa-solid fa-window-restore"></i> Mini Player (PiP)
+                                        <button id="pip-button" onclick="togglePictureInPicture()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm" title="Reproduzir em Mini Player">
+                                            <i class="fa-solid fa-window-restore text-[#E50914]"></i> Mini Player (PiP)
                                         </button>
-                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-orange-950/20">
                                             <i class="fa-solid fa-video"></i> Abrir no VLC
                                         </a>
-                                        <a id="external-launcher" href="" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-                                            <i class="fa-solid fa-share-nodes"></i> Abrir com...
+                                        <a id="external-launcher" href="" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                                            <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com...
                                         </a>
                                     </div>
-                                    <div id="stream-url-display" class="mt-3 text-[10px] text-slate-500 truncate select-all jetbrains bg-slate-950 p-2 rounded-lg"></div>
+                                    <div id="stream-url-display" class="mt-3 text-[10px] text-slate-500 truncate select-all jetbrains bg-black p-2 rounded-lg border border-slate-850"></div>
                                     <div class="mt-4 border-t border-slate-800/60 pt-3">
                                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Proxy de Entrada do Player Web</label>
                                         <div class="relative">
-                                            <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-3 py-2 bg-slate-900 border border-slate-750 text-slate-200 text-xs rounded-lg focus:ring-1 focus:ring-blue-500 appearance-none outline-none">
+                                            <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-3 py-2 bg-black border border-slate-800 text-slate-100 text-xs rounded-lg focus:ring-1 focus:ring-[#E50914] appearance-none outline-none font-semibold">
                                                 <option value="corsproxy">Proxy 1 (CorsProxy.io - Recomendado)</option>
                                                 <option value="allorigins">Proxy 2 (AllOrigins - Alternativo)</option>
                                                 <option value="codetabs">Proxy 3 (CodeTabs - Alternativo)</option>
@@ -499,7 +499,7 @@
                                                 <option value="direct">Sem Proxy (Conexão Direta)</option>
                                             </select>
                                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                                <i class="fa-solid fa-chevron-down text-[10px] text-[#E50914]"></i>
                                             </div>
                                         </div>
                                         <p class="text-[10px] text-slate-500 mt-1.5 leading-snug">Se o canal ficar carregando infinitamente, altere o proxy acima para tentar outro provedor de bypass ou assista no VLC.</p>
@@ -537,12 +537,12 @@
     </div>
 
     <!-- FULL SCREEN SPINNER / LOADER OVERLAY -->
-    <div id="app-loader" class="fixed inset-0 bg-[#0d0f14]/90 z-50 flex flex-col items-center justify-center gap-3 backdrop-blur-md hidden">
+    <div id="app-loader" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center gap-3 backdrop-blur-md hidden">
         <div class="relative w-16 h-16">
-            <div class="absolute inset-0 rounded-full border-4 border-blue-600/20 border-t-blue-500 animate-spin"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-red-950/40 border-t-[#E50914] animate-spin"></div>
         </div>
-        <p class="font-extrabold text-sm tracking-wide text-slate-300 select-none uppercase mt-3" id="loader-message">Buscando playlists...</p>
-        <span class="text-xs text-blue-400 jetbrains" id="loader-progress">0%</span>
+        <p class="font-extrabold text-sm tracking-wide text-white select-none uppercase mt-3" id="loader-message">Buscando playlists...</p>
+        <span class="text-xs text-[#E50914] font-black jetbrains" id="loader-progress">0%</span>
     </div>
 
     <!-- MAIN CONFIG & APPLICATION CONTROLLER -->
