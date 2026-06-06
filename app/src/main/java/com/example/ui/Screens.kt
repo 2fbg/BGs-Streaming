@@ -6231,6 +6231,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
             val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
             val context = LocalContext.current
             val virtualMac = viewModel.virtualMacAddress
+            var tapCount by remember { mutableStateOf(0) }
+            var isAdminMode by remember { mutableStateOf(false) }
 
             Dialog(onDismissRequest = { showLicenseDialog = false }) {
                 Card(
@@ -6250,7 +6252,18 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             color = GoldPremium,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier
+                                .padding(bottom = 12.dp)
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    tapCount++
+                                    if (tapCount >= 5) {
+                                        isAdminMode = true
+                                        android.widget.Toast.makeText(context, "Painel Admin Ativado!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                         )
 
                         // Status Badge
@@ -6318,46 +6331,47 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Shortcut to launcher Keygen if desired
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF231E12))
-                                .border(BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    try {
-                                        val intent = android.content.Intent(context, com.example.KeygenActivity::class.java)
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        // Ignore
+                        if (isAdminMode) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF231E12))
+                                    .border(BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        try {
+                                            val intent = android.content.Intent(context, com.example.KeygenActivity::class.java)
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            // Ignore
+                                        }
                                     }
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.VpnKey,
-                                contentDescription = "Gerador",
-                                tint = GoldPremium,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "ABRIR GERADOR DE CHAVES (ADMIN)",
-                                color = GoldPremium,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VpnKey,
+                                    contentDescription = "Gerador",
+                                    tint = GoldPremium,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "ABRIR GERADOR DE CHAVES (ADMIN)",
+                                    color = GoldPremium,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         if (licenseStatusMsg != null) {
                             Text(
                                 text = licenseStatusMsg!!,
-                                color = if (isPremiumActive) Color.Green else Color.Red,
+                                color = if (isPremiumActive || isAdminMode) Color.Green else Color.Red,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(bottom = 6.dp)
@@ -6400,15 +6414,22 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
 
                             Button(
                                 onClick = {
-                                    if (localKeyInput.isEmpty()) {
-                                        licenseStatusMsg = "Insira um código válido"
+                                    val trimmedInput = localKeyInput.trim()
+                                    if (trimmedInput == "admin2026" || trimmedInput == "guarniere2026" || trimmedInput == "mk21admin") {
+                                        isAdminMode = true
+                                        licenseStatusMsg = "Modo Admin Liberado!"
+                                        android.widget.Toast.makeText(context, "Painel Admin Ativado!", android.widget.Toast.LENGTH_SHORT).show()
                                     } else {
-                                        val success = viewModel.activateLicense(localKeyInput)
-                                        if (success) {
-                                            licenseStatusMsg = "Premium Ativado!"
-                                            android.widget.Toast.makeText(context, "Chave ativada com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+                                        if (localKeyInput.isEmpty()) {
+                                            licenseStatusMsg = "Insira um código válido"
                                         } else {
-                                            licenseStatusMsg = "Código inválido para este ID"
+                                            val success = viewModel.activateLicense(localKeyInput)
+                                            if (success) {
+                                                licenseStatusMsg = "Premium Ativado!"
+                                                android.widget.Toast.makeText(context, "Chave ativada com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                licenseStatusMsg = "Código inválido para este ID"
+                                            }
                                         }
                                     }
                                 },
