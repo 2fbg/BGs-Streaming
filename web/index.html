@@ -818,7 +818,10 @@
                     
                     showNotification("Problema de protocolo detectado. Tentando upgrade automático para HTTPS seguro...", "info");
                     
-                    const upgradedProxiedUrl = getProxyUrl(upgradedUrl);
+                    const upgradedProxiedUrl = getProxyUrl(
+                        upgradedUrl,
+                        getEffectiveProxyMethod(upgradedUrl, getStoredProxyMode())
+                    );
                     
                     const isMpegTs = upgradedUrl.includes('/ts') || upgradedUrl.includes('.ts') || upgradedUrl.includes('output=mpegts') || upgradedUrl.includes('type=mpegts');
                     const isStaticVideo = upgradedUrl.includes('.mp4') || upgradedUrl.includes('.mkv') || upgradedUrl.includes('.webm') || upgradedUrl.includes('.avi');
@@ -1009,7 +1012,12 @@
                 });
             }
 
-            const methodsToTry = (corsMethod === 'auto') ? sortedMethods : sortedMethods.filter(m => m.name === corsMethod);
+            const preferredLoginMethod = getEffectiveProxyMethod(rawUrl, corsMethod);
+            const methodsToTry = (corsMethod === 'auto')
+                ? sortedMethods.filter(m => m.name === preferredLoginMethod).concat(
+                    sortedMethods.filter(m => m.name !== preferredLoginMethod)
+                  )
+                : sortedMethods.filter(m => m.name === preferredLoginMethod);
 
             for (let idx = 0; idx < methodsToTry.length; idx++) {
                 const method = methodsToTry[idx];
@@ -1955,15 +1963,107 @@
         }
 
         function accessViaHttp() {
-            if (window.location.protocol === 'https:') {
-                const httpUrl = 'http://' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
-                window.location.href = httpUrl;
-            }
+            showNotification('Para listas HTTP, o player web agora prioriza automaticamente o proxy HTTPS integrado.', 'info');
         }
 
         let proxyLatencies = {};
         let fastestCalculatedProxy = null;
         let isTestingLatency = false;
+        const HTTP_ONLY_WARNING = 'Listas HTTP em página HTTPS exigem proxy seguro para o player web.';
+
+        function isSecureContextPlayback() {
+            return window.location.protocol === 'https:';
+        }
+
+        function isHttpUrl(url) {
+            return /^http:\/\//i.test(url || '');
+        }
+
+        function isHttpsUrl(url) {
+            return /^https:\/\//i.test(url || '');
+        }
+
+        function getStoredProxyMode() {
+            return localStorage.getItem('mk21_cors') || 'auto';
+        }
+
+        function getEffectiveProxyMethod(url, preferredMethod = null) {
+            let corsMethod = preferredMethod || getStoredProxyMode();
+            const httpInSecurePage = isSecureContextPlayback() && isHttpUrl(url);
+
+            if (corsMethod === 'auto') {
+                if (httpInSecurePage) {
+                    return 'vercel';
+                }
+                if (window.location.protocol === 'http:' && !isHttpUrl(url)) {
+                    return 'direct';
+                }
+                if (
+                    window.location.hostname.includes('vercel.app') ||
+                    window.location.hostname.includes('run.app') ||
+                    window.location.hostname.includes('localhost') ||
+                    window.location.hostname.includes('127.0.0.1')
+                ) {
+                    return 'vercel';
+                }
+                if (fastestCalculatedProxy) {
+                    return fastestCalculatedProxy;
+                }
+                return 'vercel';
+            }
+
+            if (corsMethod === 'direct' && httpInSecurePage) {
+                return 'vercel';
+            }
+
+            return corsMethod;
+        }
+
+        function syncProxySelectors(value) {
+            const loginSelector = document.getElementById('cors-selector');
+            const playerSelector = document.getElementById('player-proxy-selector');
+            if (loginSelector) loginSelector.value = value;
+            if (playerSelector) playerSelector.value = value;
+        }
+
+        function updateHttpPlaybackNotice(item) {
+            const mixedWarning = document.getElementById('mixed-content-warning');
+            if (!mixedWarning) return;
+
+            const vercelTip = document.getElementById('vercel-redirect-tip');
+
+            if (item && isSecureContextPlayback() && isHttpUrl(item.url)) {
+                mixedWarning.classList.remove('hidden');
+
+                const button = mixedWarning.querySelector('button');
+                if (button) {
+                    button.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Usando Proxy HTTPS Integrado';
+                    button.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                    button.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                    button.disabled = true;
+                }
+
+                if (vercelTip) vercelTip.classList.add('hidden');
+            } else {
+                mixedWarning.classList.add('hidden');
+
+                const button = mixedWarning.querySelector('button');
+                if (button) {
+                    button.innerHTML = '<i class="fa-solid fa-unlock"></i> Acessar por Conexão HTTP (Sem Bloqueio)';
+                    button.disabled = false;
+                    button.classList.add('bg-amber-600', 'hover:bg-amber-500');
+                    button.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                }
+            }
+        }
+
+        function getPlayableStreamUrl(rawUrl, preferredMethod = null) {
+            const effectiveMethod = getEffectiveProxyMethod(rawUrl, preferredMethod);
+            return {
+                url: getProxyUrl(rawUrl, effectiveMethod),
+                method: effectiveMethod
+            };
+        }
 
         async function runProxyLatencyCheck() {
             if (isTestingLatency) return;
@@ -2103,27 +2203,15 @@
             }
         }
 
-        function getProxyUrl(url) {
+        function getProxyUrl(url, preferredMethod = null) {
             if (!url) return "";
-            
-            let corsMethod = localStorage.getItem('mk21_cors') || 'auto';
-            
-            if (corsMethod === 'auto') {
-                if (window.location.protocol === 'http:') {
-                    corsMethod = 'direct';
-                } else if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('run.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
-                    corsMethod = 'vercel';
-                } else if (fastestCalculatedProxy) {
-                    corsMethod = fastestCalculatedProxy;
-                } else {
-                    corsMethod = 'corsproxy';
-                }
-            }
-            
+
+            const corsMethod = getEffectiveProxyMethod(url, preferredMethod);
+
             if (corsMethod === 'direct') {
                 return url;
             }
-            
+
             switch (corsMethod) {
                 case 'vercel':
                     return `${window.location.protocol}//${window.location.host}/api/proxy?url=${encodeURIComponent(url)}`;
@@ -2136,25 +2224,25 @@
                 case 'thingproxy':
                     return `https://thingproxy.freeboard.io/fetch/${url}`;
                 default:
-                    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    return `${window.location.protocol}//${window.location.host}/api/proxy?url=${encodeURIComponent(url)}`;
             }
         }
 
         function changePlayerProxy() {
             const playerProxySelector = document.getElementById('player-proxy-selector');
             if (playerProxySelector) {
-                const val = playerProxySelector.value;
-                localStorage.setItem('mk21_cors', val);
-                
-                // Sync login screen selector as well
-                const mainCorsSelector = document.getElementById('cors-selector');
-                if (mainCorsSelector) {
-                    mainCorsSelector.value = val;
+                let val = playerProxySelector.value;
+
+                if (val === 'direct' && currentActiveItem && isSecureContextPlayback() && isHttpUrl(currentActiveItem.url)) {
+                    val = 'vercel';
+                    showNotification('Conexão direta foi substituída por Proxy Vercel para streams HTTP em página HTTPS.', 'info');
                 }
-                
-                // Reload stream with the new proxy immediately
+
+                localStorage.setItem('mk21_cors', val);
+                syncProxySelectors(val);
+
                 if (currentActiveItem) {
-                    playStream(currentActiveItem);
+                    playStream(currentActiveItem, !!currentActiveShow);
                 }
             }
         }
@@ -2171,11 +2259,8 @@
                 playerCol.classList.add('flex');
             }
 
-            // Sync dynamic player-proxy-selector in active panel with stored value
-            const playerProxySelector = document.getElementById('player-proxy-selector');
-            if (playerProxySelector) {
-                playerProxySelector.value = localStorage.getItem('mk21_cors') || 'auto';
-            }
+            const effectiveSelectorValue = getEffectiveProxyMethod(item.url, getStoredProxyMode());
+            syncProxySelectors(effectiveSelectorValue);
 
             // Update Details Panel
             detailEmpty.classList.add('hidden');
@@ -2243,24 +2328,7 @@
                 }
             }
 
-            // Toggle mixed content warning
-            const mixedWarning = document.getElementById('mixed-content-warning');
-            if (mixedWarning) {
-                if (window.location.protocol === 'https:' && item.url.startsWith('http://')) {
-                    mixedWarning.classList.remove('hidden');
-                    // Show vercel redirect tip if they are browsing from github pages
-                    const vercelTip = document.getElementById('vercel-redirect-tip');
-                    if (vercelTip) {
-                        if (window.location.hostname.includes('github.io')) {
-                            vercelTip.classList.remove('hidden');
-                        } else {
-                            vercelTip.classList.add('hidden');
-                        }
-                    }
-                } else {
-                    mixedWarning.classList.add('hidden');
-                }
-            }
+            updateHttpPlaybackNotice(item);
 
             // Remove Floating Banner
             playerBanner.classList.add('opacity-0');
@@ -2279,7 +2347,12 @@
             const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
             const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
             
-            const proxiedUrl = getProxyUrl(item.url);
+            const playable = getPlayableStreamUrl(item.url);
+            const proxiedUrl = playable.url;
+
+            if (playable.method === 'vercel' && isSecureContextPlayback() && isHttpUrl(item.url)) {
+                showNotification(HTTP_ONLY_WARNING, 'info');
+            }
 
             if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
                 console.log("Playing MPEG-TS natively via mpegts.js", proxiedUrl);
