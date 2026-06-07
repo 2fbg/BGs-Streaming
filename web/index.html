@@ -507,6 +507,23 @@
                                     </div>
                                     <div id="stream-url-display" class="mt-3 text-[10px] text-slate-500 truncate select-all jetbrains bg-black p-2 rounded-lg border border-slate-850"></div>
                                     <div class="mt-4 border-t border-slate-800/60 pt-3">
+                                        <!-- Auto Launcher Override Configuration -->
+                                        <div class="mb-3.5 bg-slate-950/60 border border-slate-850 rounded-xl p-3 flex items-center justify-between gap-3 text-left">
+                                            <div class="flex-grow">
+                                                <span class="text-xs font-bold text-slate-200 block flex items-center gap-1.5">
+                                                    <i class="fa-solid fa-rocket text-[#E50914] animate-pulse"></i>
+                                                    Disparar Player Externo Direto
+                                                </span>
+                                                <span class="text-[9.5px] text-slate-400 block mt-0.5 leading-relaxed">
+                                                    Ignorar o reprodutor web e abrir canais/vídeos diretamente no seu player aplicativo externo (VLC/Sistema).
+                                                </span>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                                                <input id="auto-external-toggle" type="checkbox" onchange="toggleAutoExternalPlayer()" class="sr-only peer">
+                                                <div class="w-8 h-4.5 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-slate-100 after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#E50914]"></div>
+                                            </label>
+                                        </div>
+
                                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Proxy de Entrada do Player Web</label>
                                         <div class="relative">
                                             <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-3 py-2 bg-black border border-slate-800 text-slate-100 text-xs rounded-lg focus:ring-1 focus:ring-[#E50914] appearance-none outline-none font-semibold">
@@ -726,6 +743,11 @@
                 corsSelector.value = cachedCors;
             } else {
                 corsSelector.value = 'auto';
+            }
+
+            const autoExternalToggle = document.getElementById('auto-external-toggle');
+            if (autoExternalToggle) {
+                autoExternalToggle.checked = localStorage.getItem('mk21_auto_external') === 'true';
             }
         }
 
@@ -2247,6 +2269,15 @@
             }
         }
 
+        function toggleAutoExternalPlayer() {
+            const autoExternalToggle = document.getElementById('auto-external-toggle');
+            if (autoExternalToggle) {
+                const checked = autoExternalToggle.checked;
+                localStorage.setItem('mk21_auto_external', checked ? 'true' : 'false');
+                showNotification(checked ? 'Player externo configurado como padrão!' : 'Reprodutor web restaurado como padrão.', 'success');
+            }
+        }
+
         // Play Execution
         function playStream(item, preserveLayout = false) {
             currentStreamUrl = item.url;
@@ -2329,6 +2360,15 @@
             }
 
             updateHttpPlaybackNotice(item);
+
+            if (localStorage.getItem('mk21_auto_external') === 'true') {
+                showNotification('Iniciando transmissão via Player Externo...', 'success');
+                stopStream();
+                setTimeout(() => {
+                    window.location.href = getExternalPlayerUrl(item.url);
+                }, 150);
+                return;
+            }
 
             // Remove Floating Banner
             playerBanner.classList.add('opacity-0');
