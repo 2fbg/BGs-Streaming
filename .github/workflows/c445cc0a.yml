@@ -1,0 +1,166 @@
+name: List GitHub App Repositories
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1-5'
+
+jobs:
+  list-repositories:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install PyJWT cryptography requests
+
+      - name: Generate installation token and list repositories
+        env:
+          GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          GH_APP_ID: '3988402'
+          GH_INSTALLATION_ID: '138628024'
+        run: |
+          python <<'PY'
+          import os
+          import time
+          import json
+          from datetime import datetime, timezone
+          import jwt
+          import requests
+
+          app_id = os.environ['GH_APP_ID']
+          installation_id = os.environ['GH_INSTALLATION_ID']
+          private_key = os.environ['GH_APP_PRIVATE_KEY']
+
+          now = int(time.time())
+          payload = {
+              'iat': now - 60,
+              'exp': now + 600,
+              'iss': app_id,
+          }
+
+          app_jwt = jwt.encode(payload, private_key, algorithm='RS256')
+
+          base_headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {app_jwt}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'github-actions-github-app-report'
+          }
+
+          token_response = requests.post(
+              f'https://api.github.com/app/installations/{installation_id}/access_tokens',
+              headers=base_headers,
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          token_data = token_response.json()
+          installation_token = token_data['token']
+
+          repos = []
+          page = 1
+          while True:
+              repo_response = requests.get(
+                  'https://api.github.com/installation/repositories',
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {installation_token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'github-actions-github-app-report'
+                  },
+                  params={'per_page': 100, 'page': page},
+                  timeout=30,
+              )
+              repo_response.raise_for_status()
+              data = repo_response.json()
+              batch = data.get('repositories', [])
+              repos.extend(batch)
+              if len(batch) < 100:
+                  break
+              page += 1
+
+          with open('repositories.json', 'w', encoding='utf-8') as f:
+              json.dump({'total_count': len(repos), 'repositories': repos}, f, indent=2, ensure_ascii=False)
+
+          summary = {
+              'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+              'app_id': app_id,
+              'installation_id': installation_id,
+              'token_expires_at': token_data.get('expires_at'),
+              'total_repositories': len(repos),
+              'private_repositories': sum(1 for r in repos if r.get('private')),
+              'public_repositories': sum(1 for r in repos if not r.get('private')),
+              'token_permissions': token_data.get('permissions', {}),
+          }
+
+          report = {
+              'summary': summary,
+              'repositories': [
+                  {
+                      'id': r.get('id'),
+                      'name': r.get('name'),
+                      'full_name': r.get('full_name'),
+                      'private': r.get('private'),
+                      'visibility': r.get('visibility'),
+                      'default_branch': r.get('default_branch'),
+                      'html_url': r.get('html_url'),
+                      'owner': (r.get('owner') or {}).get('login'),
+                      'archived': r.get('archived'),
+                      'disabled': r.get('disabled'),
+                      'fork': r.get('fork'),
+                      'updated_at': r.get('updated_at'),
+                      'pushed_at': r.get('pushed_at'),
+                      'permissions': r.get('permissions', {}),
+                  }
+                  for r in repos
+              ]
+          }
+
+          with open('github-app-access-report.json', 'w', encoding='utf-8') as f:
+              json.dump(report, f, indent=2, ensure_ascii=False)
+
+          with open('github-app-access-report.md', 'w', encoding='utf-8') as f:
+              f.write('# Relatório de acesso da GitHub App\n\n')
+              f.write('## Resumo\n\n')
+              f.write(f"- Gerado em UTC: {summary['generated_at_utc']}\n")
+              f.write(f"- App ID: {summary['app_id']}\n")
+              f.write(f"- Installation ID: {summary['installation_id']}\n")
+              f.write(f"- Expiração do token: {summary['token_expires_at']}\n")
+              f.write(f"- Total de repositórios: {summary['total_repositories']}\n")
+              f.write(f"- Repositórios privados: {summary['private_repositories']}\n")
+              f.write(f"- Repositórios públicos: {summary['public_repositories']}\n")
+              f.write(f"- Permissões do token: `{json.dumps(summary['token_permissions'], ensure_ascii=False)}`\n\n")
+              f.write('## Repositórios\n\n')
+              for i, r in enumerate(report['repositories'], 1):
+                  f.write(f"### {i}. {r['full_name']}\n")
+                  f.write(f"- URL: {r['html_url']}\n")
+                  f.write(f"- Owner: {r['owner']}\n")
+                  f.write(f"- Visibility: {r['visibility']}\n")
+                  f.write(f"- Private: {r['private']}\n")
+                  f.write(f"- Default branch: {r['default_branch']}\n")
+                  f.write(f"- Archived: {r['archived']}\n")
+                  f.write(f"- Disabled: {r['disabled']}\n")
+                  f.write(f"- Fork: {r['fork']}\n")
+                  f.write(f"- Updated at: {r['updated_at']}\n")
+                  f.write(f"- Pushed at: {r['pushed_at']}\n")
+                  f.write(f"- Permissions: `{json.dumps(r['permissions'], ensure_ascii=False)}`\n\n")
+          PY
+
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-app-access-report
+          path: |
+            repositories.json
+            github-app-access-report.json
+            github-app-access-report.md
