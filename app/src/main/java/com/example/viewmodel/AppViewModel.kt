@@ -1178,7 +1178,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             val encodedUser = try { java.net.URLEncoder.encode(user, "UTF-8") } catch (e: Exception) { user }
             val encodedPass = try { java.net.URLEncoder.encode(pass, "UTF-8") } catch (e: Exception) { pass }
-            return "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3u_plus&output=mpegts"
+            val formatParam = if (preferencesService.liveStreamFormat == "HLS (.m3u8)") "hls" else "mpegts"
+            return "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3u_plus&output=$formatParam"
         }
         
         // Is it a manual list?

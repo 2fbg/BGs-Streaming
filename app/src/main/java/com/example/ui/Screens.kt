@@ -1,5 +1,6 @@
 package com.example.ui
 
+import android.util.Log
 import android.app.Activity
 import android.os.Build
 import android.view.ViewGroup
@@ -2925,6 +2926,7 @@ fun VideoPlayerUI(
     }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBuffering by remember { mutableStateOf(true) }
+    var retryCount by remember { mutableIntStateOf(0) }
     
     // Gestures and control states
     var brightnessValue by remember { mutableFloatStateOf(1.0f) }
@@ -3042,6 +3044,10 @@ fun VideoPlayerUI(
     var playerViewInstance by remember { mutableStateOf<PlayerView?>(null) }
 
     LaunchedEffect(playlistItem) {
+        retryCount = 0
+    }
+
+    LaunchedEffect(playlistItem, retryCount) {
         errorMessage = null
         val url = playlistItem.url.trim()
         if (url.isEmpty()) {
@@ -3051,6 +3057,10 @@ fun VideoPlayerUI(
         }
         try {
             isBuffering = true
+            if (retryCount > 0) {
+                Log.d("PlayerScreen", "Auto-reconnecting stream: attempt $retryCount/5 in 2s...")
+                kotlinx.coroutines.delay(2000L)
+            }
             // Stop and clear previous playback state first to prevent native decoding deadlocks/crashes!
             try {
                 exoPlayer.stop()
@@ -3087,6 +3097,9 @@ fun VideoPlayerUI(
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 isBuffering = state == Player.STATE_BUFFERING
+                if (state == Player.STATE_READY) {
+                    retryCount = 0
+                }
             }
 
             override fun onIsPlayingChanged(isPlayingParam: Boolean) {
@@ -3094,12 +3107,17 @@ fun VideoPlayerUI(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                errorMessage = "Impossível reproduzir canal/mídia. Conexão terminada pelo link."
-                isBuffering = false
-                try {
-                    exoPlayer.stop() // Immediately free hardware decoder and avoid ANR/Main Thread starvation!
-                } catch (e: Exception) {
-                    // safety clean
+                if (retryCount < 5) {
+                    retryCount++
+                    Log.d("PlayerScreen", "Encountered player error, attempting auto-retry $retryCount/5: ${error.message}")
+                } else {
+                    errorMessage = "Impossível reproduzir canal/mídia. Conexão terminada pelo link."
+                    isBuffering = false
+                    try {
+                        exoPlayer.stop() // Immediately free hardware decoder and avoid ANR/Main Thread starvation!
+                    } catch (e: Exception) {
+                        // safety clean
+                    }
                 }
             }
         }
