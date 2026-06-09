@@ -1,0 +1,14 @@
+{
+  "name": "bgstreaming-web",
+  "version": "1.0.0",
+  "description": "MK21 MultiServidor Web - IPTV Web Application",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Development server'",
+    "build": "echo 'No build step required for vanilla HTML'",
+    "lint": "echo 'No linter configured'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
+  }
+}
