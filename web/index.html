@@ -610,6 +610,73 @@
             maxBufferLength: 20,
             autoStartLoad: true
         });
+
+        // Detailed error listener to output diagnostic level & fragment logs when stream is interrupted.
+        hlsPlayer.on(Hls.Events.ERROR, function (event, data) {
+            console.group("%c=== HLS-JS PLAYBACK ERROR DIAGNOSTICS ===", "color: #E50914; font-weight: bold; font-size: 13px;");
+            console.error(`[HLSError] Event Type: ${event}`);
+            console.error(`[HLSError] Category (data.type): ${data.type}`);
+            console.error(`[HLSError] Specific Detail (data.details): ${data.details}`);
+            console.error(`[HLSError] Is Playback Halted/Fatal: ${data.fatal}`);
+
+            // Diagnose failure vs timeout
+            let diagnosis = "Análise preliminar: ";
+            if (data.details && data.details.includes("TIMEOUT")) {
+                diagnosis += "🚨 Limite de tempo excedido (TIMEOUT). Servidor demorou muito para responder ou conexão caiu.";
+            } else if (data.details && data.details.includes("FRAG_LOAD_ERROR")) {
+                diagnosis += "❌ Falha no segmento (FRAG_LOAD_ERROR). O arquivo de vídeo .ts correspondente pode estar ausente (404) ou restrito (403).";
+            } else if (data.details && data.details.includes("MANIFEST")) {
+                diagnosis += "📋 Falha na playlist (MANIFEST_LOAD). Link expirado ou fora do ar.";
+            } else {
+                diagnosis += "🔍 Falha de mídia genérica ou erro de decodificação.";
+            }
+            console.warn(`[HLSError Diagnosis] ${diagnosis}`);
+
+            // Level Diagnostics
+            if (data.level !== undefined) {
+                console.error(`[HLSError Level Info] Index: ${data.level}`);
+                if (hlsPlayer.levels && hlsPlayer.levels[data.level]) {
+                    const l = hlsPlayer.levels[data.level];
+                    console.error(`[HLSError Level Info] Resolution: ${l.width || '?'}x${l.height || '?'}`);
+                    console.error(`[HLSError Level Info] Bitrate: ${l.bitrate ? (l.bitrate / 1000).toFixed(1) + 'kbps' : 'unknown'}`);
+                    console.error(`[HLSError Level Info] Base URL: ${l.url ? l.url[0] : "unknown"}`);
+                }
+            }
+
+            // Fragment Diagnostics
+            if (data.frag) {
+                console.error(`[HLSError Fragment Info] Sequence Number: ${data.frag.sn}`);
+                console.error(`[HLSError Fragment Info] Duration: ${data.frag.duration ? data.frag.duration.toFixed(2) + 's' : 'unknown'}`);
+                console.error(`[HLSError Fragment Info] Level: ${data.frag.level}`);
+                console.error(`[HLSError Fragment Info] Segment Request URL: ${data.frag.url}`);
+                if (data.frag.start !== undefined) {
+                    console.error(`[HLSError Fragment Info] Start Time in Stream: ${data.frag.start.toFixed(2)}s`);
+                }
+            }
+
+            // Network / Request Diagnostics
+            if (data.networkDetails) {
+                console.error(`[HLSError Network Details] HTTP Status: ${data.networkDetails.status} - ${data.networkDetails.statusText}`);
+            }
+            console.groupEnd();
+
+            // Auto-recovery handling for non-fatal/recoverable crashes to keep streams robust!
+            if (data.fatal) {
+                switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                        console.warn("[HLSError] Fatal network error encountered. Attempting automatic recovery...");
+                        hlsPlayer.startLoad();
+                        break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        console.warn("[HLSError] Fatal media/decoding error encountered. Swapping audio track or running recoverMediaError...");
+                        hlsPlayer.recoverMediaError();
+                        break;
+                    default:
+                        console.error("[HLSError] Fatal unrecoverable error. Halting stream.");
+                        break;
+                }
+            }
+        });
         let mpegtsPlayer = null;
 
         // Elements
