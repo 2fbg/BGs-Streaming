@@ -13,40 +13,63 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v2
+      - name: Generate high-privilege token for Perplexy App
+        id: get_token
+        uses: actions/create-github-app-token@v1
         with:
           app-id: '3988402'
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.get_token.outputs.token }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install requests
-        run: pip install requests
+      - name: Install dependencies
+        run: pip install PyJWT cryptography requests
 
-      - name: Generate repository access report
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      - name: Write Python script
         run: |
-          python - <<'PYTHON'
+          cat > app_report.py <<'PYTHON'
           import os
+          import time
           import json
           from datetime import datetime, timezone
+          import jwt
           import requests
 
-          token = os.environ['GH_TOKEN'].strip()
+          app_id = int(os.environ['GH_APP_ID'])
+          installation_id = os.environ['GH_INSTALLATION_ID']
+          private_key = os.environ['GH_APP_PRIVATE_KEY']
 
-          headers = {
+          now = int(time.time())
+          payload = {'iat': now - 60, 'exp': now + 600, 'iss': app_id}
+          app_jwt = jwt.encode(payload, private_key, algorithm='RS256')
+
+          app_headers = {
               'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
+              'Authorization': f'Bearer {app_jwt}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'github-actions-github-app-report',
+          }
+
+          token_response = requests.post(
+              f'https://api.github.com/app/installations/{installation_id}/access_tokens',
+              headers=app_headers,
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          token_data = token_response.json()
+          installation_token = token_data['token']
+
+          repo_headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {installation_token}',
               'X-GitHub-Api-Version': '2022-11-28',
               'User-Agent': 'github-actions-github-app-report',
           }
@@ -55,14 +78,14 @@ jobs:
           page = 1
 
           while True:
-              response = requests.get(
+              repo_response = requests.get(
                   'https://api.github.com/installation/repositories',
-                  headers=headers,
+                  headers=repo_headers,
                   params={'per_page': 100, 'page': page},
                   timeout=30,
               )
-              response.raise_for_status()
-              data = response.json()
+              repo_response.raise_for_status()
+              data = repo_response.json()
 
               batch = data.get('repositories', [])
               repos.extend(batch)
@@ -72,16 +95,18 @@ jobs:
 
               page += 1
 
+          with open('repositories.json', 'w', encoding='utf-8') as f:
+              json.dump({'total_count': len(repos), 'repositories': repos}, f, indent=2, ensure_ascii=False)
+
           summary = {
               'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+              'app_id': app_id,
+              'installation_id': installation_id,
+              'token_expires_at': token_data.get('expires_at'),
               'total_repositories': len(repos),
               'private_repositories': sum(1 for r in repos if r.get('private')),
               'public_repositories': sum(1 for r in repos if not r.get('private')),
-          }
-
-          raw_output = {
-              'total_count': len(repos),
-              'repositories': repos,
+              'token_permissions': token_data.get('permissions', {}),
           }
 
           report = {
@@ -107,9 +132,6 @@ jobs:
               ],
           }
 
-          with open('repositories.json', 'w', encoding='utf-8') as f:
-              json.dump(raw_output, f, indent=2, ensure_ascii=False)
-
           with open('github-app-access-report.json', 'w', encoding='utf-8') as f:
               json.dump(report, f, indent=2, ensure_ascii=False)
 
@@ -119,9 +141,13 @@ jobs:
           lines.append('## Resumo')
           lines.append('')
           lines.append(f"- Gerado em UTC: {summary['generated_at_utc']}")
+          lines.append(f"- App ID: {summary['app_id']}")
+          lines.append(f"- Installation ID: {summary['installation_id']}")
+          lines.append(f"- Expiração do token: {summary['token_expires_at']}")
           lines.append(f"- Total de repositórios: {summary['total_repositories']}")
           lines.append(f"- Repositórios privados: {summary['private_repositories']}")
           lines.append(f"- Repositórios públicos: {summary['public_repositories']}")
+          lines.append(f"- Permissões do token: `{json.dumps(summary['token_permissions'], ensure_ascii=False)}`")
           lines.append('')
           lines.append('## Repositórios')
           lines.append('')
@@ -145,11 +171,37 @@ jobs:
               f.write('\n'.join(lines))
           PYTHON
 
+      - name: Run Python script
+        env:
+          GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          GH_APP_ID: '3988402'
+          GH_INSTALLATION_ID: '138628024'
+        run: python app_report.py
+
+      - name: Commit and Push Reports to Repository
+        run: |
+          mkdir -p reports
+          mv repositories.json reports/
+          mv github-app-access-report.json reports/
+          mv github-app-access-report.md reports/
+
+          # Configure Git credentials as Perplexy Bot
+          git config --global user.name "perplexy[bot]"
+          git config --global user.email "3988402+perplexy[bot]@users.noreply.github.com"
+
+          git add reports/
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: automated update of repository access reports by Perplexy App [skip ci]"
+            git push
+          else
+            echo "No changes in repositories list."
+          fi
+
       - name: Upload report artifacts
         uses: actions/upload-artifact@v4
         with:
           name: github-app-access-report
           path: |
-            repositories.json
-            github-app-access-report.json
-            github-app-access-report.md
+            reports/repositories.json
+            reports/github-app-access-report.json
+            reports/github-app-access-report.md
