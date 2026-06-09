@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
             addAction("com.example.ACTION_PREVIOUS")
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(pipReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(pipReceiver, filter, android.content.Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(pipReceiver, filter)
         }
@@ -94,7 +94,9 @@ class MainActivity : ComponentActivity() {
             
             // Previous action intent
             val prevIntent = android.app.PendingIntent.getBroadcast(
-                this, 1, android.content.Intent("com.example.ACTION_PREVIOUS"),
+                this, 1, android.content.Intent("com.example.ACTION_PREVIOUS").apply {
+                    setPackage(packageName)
+                },
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             val prevIcon = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_media_previous)
@@ -103,7 +105,9 @@ class MainActivity : ComponentActivity() {
 
             // Play/Pause action intent
             val playPauseIntent = android.app.PendingIntent.getBroadcast(
-                this, 2, android.content.Intent("com.example.ACTION_PLAY_PAUSE"),
+                this, 2, android.content.Intent("com.example.ACTION_PLAY_PAUSE").apply {
+                    setPackage(packageName)
+                },
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             val playPauseIconRes = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
@@ -114,7 +118,9 @@ class MainActivity : ComponentActivity() {
 
             // Next action intent
             val nextIntent = android.app.PendingIntent.getBroadcast(
-                this, 3, android.content.Intent("com.example.ACTION_NEXT"),
+                this, 3, android.content.Intent("com.example.ACTION_NEXT").apply {
+                    setPackage(packageName)
+                },
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             val nextIcon = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_media_next)
