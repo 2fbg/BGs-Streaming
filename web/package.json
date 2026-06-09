@@ -1,0 +1,24 @@
+{
+  "name": "mk21-multiservidores-web",
+  "version": "1.0.0",
+  "description": "MK21 MultiServidor Web - IPTV Web Interface with High Performance",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx http-server . -p 3000 -o",
+    "preview": "npx http-server . -p 3000"
+  },
+  "keywords": [
+    "iptv",
+    "web",
+    "streaming",
+    "mk21"
+  ],
+  "author": "MK21 MultiServidor",
+  "license": "UNLICENSED",
+  "devDependencies": {},
+  "dependencies": {},
+  "notes": {
+    "speed-insights": "Vercel Speed Insights is implemented using CDN imports (https://cdn.jsdelivr.net/npm/@vercel/speed-insights@latest/dist/index.mjs) to avoid npm dependencies while maintaining full functionality."
+  }
+}
