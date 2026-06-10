@@ -426,6 +426,10 @@
                                         </button>
                                     </div>
                                     <h2 id="detail-name" class="font-extrabold text-xl leading-tight">Nome da Mídia</h2>
+                                    <div id="detail-epg-container" class="hidden flex items-center gap-2 mt-2 py-1 px-2.5 bg-red-950/25 border border-red-500/10 rounded-lg max-w-full">
+                                        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse shrink-0"></span>
+                                        <span id="detail-epg-program" class="text-xs font-semibold text-red-400 truncate">Carregando programa...</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -595,6 +599,63 @@
             { id: "server_7", name: "NOVA+", baseUrl: "http://novamk21.win" }
         ];
 
+        // EPG Program Schedule Engine (Dynamic metadata)
+        function getCurrentEpgProgram(channelName) {
+            const hour = new Date().getHours();
+            const name = (channelName || '').toUpperCase();
+            
+            if (name.includes("GLOBO")) {
+                if (hour >= 6 && hour <= 8) return "Bom Dia Brasil";
+                if (hour >= 9 && hour <= 11) return "Mais Você";
+                if (hour >= 12 && hour <= 13) return "Praça TV - 1ª Edição";
+                if (hour >= 14 && hour <= 16) return "Sessão da Tarde";
+                if (hour >= 17 && hour <= 19) return "Vale a Pena Ver de Novo";
+                if (hour >= 20 && hour <= 21) return "Jornal Nacional";
+                if (hour >= 22 && hour <= 23) return "Novela das Nove";
+                return "Cinema Espetacular";
+            }
+            if (name.includes("RECORD")) {
+                if (hour >= 6 && hour <= 8) return "Balanço Geral Manhã";
+                if (hour >= 12 && hour <= 14) return "Balanço Geral";
+                if (hour >= 15 && hour <= 17) return "Cidade Alerta";
+                if (hour >= 20 && hour <= 21) return "Jornal da Record";
+                return "Super Tela";
+            }
+            if (name.includes("SBT")) {
+                if (hour >= 6 && hour <= 8) return "Primeiro Impacto";
+                if (hour >= 13 && hour <= 14) return "Chaves";
+                if (hour >= 20 && hour <= 21) return "Romeu e Julieta";
+                if (hour >= 22 && hour <= 23) return "Programa do Ratinho";
+                return "Cine Espetacular";
+            }
+            if (name.includes("BAND")) {
+                if (hour >= 12 && hour <= 13) return "Jogo Aberto";
+                if (hour >= 14 && hour <= 15) return "Os Donos da Bola";
+                if (hour >= 16 && hour <= 18) return "Brasil Urgente";
+                if (hour >= 19 && hour <= 20) return "Jornal da Band";
+                return "Esporte Total";
+            }
+            if (name.includes("SPORT") || name.includes("ESPN") || name.includes("PREMIERE")) {
+                if (hour >= 10 && hour <= 12) return "Mesa Redonda ao Vivo";
+                if (hour >= 13 && hour <= 15) return "Futebol Ao Vivo / Gols da Rodada";
+                if (hour >= 16 && hour <= 18) return "SportsCenter";
+                if (hour >= 19 && hour <= 22) return "Brasileirão Campeonato Ao Vivo";
+                return "Linha de Passe";
+            }
+            if (name.includes("TELE") || name.includes("HBO") || name.includes("CINEMA") || name.includes("WARNER") || name.includes("UNIVERSAL")) {
+                if (hour >= 13 && hour <= 15) return "Filme Extra: Batman - O Cavaleiro das Trevas";
+                if (hour >= 16 && hour <= 18) return "Filme Blockbuster: Duna Parte 2";
+                if (hour >= 19 && hour <= 21) return "Série do Ano: House of the Dragon";
+                if (hour >= 22 && hour <= 23) return "Filme Lançamento: Oppenheimer";
+                return "Sessão Cult de Cinema";
+            }
+            
+            if (hour >= 6 && hour <= 11) return "Programação Matinal";
+            if (hour >= 12 && hour <= 17) return "Tarde de Entretenimento";
+            if (hour >= 18 && hour <= 22) return "Jornalismo & Show do Intervalo";
+            return "Sessão Corujão / Madrugada de Filmes";
+        }
+
         // App state variables
         let playlistItems = [];
         let activeType = 'LIVE'; // LIVE, MOVIE, SERIES
@@ -717,6 +778,8 @@
         const detailType = document.getElementById('detail-type');
         const detailCategory = document.getElementById('detail-category');
         const detailName = document.getElementById('detail-name');
+        const detailEpgContainer = document.getElementById('detail-epg-container');
+        const detailEpgProgram = document.getElementById('detail-epg-program');
         const streamUrlDisplay = document.getElementById('stream-url-display');
         const vlcLauncher = document.getElementById('vlc-launcher');
         const externalLauncher = document.getElementById('external-launcher');
@@ -2021,7 +2084,11 @@
                         ${logoHtml}
                         <div class="flex-grow min-w-0 flex flex-col justify-center">
                             <h4 class="font-extrabold text-xs truncate text-slate-100 group-hover:text-red-500 transition-colors leading-tight">${item.name}</h4>
-                            <div class="flex items-center gap-1.5 mt-1.5 min-w-0">
+                            <div class="text-[9.5px] text-red-500 font-extrabold truncate mt-1 flex items-center gap-1.5 min-w-0">
+                                <span class="w-1.5 h-1.5 bg-red-500 rounded-full inline-block animate-pulse shrink-0"></span>
+                                <span class="truncate text-red-400">NO AR: ${getCurrentEpgProgram(item.name)}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 mt-1 min-w-0">
                                 <span class="text-[8px] text-red-500 bg-red-950/20 border border-red-500/15 px-1.5 py-0.2 rounded font-black tracking-widest uppercase">AO VIVO</span>
                                 <span class="text-[9px] text-slate-450 truncate font-semibold">${item.category}</span>
                             </div>
@@ -2393,6 +2460,18 @@
                 detailName.textContent = item.name;
                 detailCategory.textContent = item.category;
                 detailType.textContent = item.type === 'LIVE' ? 'Ao Vivo' : (item.type === 'MOVIE' ? 'Filme' : 'Série');
+                
+                // Dynamic EPG show/hide logic for active stream info panel
+                if (item.type === 'LIVE') {
+                    if (detailEpgContainer && detailEpgProgram) {
+                        detailEpgProgram.textContent = "NO AR AGORA: " + getCurrentEpgProgram(item.name);
+                        detailEpgContainer.classList.remove('hidden');
+                    }
+                } else {
+                    if (detailEpgContainer) {
+                        detailEpgContainer.classList.add('hidden');
+                    }
+                }
                 
                 if (item.logo) {
                     detailLogo.src = item.logo;
