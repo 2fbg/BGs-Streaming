@@ -464,7 +464,7 @@
                                 <div id="episodes-list" class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
                                     <!-- Dynamic episode lists generated in JS -->
                                       <!-- Integration Tips & External Player Launchers inside a beautiful collapsible details box -->
-                            <details class="group bg-slate-950/40 border border-slate-900/60 rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
+                            <details open class="group bg-slate-950/40 border border-slate-900/60 rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
                                 <summary class="flex justify-between items-center p-3 sm:p-4 cursor-pointer hover:bg-slate-900/40 transition-colors select-none">
                                     <div class="flex items-center gap-2.5">
                                         <i class="fa-solid fa-gears text-[#E50914] group-open:rotate-90 transition-transform duration-300"></i>
@@ -1100,6 +1100,15 @@
                 if (videoElement.error.code === 1) {
                     console.log("[PLAYER] Ignored aborted error event (code 1).");
                     addLog("[Player] Ignored aborted error event (code 1).", "debug");
+                    return;
+                }
+
+                // If using a library player like hls.js or mpegts.js, let them handle their own errors.
+                // The native video element might throw misleading errors (like CODE 4: Format not supported) 
+                // because it doesn't natively speak ts/m3u8, even though the JS demuxer/library is handling it perfectly.
+                if (mpegtsPlayer !== null || (hlsPlayer && hlsPlayer.attachedElement !== null)) {
+                    console.warn("[PLAYER] HTML5 video tag fired native error but library player (mpegts/hls) is actively demuxing. Ignoring native error.");
+                    addLog(`[Player] Elemento de vídeo nativo reportou erro interno do navegador (Código: ${videoElement.error.code}), mas o player especializado (MPEG-TS/HLS) está ativo e contornando isso. Ignorado.`, "debug");
                     return;
                 }
 
@@ -2269,24 +2278,24 @@
             const httpInSecurePage = isSecureContextPlayback() && isHttpUrl(url);
 
             if (corsMethod === 'auto') {
-                if (httpInSecurePage) {
-                    return 'corsproxy';
-                }
-                if (window.location.protocol === 'http:' && !isHttpUrl(url)) {
-                    return 'direct';
-                }
                 if (
                     window.location.hostname.includes('vercel.app') ||
                     window.location.hostname.includes('run.app') ||
                     window.location.hostname.includes('localhost') ||
                     window.location.hostname.includes('127.0.0.1')
                 ) {
-                    return 'corsproxy';
+                    return 'vercel';
+                }
+                if (httpInSecurePage) {
+                    return 'vercel';
+                }
+                if (window.location.protocol === 'http:' && !isHttpUrl(url)) {
+                    return 'direct';
                 }
                 if (fastestCalculatedProxy) {
                     return fastestCalculatedProxy;
                 }
-                return 'corsproxy';
+                return 'vercel';
             }
 
             if (corsMethod === 'direct' && httpInSecurePage) {
