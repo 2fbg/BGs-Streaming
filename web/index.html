@@ -463,100 +463,108 @@
                                 </div>
                                 <div id="episodes-list" class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
                                     <!-- Dynamic episode lists generated in JS -->
-                                </div>
-                            </div>
-
-                            <!-- Integration Tips & External Player Launchers -->
-                            <div class="space-y-4">
-                                <div id="mixed-content-warning" class="hidden bg-amber-950/20 border border-amber-900/30 rounded-2xl p-4 text-xs text-amber-300 leading-relaxed space-y-3">
-                                    <div class="flex items-start gap-2.5">
-                                        <i class="fa-solid fa-triangle-exclamation text-base mt-0.5 text-amber-400"></i>
-                                        <div>
-                                            <span class="font-bold text-white block">Bloqueio de Segurança do Navegador (Mixed Content)</span>
-                                            Este canal de transmissão usa <strong class="text-amber-200">HTTP simples</strong>, mas o site está carregado via <strong class="text-amber-200">HTTPS seguro</strong>. Navegadores modernos (como Brave e Chrome) bloqueiam a reprodução web direta neste cenário por padrão.
-                                        </div>
+                                      <!-- Integration Tips & External Player Launchers inside a beautiful collapsible details box -->
+                            <details class="group bg-slate-950/40 border border-slate-900/60 rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
+                                <summary class="flex justify-between items-center p-3 sm:p-4 cursor-pointer hover:bg-slate-900/40 transition-colors select-none">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-gears text-[#E50914] group-open:rotate-90 transition-transform duration-300"></i>
+                                        <span class="font-extrabold text-[11px] uppercase tracking-wider text-slate-300">Suporte e Configurações Avançadas</span>
                                     </div>
-                                    
-                                    <div class="pt-2.5 border-t border-amber-900/30 flex flex-col gap-2">
-                                        <button onclick="accessViaHttp()" class="w-full px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all outline-none">
-                                            <i class="fa-solid fa-unlock"></i> Acessar por Conexão HTTP (Sem Bloqueio)
-                                        </button>
+                                    <i class="fa-solid fa-chevron-down group-open:rotate-180 transition-transform duration-300 text-slate-500 text-xs"></i>
+                                </summary>
+                                <div class="p-4 border-t border-slate-900/40 space-y-4">
+                                    <div id="mixed-content-warning" class="hidden bg-amber-950/20 border border-amber-900/30 rounded-xl p-3 text-xs text-amber-300 leading-relaxed space-y-3">
+                                        <div class="flex items-start gap-2.5">
+                                            <i class="fa-solid fa-triangle-exclamation text-base mt-0.5 text-amber-400"></i>
+                                            <div>
+                                                <span class="font-bold text-white block">Bloqueio de Segurança do Navegador (Mixed Content)</span>
+                                                Este canal de transmissão usa <strong class="text-amber-200">HTTP simples</strong>, mas o site está carregado via <strong class="text-amber-200">HTTPS seguro</strong>. Navegadores modernos (como Brave e Chrome) bloqueiam a reprodução web direta neste cenário por padrão.
+                                            </div>
+                                        </div>
                                         
-                                        <div class="bg-slate-950/50 p-2.5 rounded-lg text-slate-300 space-y-1.5 leading-snug">
-                                            <span class="font-bold text-amber-200 block text-[10px] uppercase tracking-wider">Como assistir sem travamento ou bloqueio:</span>
+                                        <div class="pt-2 border-t border-amber-900/30 flex flex-col gap-2">
+                                            <button onclick="accessViaHttp()" class="w-full px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all outline-none">
+                                                <i class="fa-solid fa-unlock"></i> Acessar por Conexão HTTP (Sem Bloqueio)
+                                            </button>
                                             
-                                            <!-- Dedicated Vercel streaming warning -->
-                                            <div id="vercel-redirect-tip" class="hidden pb-2 mb-2 border-b border-slate-800/80">
-                                                <p class="text-[10px] text-slate-300">
-                                                    💡 <strong>Recomendado:</strong> Vimos que você possui um deploy no Vercel! Acesse o app por <a href="https://bgstreaming.vercel.app" target="_blank" class="text-blue-400 underline font-bold">bgstreaming.vercel.app</a>. Lá, o nosso <strong>Proxy Vercel Dedicado</strong> funciona de forma 100% nativa para transmitir canais ao vivo em tempo real sem bloqueios!
-                                                </p>
+                                            <div class="bg-slate-950/50 p-2.5 rounded-lg text-slate-300 space-y-1.5 leading-snug">
+                                                <span class="font-bold text-amber-200 block text-[10px] uppercase tracking-wider">Como assistir sem travamento ou bloqueio:</span>
+                                                
+                                                <!-- Dedicated Vercel streaming warning -->
+                                                <div id="vercel-redirect-tip" class="hidden pb-2 mb-2 border-b border-slate-800/80">
+                                                    <p class="text-[10px] text-slate-300">
+                                                        💡 <strong>Recomendado:</strong> Vimos que você possui um deploy no Vercel! Acesse o app por <a href="https://bgstreaming.vercel.app" target="_blank" class="text-blue-400 underline font-bold">bgstreaming.vercel.app</a>. Lá, o nosso <strong>Proxy Vercel Dedicado</strong> funciona de forma 100% nativa para transmitir canais ao vivo em tempo real sem bloqueios!
+                                                    </p>
+                                                </div>
+
+                                                <ol class="list-decimal pl-4 space-y-1 text-slate-400 text-[10px]">
+                                                    <li>Clique no ícone de <strong class="text-slate-200">configurações / cadeado</strong> (à esquerda do endereço da URL do site lá em cima).</li>
+                                                    <li>Acesse <strong class="text-slate-200">"Configurações do site"</strong>.</li>
+                                                    <li>Procure a permissão de <strong class="text-slate-100">"Conteúdo não seguro"</strong> (Insecure Content) e mude para <strong class="text-slate-100">Permitir</strong>.</li>
+                                                    <li>Selecione o proxy <strong class="text-slate-100">"Sem Proxy (Conexão Direta)"</strong> abaixo e recarregue para assistir!</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-red-950/10 border border-red-900/20 rounded-xl p-3">
+                                        <h4 class="font-bold text-xs uppercase tracking-widest text-[#E50914] mb-1.5">Alternativas de Reprodução</h4>
+                                        <p class="text-[11px] text-slate-400 mb-2.5 leading-relaxed">
+                                            Se o reprodutor web do seu navegador apresentar falhas ou problemas de codec / CORS com este stream, copie o link abaixo ou assista no VLC Player.
+                                        </p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button onclick="copyCurrentStreamUrl()" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                                                <i class="fa-solid fa-copy text-[#E50914]"></i> Copiar Link
+                                            </button>
+                                            <button id="pip-button" onclick="togglePictureInPicture()" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm" title="Reproduzir em Mini Player">
+                                                <i class="fa-solid fa-window-restore text-[#E50914]"></i> Mini Player (PiP)
+                                            </button>
+                                            <a id="vlc-launcher" href="" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-orange-950/20">
+                                                <i class="fa-solid fa-video"></i> Abrir no VLC
+                                            </a>
+                                            <a id="external-launcher" href="" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                                                <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com...
+                                            </a>
+                                        </div>
+                                        <div id="stream-url-display" class="mt-2.5 text-[9.5px] text-slate-500 truncate select-all jetbrains bg-black p-1.5 rounded-lg border border-slate-850"></div>
+                                        <div class="mt-3.5 border-t border-slate-800/60 pt-2.5">
+                                            <!-- Auto Launcher Override Configuration -->
+                                            <div class="mb-3 bg-slate-950/60 border border-slate-850 rounded-lg p-2.5 flex items-center justify-between gap-2.5 text-left">
+                                                <div class="flex-grow">
+                                                    <span class="text-[11px] font-bold text-slate-200 block flex items-center gap-1.5">
+                                                        <i class="fa-solid fa-rocket text-[#E50914] animate-pulse"></i>
+                                                        Disparar Player Externo Direto
+                                                    </span>
+                                                    <span class="text-[9px] text-slate-400 block mt-0.5 leading-relaxed">
+                                                        Ignorar o reprodutor web e abrir canais/vídeos diretamente no seu player aplicativo externo (VLC/Sistema).
+                                                    </span>
+                                                </div>
+                                                <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                                                    <input id="auto-external-toggle" type="checkbox" onchange="toggleAutoExternalPlayer()" class="sr-only peer">
+                                                    <div class="w-8 h-4.5 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-slate-100 after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#E50914]"></div>
+                                                </label>
                                             </div>
 
-                                            <ol class="list-decimal pl-4 space-y-1 text-slate-400 text-[10px]">
-                                                <li>Clique no ícone de <strong class="text-slate-200">configurações / cadeado</strong> (à esquerda do endereço da URL do site lá em cima).</li>
-                                                <li>Acesse <strong class="text-slate-200">"Configurações do site"</strong>.</li>
-                                                <li>Procure a permissão de <strong class="text-slate-200">"Conteúdo não seguro"</strong> (Insecure Content) e mude para <strong class="text-slate-200">Permitir</strong>.</li>
-                                                <li>Selecione o proxy <strong class="text-slate-200">"Sem Proxy (Conexão Direta)"</strong> abaixo e recarregue para assistir!</li>
-                                            </ol>
+                                            <label class="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">Proxy de Entrada do Player Web</label>
+                                            <div class="relative">
+                                                <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-2.5 py-1.5 bg-black border border-slate-800 text-slate-100 text-xs rounded-lg focus:ring-1 focus:ring-[#E50914] appearance-none outline-none font-semibold font-sans">
+                                                    <option value="auto">⚡ Conexão Automática (Sugerido)</option>
+                                                    <option value="vercel">🛡️ Proxy Integrado Dedicado (Recomendado)</option>
+                                                    <option value="corsproxy">Proxy 1 (CorsProxy.io)</option>
+                                                    <option value="allorigins">Proxy 2 (AllOrigins - Alternativo)</option>
+                                                    <option value="codetabs">Proxy 3 (CodeTabs - Alternativo)</option>
+                                                    <option value="thingproxy">Proxy 4 (ThingProxy)</option>
+                                                    <option value="direct">Sem Proxy (Conexão Direta)</option>
+                                                </select>
+                                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                                                    <i class="fa-solid fa-chevron-down text-[10px] text-[#E50914]"></i>
+                                                </div>
+                                            </div>
+                                            <p class="text-[9px] text-slate-500 mt-1 leading-snug">Se o canal ficar carregando infinitamente, altere o proxy acima para tentar outro provedor de bypass ou assista no VLC.</p>
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="bg-red-950/10 border border-red-900/20 rounded-2xl p-4">
-                                    <h4 class="font-bold text-xs uppercase tracking-widest text-[#E50914] mb-2">Alternativas de Reprodução</h4>
-                                    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
-                                        Se o reprodutor web do seu navegador apresentar falhas ou problemas de codec / CORS com este stream, copie o link abaixo ou assista no VLC Player.
-                                    </p>
-                                    <div class="flex flex-wrap gap-2">
-                                        <button onclick="copyCurrentStreamUrl()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
-                                            <i class="fa-solid fa-copy text-[#E50914]"></i> Copiar Link
-                                        </button>
-                                        <button id="pip-button" onclick="togglePictureInPicture()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm" title="Reproduzir em Mini Player">
-                                            <i class="fa-solid fa-window-restore text-[#E50914]"></i> Mini Player (PiP)
-                                        </button>
-                                        <a id="vlc-launcher" href="" class="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-orange-950/20">
-                                            <i class="fa-solid fa-video"></i> Abrir no VLC
-                                        </a>
-                                        <a id="external-launcher" href="" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
-                                            <i class="fa-solid fa-share-nodes text-[#E50914]"></i> Abrir com...
-                                        </a>
-                                    </div>
-                                    <div id="stream-url-display" class="mt-3 text-[10px] text-slate-500 truncate select-all jetbrains bg-black p-2 rounded-lg border border-slate-850"></div>
-                                    <div class="mt-4 border-t border-slate-800/60 pt-3">
-                                        <!-- Auto Launcher Override Configuration -->
-                                        <div class="mb-3.5 bg-slate-950/60 border border-slate-850 rounded-xl p-3 flex items-center justify-between gap-3 text-left">
-                                            <div class="flex-grow">
-                                                <span class="text-xs font-bold text-slate-200 block flex items-center gap-1.5">
-                                                    <i class="fa-solid fa-rocket text-[#E50914] animate-pulse"></i>
-                                                    Disparar Player Externo Direto
-                                                </span>
-                                                <span class="text-[9.5px] text-slate-400 block mt-0.5 leading-relaxed">
-                                                    Ignorar o reprodutor web e abrir canais/vídeos diretamente no seu player aplicativo externo (VLC/Sistema).
-                                                </span>
-                                            </div>
-                                            <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                                                <input id="auto-external-toggle" type="checkbox" onchange="toggleAutoExternalPlayer()" class="sr-only peer">
-                                                <div class="w-8 h-4.5 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-slate-100 after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#E50914]"></div>
-                                            </label>
-                                        </div>
-
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Proxy de Entrada do Player Web</label>
-                                        <div class="relative">
-                                            <select id="player-proxy-selector" onchange="changePlayerProxy()" class="w-full px-3 py-2 bg-black border border-slate-800 text-slate-100 text-xs rounded-lg focus:ring-1 focus:ring-[#E50914] appearance-none outline-none font-semibold">
-                                                <option value="auto">⚡ Conexão Automática (Sugerido)</option>
-                                                 <option value="vercel">🛡️ Proxy Integrado Dedicado (Recomendado)</option>
-                                                 <option value="corsproxy">Proxy 1 (CorsProxy.io)</option>
-                                                <option value="allorigins">Proxy 2 (AllOrigins - Alternativo)</option>
-                                                <option value="codetabs">Proxy 3 (CodeTabs - Alternativo)</option>
-                                                <option value="thingproxy">Proxy 4 (ThingProxy)</option>
-                                                <option value="direct">Sem Proxy (Conexão Direta)</option>
-                                            </select>
-                                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                                                <i class="fa-solid fa-chevron-down text-[10px] text-[#E50914]"></i>
-                                            </div>
-                                        </div>
-                                        <p class="text-[10px] text-slate-500 mt-1.5 leading-snug">Se o canal ficar carregando infinitamente, altere o proxy acima para tentar outro provedor de bypass ou assista no VLC.</p>
-                                    </div>
+                            </details>                       </div>
                                 </div>
                             </div>
                         </div>
@@ -674,6 +682,7 @@
         let activeCategory = 'ALL';
         let itemsLimit = 30;
         let upgradedHttpsAttempted = false;
+        let currentProxyRotationIndex = 0;
         let currentStreamUrl = '';
         let currentActiveItem = null;
         let currentActiveShow = null; // Selected Show object (for Series)
@@ -980,67 +989,7 @@
 
             // Handle video tag errors for fallback layouts
             videoElement.addEventListener('error', () => {
-                if (!upgradedHttpsAttempted && currentStreamUrl && currentStreamUrl.startsWith('http://') && window.location.protocol === 'https:') {
-                    upgradedHttpsAttempted = true;
-                    const upgradedUrl = currentStreamUrl.replace(/^http:\/\//i, 'https://').replace(/:80\//i, '/');
-                    console.log("[PLAYER] Direct HTTP playback restricted/failed under HTTPS and Mixed Content. Attempting automatic HTTPS protocol upgrade to:", upgradedUrl);
-                    
-                    showNotification("Problema de protocolo detectado. Tentando upgrade automático para HTTPS seguro...", "info");
-                    
-                    const upgradedProxiedUrl = getProxyUrl(
-                        upgradedUrl,
-                        getEffectiveProxyMethod(upgradedUrl, getStoredProxyMode())
-                    );
-                    
-                    const isMpegTs = upgradedUrl.includes('/ts') || upgradedUrl.includes('.ts') || upgradedUrl.includes('output=mpegts') || upgradedUrl.includes('type=mpegts');
-                    const isStaticVideo = upgradedUrl.includes('.mp4') || upgradedUrl.includes('.mkv') || upgradedUrl.includes('.webm') || upgradedUrl.includes('.avi');
-                    
-                    if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
-                        try {
-                            if (mpegtsPlayer) {
-                                mpegtsPlayer.pause();
-                                mpegtsPlayer.unload();
-                                mpegtsPlayer.detachMediaElement();
-                                mpegtsPlayer.destroy();
-                                mpegtsPlayer = null;
-                            }
-                            mpegtsPlayer = mpegts.createPlayer({
-                                type: 'mpegts',
-                                isLive: currentActiveItem ? currentActiveItem.type === 'LIVE' : true,
-                                url: upgradedProxiedUrl,
-                                cors: true
-                            }, {
-                                enableWorker: true,
-                                lazyLoadMaxKeepAliveDuration: 10,
-                                seekType: 'range'
-                            });
-                            mpegtsPlayer.attachMediaElement(videoElement);
-                            mpegtsPlayer.load();
-                            mpegtsPlayer.play().catch(e => {
-                                console.warn("Auto-play blocked inside upgraded MPEG-TS: ", e);
-                            });
-                        } catch (err) {
-                            videoElement.src = upgradedProxiedUrl;
-                            videoElement.play().catch(e => console.warn(e));
-                        }
-                    } else if (Hls.isSupported() && !isStaticVideo) {
-                        try {
-                            hlsPlayer.loadSource(upgradedProxiedUrl);
-                            hlsPlayer.attachMedia(videoElement);
-                            videoElement.play().catch(e => console.warn(e));
-                        } catch(err) {
-                            videoElement.src = upgradedProxiedUrl;
-                            videoElement.play().catch(e => console.warn(e));
-                        }
-                    } else {
-                        videoElement.src = upgradedProxiedUrl;
-                        videoElement.play().catch(err => {
-                            console.log("Direct upgraded fallback error:", err);
-                        });
-                    }
-                    return;
-                }
-                showPlayerError();
+                handlePlaybackError();
             });
 
             // Header Server Switcher event binding (Fast server quick switch, identical to APK)
@@ -1082,6 +1031,33 @@
                     // Re-run the login routine automatically with same parameters!
                     performLogin();
                 });
+            }
+        }
+
+        const PROXY_ROTATION_LIST = ['auto', 'corsproxy', 'vercel', 'codetabs', 'allorigins', 'direct'];
+
+        function handlePlaybackError() {
+            if (!currentStreamUrl) return;
+            
+            if (currentProxyRotationIndex < PROXY_ROTATION_LIST.length - 1) {
+                currentProxyRotationIndex++;
+                const nextProxyMethod = PROXY_ROTATION_LIST[currentProxyRotationIndex];
+                
+                let proxyLabel = 'Conexão Direta (Sem Proxy)';
+                if (nextProxyMethod === 'corsproxy') proxyLabel = 'Servidor de Transmissão 1 (CorsProxy)';
+                if (nextProxyMethod === 'vercel') proxyLabel = 'Servidor de Transmissão Integrado (Vercel)';
+                if (nextProxyMethod === 'codetabs') proxyLabel = 'Servidor de Transmissão Alternativo 3 (CodeTabs)';
+                if (nextProxyMethod === 'allorigins') proxyLabel = 'Servidor de Transmissão Alternativo 4 (AllOrigins)';
+
+                console.warn(`[PLAYER-FALLBACK] Playback failed. Restructuring connection under: ${nextProxyMethod} (${currentProxyRotationIndex}/${PROXY_ROTATION_LIST.length - 1})`);
+                showNotification(`Instabilidade sob IP direto. Reconectando canais em modo seguro pelo ${proxyLabel}... 🔄`, 'info');
+                
+                if (currentActiveItem) {
+                    playStream(currentActiveItem, true, nextProxyMethod);
+                }
+            } else {
+                console.error("[PLAYER-FALLBACK] All safe playback servers exhausted.");
+                showPlayerError();
             }
         }
 
@@ -2174,7 +2150,7 @@
 
             if (corsMethod === 'auto') {
                 if (httpInSecurePage) {
-                    return 'vercel';
+                    return 'corsproxy';
                 }
                 if (window.location.protocol === 'http:' && !isHttpUrl(url)) {
                     return 'direct';
@@ -2185,16 +2161,16 @@
                     window.location.hostname.includes('localhost') ||
                     window.location.hostname.includes('127.0.0.1')
                 ) {
-                    return 'vercel';
+                    return 'corsproxy';
                 }
                 if (fastestCalculatedProxy) {
                     return fastestCalculatedProxy;
                 }
-                return 'vercel';
+                return 'corsproxy';
             }
 
             if (corsMethod === 'direct' && httpInSecurePage) {
-                return 'vercel';
+                return 'corsproxy';
             }
 
             return corsMethod;
@@ -2438,9 +2414,13 @@
         }
 
         // Play Execution
-        function playStream(item, preserveLayout = false) {
+        function playStream(item, preserveLayout = false, customProxyMethod = null) {
             currentStreamUrl = item.url;
             upgradedHttpsAttempted = false;
+            
+            if (customProxyMethod === null) {
+                currentProxyRotationIndex = 0;
+            }
             
             // Show player column on mobile if hidden
             const playerCol = document.getElementById('player-column');
@@ -2449,7 +2429,7 @@
                 playerCol.classList.add('flex');
             }
 
-            const effectiveSelectorValue = getEffectiveProxyMethod(item.url, getStoredProxyMode());
+            const effectiveSelectorValue = customProxyMethod || getEffectiveProxyMethod(item.url, getStoredProxyMode());
             syncProxySelectors(effectiveSelectorValue);
 
             // Update Details Panel
@@ -2558,7 +2538,7 @@
             const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
             const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
             
-            const playable = getPlayableStreamUrl(item.url);
+            const playable = getPlayableStreamUrl(item.url, effectiveSelectorValue);
             const proxiedUrl = playable.url;
 
             if (playable.method === 'vercel' && isSecureContextPlayback() && isHttpUrl(item.url)) {
@@ -2585,7 +2565,7 @@
                     });
                     mpegtsPlayer.on(mpegts.Events.ERROR, (type, detail, info) => {
                         console.error("MPEGTS player error:", type, detail, info);
-                        showPlayerError();
+                        handlePlaybackError();
                     });
                 } catch (err) {
                     console.error("Failed to construct mpegts player:", err);
