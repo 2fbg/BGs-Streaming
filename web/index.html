@@ -702,6 +702,7 @@
         let currentActiveItem = null;
         let currentActiveShow = null; // Selected Show object (for Series)
         let currentActiveEpisodeItem = null; // Selected episode item currently playing
+        let hlsAttemptFailed = false;
 
         // Diagnostic Console Logger to track requests, buffers and errors in real-time
         function addLog(msg, type = 'info') {
@@ -827,9 +828,20 @@
                     case Hls.ErrorTypes.NETWORK_ERROR:
                         const isManifestError = (data.details === 'manifestLoadError' || data.details === 'manifestLoadTimeOut' || (typeof Hls !== 'undefined' && Hls.ErrorDetails && (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT)));
                         if (isManifestError) {
-                            console.warn("[HLSError] Fatal manifest load error. Attempting fallback proxy...");
-                            addLog("[HLSError] Erro fatal de carregamento de manifesto. Alternando proxy...", "error");
-                            handlePlaybackError();
+                            if (!hlsAttemptFailed && currentStreamUrl && (currentStreamUrl.includes('.ts') || currentStreamUrl.includes('/ts') || currentStreamUrl.includes('output=mpegts'))) {
+                                console.warn("[HLSError] HLS (.m3u8) failed to load for this live channel. Falling back to native MPEG-TS (.ts) stream...");
+                                addLog("[HLSError] Falha ao carregar canal em formato HLS (.m3u8). Retornando para transmissão MPEG-TS nativa (.ts)...", "warn");
+                                hlsAttemptFailed = true;
+                                currentProxyRotationIndex = 0;
+                                const itemToPlay = currentActiveEpisodeItem || currentActiveItem;
+                                if (itemToPlay) {
+                                    playStream(itemToPlay, !!currentActiveShow, PROXY_ROTATION_LIST[0]);
+                                }
+                            } else {
+                                console.warn("[HLSError] Fatal manifest load error. Attempting fallback proxy...");
+                                addLog("[HLSError] Erro fatal de carregamento de manifesto. Alternando proxy próximo...", "error");
+                                handlePlaybackError();
+                            }
                         } else {
                             console.warn("[HLSError] Fatal network error encountered. Attempting automatic recovery...");
                             addLog("[HLSError] Erro fatal de rede. Tentando recuperação automática...", "warn");
@@ -2546,6 +2558,34 @@
             }
         }
 
+        function convertLiveUrlToHls(url) {
+            if (!url) return url;
+            const lowerUrl = url.toLowerCase();
+            if ((lowerUrl.includes('.ts') || lowerUrl.includes('/ts') || lowerUrl.includes('output=ts')) && !lowerUrl.includes('.m3u8')) {
+                try {
+                    const urlObj = new URL(url);
+                    let path = urlObj.pathname;
+                    if (path.startsWith('/live/')) {
+                        urlObj.pathname = path.replace(/\.ts$/i, '.m3u8');
+                        return urlObj.toString();
+                    }
+                    const parts = path.split('/').filter(p => p.length > 0);
+                    if (parts.length === 3) {
+                        const username = parts[0];
+                        const password = parts[1];
+                        const file = parts[2];
+                        const lastDotIndex = file.lastIndexOf('.');
+                        const streamId = lastDotIndex !== -1 ? file.substring(0, lastDotIndex) : file;
+                        urlObj.pathname = `/live/${username}/${password}/${streamId}.m3u8`;
+                        return urlObj.toString();
+                    }
+                } catch (e) {
+                    console.warn("[HLS Conversion Error]", e);
+                }
+            }
+            return url;
+        }
+
         // Play Execution
         function playStream(item, preserveLayout = false, customProxyMethod = null) {
             currentStreamUrl = item.url;
@@ -2553,6 +2593,7 @@
             
             if (customProxyMethod === null) {
                 currentProxyRotationIndex = 0;
+                hlsAttemptFailed = false;
             }
             
             // Show player column on mobile if hidden
@@ -2668,15 +2709,24 @@
                 errorOverlay.classList.remove('flex');
             }
 
-            const isMpegTs = item.url.includes('/ts') || item.url.includes('.ts') || item.url.includes('output=mpegts') || item.url.includes('type=mpegts');
-            const isStaticVideo = item.url.includes('.mp4') || item.url.includes('.mkv') || item.url.includes('.webm') || item.url.includes('.avi');
+            let streamToPlayUrl = item.url;
+            if (item.type === 'LIVE' && !hlsAttemptFailed) {
+                const converted = convertLiveUrlToHls(item.url);
+                if (converted !== item.url) {
+                    addLog(`[Player Engine] Convertendo canal de MPEG-TS (.ts) para HLS (.m3u8) para melhor compatibilidade web: ${converted}`, "info");
+                    streamToPlayUrl = converted;
+                }
+            }
+
+            const isMpegTs = streamToPlayUrl.includes('/ts') || streamToPlayUrl.includes('.ts') || streamToPlayUrl.includes('output=mpegts') || streamToPlayUrl.includes('type=mpegts');
+            const isStaticVideo = streamToPlayUrl.includes('.mp4') || streamToPlayUrl.includes('.mkv') || streamToPlayUrl.includes('.webm') || streamToPlayUrl.includes('.avi');
             
-            const playable = getPlayableStreamUrl(item.url, effectiveSelectorValue);
+            const playable = getPlayableStreamUrl(streamToPlayUrl, effectiveSelectorValue);
             const proxiedUrl = playable.url;
 
             addLog(`[Player] Iniciando carregamento do canal: "${item.name}" (Modo: ${item.type})`, "info");
             addLog(`[Player] Proxy selecionado: ${playable.method.toUpperCase()}`, "debug");
-            addLog(`[Player] Link original: ${item.url}`, "debug");
+            addLog(`[Player] Link original: ${streamToPlayUrl}`, "debug");
             addLog(`[Player] Link de bypass (CORS/SSL): ${proxiedUrl}`, "debug");
 
             if (playable.method === 'vercel' && isSecureContextPlayback() && isHttpUrl(item.url)) {
