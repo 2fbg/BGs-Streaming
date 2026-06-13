@@ -1169,11 +1169,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             if (user.isEmpty() || pass.isEmpty()) {
                 return ""
             }
-            // Construct HTTP url always, force http:// instead of https://
+            // Construct base URL, ensuring there's a scheme and keeping HTTPS if provided
             var base = predefinedServer.baseUrl
-            if (base.startsWith("https://", ignoreCase = true)) {
-                base = "http://" + base.substring(8)
-            } else if (!base.startsWith("http://", ignoreCase = true)) {
+            if (!base.startsWith("http://", ignoreCase = true) && !base.startsWith("https://", ignoreCase = true)) {
                 base = "http://$base"
             }
             val encodedUser = try { java.net.URLEncoder.encode(user, "UTF-8") } catch (e: Exception) { user }
@@ -1187,10 +1185,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val matched = manualPlaylists.value.find { it.name == currentPlaylist }
         if (matched != null) {
             manualUrl = matched.url
-            // Force http:// instead of https:// for manual lists too if pasted as https
-            if (manualUrl.startsWith("https://", ignoreCase = true)) {
-                manualUrl = "http://" + manualUrl.substring(8)
-            }
         }
         return manualUrl
     }

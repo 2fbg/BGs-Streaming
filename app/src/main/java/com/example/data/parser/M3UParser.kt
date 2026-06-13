@@ -89,11 +89,7 @@ object M3UParser {
     }
 
     private fun parseUrlOnly(streamUrl: String, playlistSource: String): PlaylistItem {
-        val finalUrl = if (streamUrl.startsWith("https://", ignoreCase = true)) {
-            "http://" + streamUrl.substring(8)
-        } else {
-            streamUrl
-        }
+        val finalUrl = streamUrl
         val uri = try {
             URI(finalUrl)
         } catch (e: Exception) {
@@ -142,11 +138,7 @@ object M3UParser {
             displayName = tvgName
         }
 
-        val finalUrl = if (streamUrl.startsWith("https://", ignoreCase = true)) {
-            "http://" + streamUrl.substring(8)
-        } else {
-            streamUrl
-        }
+        val finalUrl = streamUrl
 
         // Determine content-type (Ao Vivo, Filmes, Séries)
         val contentType = determineType(displayName, category, finalUrl)
