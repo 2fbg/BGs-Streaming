@@ -561,6 +561,18 @@
                                                 </div>
                                             </div>
                                             <p class="text-[9px] text-slate-500 mt-1 leading-snug">Se o canal ficar carregando infinitamente, altere o proxy acima para tentar outro provedor de bypass ou assista no VLC.</p>
+
+                                            <!-- Real-time Playback Diagnostic Console -->
+                                            <div class="mt-4 border-t border-slate-800/60 pt-3">
+                                                <div class="flex items-center justify-between gap-2 mb-1.5">
+                                                    <label class="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Console de Diagnóstico & Logs (Tempo Real)</label>
+                                                    <button onclick="clearDiagnosticLogs(); event.preventDefault();" class="text-[8.5px] text-[#E50914] bg-red-950/25 border border-red-900/30 px-2 py-0.5 rounded hover:bg-red-950/50 font-bold transition-colors outline-none">Limpar Logs</button>
+                                                </div>
+                                                <div id="diagnostic-log-console" class="w-full h-40 bg-black border border-slate-900 rounded-lg p-2.5 overflow-y-auto text-[10px] font-mono leading-normal space-y-1 select-text scrollbar-thin scrollbar-thumb-slate-850 scrollbar-track-transparent">
+                                                    <div class="text-slate-500 italic">[Sem logs de transmissão. Inicie uma reprodução para capturar eventos em tempo real]</div>
+                                                </div>
+                                                <span class="text-[8.5px] text-slate-500 block mt-1 leading-normal">Estes logs detalham as respostas dos servidores, do reprodutor HLS/MPEGTS e os bypasses de CORS/Mixed Content.</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -682,11 +694,67 @@
         let activeCategory = 'ALL';
         let itemsLimit = 30;
         let upgradedHttpsAttempted = false;
+        let isStreamStopping = false;
         let currentProxyRotationIndex = 0;
         let currentStreamUrl = '';
         let currentActiveItem = null;
         let currentActiveShow = null; // Selected Show object (for Series)
         let currentActiveEpisodeItem = null; // Selected episode item currently playing
+
+        // Diagnostic Console Logger to track requests, buffers and errors in real-time
+        function addLog(msg, type = 'info') {
+            const consoleEl = document.getElementById('diagnostic-log-console');
+            if (!consoleEl) return;
+            
+            // Remove placeholder if present
+            if (consoleEl.innerHTML.includes('[Sem logs.') || consoleEl.innerHTML.includes('[Logs limpos.')) {
+                consoleEl.innerHTML = '';
+            }
+            
+            const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+            let typeClass = 'text-slate-350';
+            let icon = '⚡';
+            
+            if (type === 'debug') {
+                typeClass = 'text-purple-400';
+                icon = '⚙️';
+            } else if (type === 'warn') {
+                typeClass = 'text-amber-400';
+                icon = '⚠️';
+            } else if (type === 'error') {
+                typeClass = 'text-red-500 font-bold';
+                icon = '🚨';
+            } else if (type === 'success') {
+                typeClass = 'text-emerald-400 font-semibold';
+                icon = '✔️';
+            }
+            
+            const logItem = document.createElement('div');
+            logItem.className = `flex gap-1.5 border-b border-white/5 pb-0.5 leading-snug ${typeClass}`;
+            logItem.innerHTML = `
+                <span class="text-slate-500 select-none shrink-0 font-bold font-mono">[${timestamp}]</span>
+                <span class="select-none shrink-0 font-bold">${icon}</span>
+                <span class="break-all font-mono">${msg}</span>
+            `;
+            
+            consoleEl.appendChild(logItem);
+            
+            // Keep maximum of 150 items to prevent DOM bloat
+            while (consoleEl.children.length > 150) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
+            
+            // Auto scroll to bottom
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        function clearDiagnosticLogs() {
+            const consoleEl = document.getElementById('diagnostic-log-console');
+            if (consoleEl) {
+                consoleEl.innerHTML = '<div class="text-slate-500 italic">[Logs limpos. Inicie uma transmissão para capturar novos logs]</div>';
+            }
+        }
+
         const hlsPlayer = new Hls({
             maxBufferSize: 30 * 1024 * 1024,
             maxBufferLength: 20,
@@ -695,6 +763,12 @@
 
         // Detailed error listener to output diagnostic level & fragment logs when stream is interrupted.
         hlsPlayer.on(Hls.Events.ERROR, function (event, data) {
+            if (isStreamStopping) {
+                console.log("[HLS-JS] Ignored hls error during stream stop/reset.");
+                addLog("[HLS-JS] Ignored error event during stream tear-down.", "debug");
+                return;
+            }
+
             console.group("%c=== HLS-JS PLAYBACK ERROR DIAGNOSTICS ===", "color: #E50914; font-weight: bold; font-size: 13px;");
             console.error(`[HLSError] Event Type: ${event}`);
             console.error(`[HLSError] Category (data.type): ${data.type}`);
@@ -713,6 +787,7 @@
                 diagnosis += "🔍 Falha de mídia genérica ou erro de decodificação.";
             }
             console.warn(`[HLSError Diagnosis] ${diagnosis}`);
+            addLog(`[HLS Error] Categoria: ${data.type} | Detalhe: ${data.details} | Fatal: ${data.fatal}`, data.fatal ? 'error' : 'warn');
 
             // Level Diagnostics
             if (data.level !== undefined) {
@@ -722,6 +797,7 @@
                     console.error(`[HLSError Level Info] Resolution: ${l.width || '?'}x${l.height || '?'}`);
                     console.error(`[HLSError Level Info] Bitrate: ${l.bitrate ? (l.bitrate / 1000).toFixed(1) + 'kbps' : 'unknown'}`);
                     console.error(`[HLSError Level Info] Base URL: ${l.url ? l.url[0] : "unknown"}`);
+                    addLog(`[HLS Resolution] ${l.width || '?'}x${l.height || '?'} | Bitrate: ${l.bitrate ? (l.bitrate / 1000).toFixed(0) + ' kbps' : 'desconhecido'}`, 'debug');
                 }
             }
 
@@ -739,6 +815,7 @@
             // Network / Request Diagnostics
             if (data.networkDetails) {
                 console.error(`[HLSError Network Details] HTTP Status: ${data.networkDetails.status} - ${data.networkDetails.statusText}`);
+                addLog(`[HLS Rede] Status HTTP do fragmento: ${data.networkDetails.status} (${data.networkDetails.statusText || 'Sem resposta'})`, 'warn');
             }
             console.groupEnd();
 
@@ -749,18 +826,22 @@
                         const isManifestError = (data.details === 'manifestLoadError' || data.details === 'manifestLoadTimeOut' || (typeof Hls !== 'undefined' && Hls.ErrorDetails && (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT)));
                         if (isManifestError) {
                             console.warn("[HLSError] Fatal manifest load error. Attempting fallback proxy...");
+                            addLog("[HLSError] Erro fatal de carregamento de manifesto. Alternando proxy...", "error");
                             handlePlaybackError();
                         } else {
                             console.warn("[HLSError] Fatal network error encountered. Attempting automatic recovery...");
+                            addLog("[HLSError] Erro fatal de rede. Tentando recuperação automática...", "warn");
                             hlsPlayer.startLoad();
                         }
                         break;
                     case Hls.ErrorTypes.MEDIA_ERROR:
                         console.warn("[HLSError] Fatal media/decoding error encountered. Swapping audio track or running recoverMediaError...");
+                        addLog("[HLSError] Erro fatal de decodificação de mídia. Executando recoverMediaError...", "warn");
                         hlsPlayer.recoverMediaError();
                         break;
                     default:
                         console.error("[HLSError] Fatal unrecoverable error. Halting stream and calling fallback proxy...");
+                        addLog("[HLSError] Erro fatal irrecuperável. Parando stream e rotacionando proxy...", "error");
                         handlePlaybackError();
                         break;
                 }
@@ -995,7 +1076,35 @@
             }
 
             // Handle video tag errors for fallback layouts
-            videoElement.addEventListener('error', () => {
+            videoElement.addEventListener('error', (e) => {
+                if (isStreamStopping) {
+                    console.log("[PLAYER] Ignored error during stream tear-down/stop.");
+                    addLog("[Player] Ignored error event during stream reset/teardown.", "debug");
+                    return;
+                }
+                
+                // If there's no src, or the src is just the page origin itself (from removing src attribute), it's a false error during reset
+                if (!videoElement.src || videoElement.src === window.location.href || videoElement.src === 'about:blank' || videoElement.src === '') {
+                    console.log("[PLAYER] Ignored false error caused by empty source/reset.");
+                    addLog("[Player] Ignored false error caused by reset.", "debug");
+                    return;
+                }
+
+                if (!videoElement.error) {
+                    console.log("[PLAYER] Ignored null error event.");
+                    addLog("[Player] Ignored null error event.", "debug");
+                    return;
+                }
+
+                // Code 1 is MEDIA_ERR_ABORTED - representing user stop/reset
+                if (videoElement.error.code === 1) {
+                    console.log("[PLAYER] Ignored aborted error event (code 1).");
+                    addLog("[Player] Ignored aborted error event (code 1).", "debug");
+                    return;
+                }
+
+                console.error("[PLAYER] Real video element error occurred:", videoElement.error.code, videoElement.error.message);
+                addLog(`[Player Video Tag Error] Erro HTML5 de vídeo nativo detectado! Código: ${videoElement.error.code} | Mensagem: ${videoElement.error.message || 'Sem detalhes'}`, "error");
                 handlePlaybackError();
             });
 
@@ -1057,6 +1166,7 @@
                 if (nextProxyMethod === 'allorigins') proxyLabel = 'Servidor de Transmissão Alternativo 4 (AllOrigins)';
 
                 console.warn(`[PLAYER-FALLBACK] Playback failed. Restructuring connection under: ${nextProxyMethod} (${currentProxyRotationIndex}/${PROXY_ROTATION_LIST.length - 1})`);
+                addLog(`[Player Fallback] Falha na reprodução corrente. Rotacionando conexão para: ${nextProxyMethod.toUpperCase()} (${proxyLabel})`, 'warn');
                 showNotification(`Instabilidade sob IP direto. Reconectando canais em modo seguro pelo ${proxyLabel}... 🔄`, 'info');
                 
                 const itemToPlay = currentActiveEpisodeItem || currentActiveItem;
@@ -1065,12 +1175,14 @@
                 }
             } else {
                 console.error("[PLAYER-FALLBACK] All safe playback servers exhausted.");
+                addLog("[Player Fallback] Todos os servidores e proxies falharam em carregar esta mídia.", "error");
                 showPlayerError();
             }
         }
 
         function showPlayerError() {
             if (!currentStreamUrl) return;
+            addLog("[Player UI] Exibindo tela de erro: Restrição de Protocolo ou Codec (Navegador).", "warn");
             const errorOverlay = document.getElementById('player-error-overlay');
             if (errorOverlay) {
                 errorOverlay.classList.remove('hidden');
@@ -2287,9 +2399,11 @@
                 
                 const fastest = successfulResults[0];
                 console.log(`[Proxy Checker] Fastest proxy: ${fastest.label} (${fastest.latency}ms)`);
+                addLog(`[Proxy Checker] Fastest proxy: ${fastest.label} com latência de ${fastest.latency}ms.`, "success");
                 
                 successfulResults.forEach(r => {
                     proxyLatencies[r.name] = r.latency;
+                    addLog(`[Proxy Checker] Resultado do teste para ${r.label}: ${r.latency}ms`, "debug");
                 });
 
                 if (indicatorEl) {
@@ -2549,12 +2663,18 @@
             const playable = getPlayableStreamUrl(item.url, effectiveSelectorValue);
             const proxiedUrl = playable.url;
 
+            addLog(`[Player] Iniciando carregamento do canal: "${item.name}" (Modo: ${item.type})`, "info");
+            addLog(`[Player] Proxy selecionado: ${playable.method.toUpperCase()}`, "debug");
+            addLog(`[Player] Link original: ${item.url}`, "debug");
+            addLog(`[Player] Link de bypass (CORS/SSL): ${proxiedUrl}`, "debug");
+
             if (playable.method === 'vercel' && isSecureContextPlayback() && isHttpUrl(item.url)) {
                 showNotification(HTTP_ONLY_WARNING, 'info');
             }
 
             if (isMpegTs && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
                 console.log("Playing MPEG-TS natively via mpegts.js", proxiedUrl);
+                addLog("[Player Engine] Canal MPEG-TS identificado. Construindo mpegts.js player...", "info");
                 try {
                     mpegtsPlayer = mpegts.createPlayer({
                         type: 'mpegts',
@@ -2568,31 +2688,49 @@
                     });
                     mpegtsPlayer.attachMediaElement(videoElement);
                     mpegtsPlayer.load();
-                    mpegtsPlayer.play().catch(e => {
+                    mpegtsPlayer.play().then(() => {
+                        addLog("[Player Engine] Reprodução de canal MPEG-TS iniciada com sucesso!", "success");
+                    }).catch(e => {
                         console.warn("Auto-play blocked inside MPEG-TS: ", e);
+                        addLog("[Player Engine] Auto-play bloqueado pelo navegador. Toque no vídeo para reproduzir.", "info");
                     });
                     mpegtsPlayer.on(mpegts.Events.ERROR, (type, detail, info) => {
+                        if (isStreamStopping) {
+                            console.log("[MPEGTS] Ignored error during stream stop/reset.");
+                            return;
+                        }
                         console.error("MPEGTS player error:", type, detail, info);
+                        addLog(`[MPEGTS Error] Tipo: ${type} | Detalhe: ${detail}`, "error");
                         handlePlaybackError();
                     });
                 } catch (err) {
                     console.error("Failed to construct mpegts player:", err);
+                    addLog(`[MPEGTS Build Error] Falha ao instanciar player MPEG-TS: ${err.message}. Rotacionando para HTML5 puro...`, "warn");
                     videoElement.src = proxiedUrl;
                     videoElement.play().catch(e => console.warn(e));
                 }
             } else if (Hls.isSupported() && !isStaticVideo) {
+                addLog("[Player Engine] Canal HLS identificado. Inicializando Hls.js stream...", "info");
                 hlsPlayer.loadSource(proxiedUrl);
                 hlsPlayer.attachMedia(videoElement);
                 hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
-                    videoElement.play().catch(e => {
+                    addLog("[Player Engine] Manifesto HLS parseado. Iniciando Buffer...", "info");
+                    videoElement.play().then(() => {
+                        addLog("[Player Engine] Reprodução de stream HLS iniciada com sucesso!", "success");
+                    }).catch(e => {
                         console.warn("Auto-play blocked: ", e);
+                        addLog("[Player Engine] Auto-play HLS bloqueado pelo navegador. Toque no vídeo para reproduzir.", "info");
                     });
                 });
             } else {
                 // Direct fallback browser play for MP4/WEBM or direct browser HLS
+                addLog("[Player Engine] Vídeo estático ou HLS nativo. Carregando elemento HTML5 diretamente...", "info");
                 videoElement.src = proxiedUrl;
-                videoElement.play().catch(err => {
+                videoElement.play().then(() => {
+                    addLog("[Player Engine] Reprodução nativa iniciada com sucesso!", "success");
+                }).catch(err => {
                     console.log("No browser default support, requires VLC or External Player: ", err);
+                    addLog(`[Player Engine Error] Erro ao reproduzir nativamente: ${err.message || 'Bloqueio de mídia'}`, "warn");
                 });
             }
         }
@@ -2607,6 +2745,8 @@
         }
 
         function stopStream() {
+            isStreamStopping = true;
+            addLog("[Player] Parando canal ativo e liberando buffers e conexões.", "info");
             videoElement.pause();
             const errorOverlay = document.getElementById('player-error-overlay');
             if (errorOverlay) {
@@ -2631,13 +2771,22 @@
                 mpegtsPlayer = null;
             }
             videoElement.removeAttribute('src');
-            videoElement.load();
+            try {
+                videoElement.load();
+            } catch (e) {
+                console.warn(e);
+            }
             
             // Restore visual layout helper placeholder banner
             const pb = document.getElementById('player-banner');
             if (pb) {
                 pb.classList.remove('hidden', 'opacity-0');
             }
+            
+            // Tiny delay to let any asynchronously triggered videoElement error events clear themselves
+            setTimeout(() => {
+                isStreamStopping = false;
+            }, 80);
         }
 
         function copyCurrentStreamUrl() {
