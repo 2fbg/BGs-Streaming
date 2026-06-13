@@ -8,6 +8,54 @@ plugins {
   alias(libs.plugins.secrets)
 }
 
+fun decodeBase64OrGenerateKeystore(
+  keystoreFile: java.io.File,
+  base64File: java.io.File,
+  alias: String,
+  pass: String,
+  dname: String
+) {
+  if (keystoreFile.exists()) return
+
+  if (base64File.exists()) {
+    try {
+      val base64Text = base64File.readText().trim()
+      val cleanBase64 = base64Text.replace("\\s".toRegex(), "")
+      val decodedBytes = Base64.getDecoder().decode(cleanBase64)
+      keystoreFile.writeBytes(decodedBytes)
+      println("Decoded keystore from base64 to ${keystoreFile.absolutePath}")
+      return
+    } catch (e: Exception) {
+      println("Failed to decode base64 file ${base64File.name}: ${e.message}")
+    }
+  }
+
+  try {
+    println("Keystore not found. Generating on-the-fly: ${keystoreFile.absolutePath}")
+    val pb = ProcessBuilder(
+      "keytool", "-genkeypair",
+      "-noprompt",
+      "-keystore", keystoreFile.absolutePath,
+      "-keyalg", "RSA",
+      "-keysize", "2048",
+      "-validity", "10000",
+      "-alias", alias,
+      "-storepass", pass,
+      "-keypass", pass,
+      "-dname", dname
+    )
+    val process = pb.start()
+    val exitCode = process.waitFor()
+    if (exitCode != 0) {
+      System.err.println("Keytool failed with exit code: $exitCode")
+    } else {
+      println("Successfully generated keystore: ${keystoreFile.absolutePath}")
+    }
+  } catch (e: Exception) {
+    System.err.println("Error generating keystore on-the-fly: ${e.message}")
+  }
+}
+
 android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -26,17 +74,14 @@ android {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
       val keystoreFile = file(keystorePath)
-      if (!keystoreFile.exists() && keystorePath == "${rootDir}/my-upload-key.jks") {
-        val base64File = file("${rootDir}/my-upload-key.base64")
-        if (base64File.exists()) {
-          try {
-            val base64Text = base64File.readText().trim()
-            val decodedBytes = Base64.getDecoder().decode(base64Text)
-            keystoreFile.writeBytes(decodedBytes)
-          } catch (e: Exception) {
-            logger.warn("Failed to decode my-upload-key.base64: ${e.message}")
-          }
-        }
+      if (keystorePath == "${rootDir}/my-upload-key.jks") {
+        decodeBase64OrGenerateKeystore(
+          keystoreFile,
+          file("${rootDir}/my-upload-key.base64"),
+          "upload",
+          "F@bioGu@rniere1983!",
+          "CN=Fabio Guarniere, O=MK21, C=BR"
+        )
       }
       storeFile = keystoreFile
       storePassword = System.getenv("STORE_PASSWORD") ?: "F@bioGu@rniere1983!"
@@ -45,18 +90,13 @@ android {
     }
     create("debugConfig") {
       val keystoreFile = file("${rootDir}/debug.keystore")
-      if (!keystoreFile.exists()) {
-        val base64File = file("${rootDir}/debug.keystore.base64")
-        if (base64File.exists()) {
-          try {
-            val base64Text = base64File.readText().trim()
-            val decodedBytes = Base64.getDecoder().decode(base64Text)
-            keystoreFile.writeBytes(decodedBytes)
-          } catch (e: Exception) {
-            logger.warn("Failed to decode debug.keystore.base64: ${e.message}")
-          }
-        }
-      }
+      decodeBase64OrGenerateKeystore(
+        keystoreFile,
+        file("${rootDir}/debug.keystore.base64"),
+        "androiddebugkey",
+        "android",
+        "CN=Android Debug, O=Android, C=US"
+      )
       storeFile = keystoreFile
       storePassword = "android"
       keyAlias = "androiddebugkey"
