@@ -127,6 +127,14 @@
                         <span>Acessar Portal IPTV</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
+
+                    <!-- Accessibility / High Contrast Toggle for Login Screen -->
+                    <div class="flex justify-center pt-2">
+                        <button onclick="toggleHighContrast();" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-2 px-3  py-2 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all duration-200">
+                            <i class="fa-solid fa-circle-half-stroke text-[#E50914]"></i>
+                            <span>Ativar Alto Contraste (Vermelho/Preto)</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -190,6 +198,10 @@
                         <span>Importando Filmes/Séries:</span>
                         <span id="bg-sync-progress" class="font-extrabold text-[#E50914]">0%</span>
                     </div>
+                    <button onclick="toggleHighContrast();" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 text-xs font-bold rounded-xl outline-none transition-all duration-200 flex items-center gap-1.5" title="Alternar Alto Contraste (Acessibilidade)">
+                        <i class="fa-solid fa-circle-half-stroke text-[#E50914]"></i>
+                        <span class="hidden md:inline">Alto Contraste</span>
+                    </button>
                     <button id="logout-button" class="px-4 py-2.5 bg-slate-800 hover:bg-red-950/40 hover:text-red-400 text-slate-300 text-xs font-bold rounded-xl outline-none transition-all duration-200 flex items-center gap-2">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Sair</span>
@@ -786,6 +798,11 @@
 
         // Initialize application on load
         window.addEventListener('DOMContentLoaded', () => {
+            // Apply High Contrast if in localStorage
+            if (localStorage.getItem('mk21_high_contrast') === 'true') {
+                document.body.classList.add('high-contrast');
+            }
+
             // Initialize SEO, performance, and accessibility managers
             if (typeof seoManager !== 'undefined') seoManager.init();
             if (typeof performanceOptimizer !== 'undefined') performanceOptimizer.initLazyLoading();
@@ -2139,6 +2156,14 @@
             return /^https:\/\//i.test(url || '');
         }
 
+        function toggleHighContrast() {
+            const isHC = document.body.classList.toggle('high-contrast');
+            localStorage.setItem('mk21_high_contrast', isHC ? 'true' : 'false');
+            if (typeof showNotification === 'function') {
+                showNotification(isHC ? 'Modo Alto Contraste Ativado!' : 'Modo Alto Contraste Desativado.', 'success');
+            }
+        }
+
         function getStoredProxyMode() {
             return localStorage.getItem('mk21_cors') || 'auto';
         }
@@ -2744,6 +2769,18 @@
                 } else if (e.code === 'KeyM') {
                     e.preventDefault();
                     toggleMute();
+                } else if (e.code === 'KeyP') {
+                    e.preventDefault();
+                    togglePictureInPicture();
+                } else if (e.key >= '0' && e.key <= '9') {
+                    e.preventDefault();
+                    const targetVolume = parseInt(e.key) / 10;
+                    video.volume = targetVolume;
+                    video.muted = targetVolume === 0;
+                    if (volumeSlider) volumeSlider.value = targetVolume;
+                    localStorage.setItem('mk21_player_volume', targetVolume);
+                    updateVolumeUI(targetVolume);
+                    showNotification(`Volume ajustado para ${parseInt(e.key) * 10}%`, 'success');
                 }
             });
 

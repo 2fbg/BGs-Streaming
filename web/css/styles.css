@@ -146,3 +146,65 @@ img[loading="lazy"] {
         background: white;
     }
 }
+
+/* ==========================================================================
+   ALTO CONTRASTE (VERMELHO/PRETO) ACCESSIBILITY OVERRIDES
+   ========================================================================== */
+body.high-contrast {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+body.high-contrast * {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #ff0000 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+body.high-contrast a, 
+body.high-contrast button, 
+body.high-contrast select, 
+body.high-contrast input {
+    color: #ffffff !important;
+    background-color: #000000 !important;
+    border: 2px dashed #ff0000 !important;
+    border-radius: 4px !important;
+}
+
+body.high-contrast a:hover, 
+body.high-contrast button:hover, 
+body.high-contrast select:focus, 
+body.high-contrast input:focus {
+    background-color: #ff0000 !important;
+    color: #000000 !important;
+    border-style: solid !important;
+}
+
+body.high-contrast .text-[#E50914], 
+body.high-contrast .text-red-400, 
+body.high-contrast .text-red-500, 
+body.high-contrast .text-emerald-400, 
+body.high-contrast .text-blue-400, 
+body.high-contrast .text-amber-400 {
+    color: #ff0000 !important;
+    font-weight: 900 !important;
+}
+
+body.high-contrast .bg-[#E50914], 
+body.high-contrast .bg-slate-800, 
+body.high-contrast .bg-slate-900, 
+body.high-contrast .bg-black {
+    background-color: #000000 !important;
+}
+
+body.high-contrast .type-filter-btn[data-type] {
+    border: 2px solid #ff0000 !important;
+}
+
+body.high-contrast .type-filter-btn.bg-\[\#E50914\] {
+    background: #ff0000 !important;
+    color: #000000 !important;
+}
+
