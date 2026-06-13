@@ -746,15 +746,22 @@
             if (data.fatal) {
                 switch (data.type) {
                     case Hls.ErrorTypes.NETWORK_ERROR:
-                        console.warn("[HLSError] Fatal network error encountered. Attempting automatic recovery...");
-                        hlsPlayer.startLoad();
+                        const isManifestError = (data.details === 'manifestLoadError' || data.details === 'manifestLoadTimeOut' || (typeof Hls !== 'undefined' && Hls.ErrorDetails && (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT)));
+                        if (isManifestError) {
+                            console.warn("[HLSError] Fatal manifest load error. Attempting fallback proxy...");
+                            handlePlaybackError();
+                        } else {
+                            console.warn("[HLSError] Fatal network error encountered. Attempting automatic recovery...");
+                            hlsPlayer.startLoad();
+                        }
                         break;
                     case Hls.ErrorTypes.MEDIA_ERROR:
                         console.warn("[HLSError] Fatal media/decoding error encountered. Swapping audio track or running recoverMediaError...");
                         hlsPlayer.recoverMediaError();
                         break;
                     default:
-                        console.error("[HLSError] Fatal unrecoverable error. Halting stream.");
+                        console.error("[HLSError] Fatal unrecoverable error. Halting stream and calling fallback proxy...");
+                        handlePlaybackError();
                         break;
                 }
             }
@@ -1052,8 +1059,9 @@
                 console.warn(`[PLAYER-FALLBACK] Playback failed. Restructuring connection under: ${nextProxyMethod} (${currentProxyRotationIndex}/${PROXY_ROTATION_LIST.length - 1})`);
                 showNotification(`Instabilidade sob IP direto. Reconectando canais em modo seguro pelo ${proxyLabel}... 🔄`, 'info');
                 
-                if (currentActiveItem) {
-                    playStream(currentActiveItem, true, nextProxyMethod);
+                const itemToPlay = currentActiveEpisodeItem || currentActiveItem;
+                if (itemToPlay) {
+                    playStream(itemToPlay, true, nextProxyMethod);
                 }
             } else {
                 console.error("[PLAYER-FALLBACK] All safe playback servers exhausted.");
@@ -2170,7 +2178,7 @@
             }
 
             if (corsMethod === 'direct' && httpInSecurePage) {
-                return 'corsproxy';
+                return 'direct';
             }
 
             return corsMethod;
@@ -2391,15 +2399,15 @@
                 let val = playerProxySelector.value;
 
                 if (val === 'direct' && currentActiveItem && isSecureContextPlayback() && isHttpUrl(currentActiveItem.url)) {
-                    val = 'vercel';
-                    showNotification('Conexão direta foi substituída por Proxy Vercel para streams HTTP em página HTTPS.', 'info');
+                    showNotification('Conexão direta selecionada. Certifique-se de permitir "Conteúdo não seguro" (Mixed Content) nas configurações do seu navegador para reproduzir canais HTTP.', 'warning');
                 }
 
                 localStorage.setItem('mk21_cors', val);
                 syncProxySelectors(val);
 
-                if (currentActiveItem) {
-                    playStream(currentActiveItem, !!currentActiveShow);
+                const itemToPlay = currentActiveEpisodeItem || currentActiveItem;
+                if (itemToPlay) {
+                    playStream(itemToPlay, !!currentActiveShow);
                 }
             }
         }
