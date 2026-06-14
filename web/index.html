@@ -2710,15 +2710,8 @@
             }
 
             let streamToPlayUrl = item.url;
-            if (item.type === 'LIVE' && !hlsAttemptFailed) {
-                const converted = convertLiveUrlToHls(item.url);
-                if (converted !== item.url) {
-                    addLog(`[Player Engine] Convertendo canal de MPEG-TS (.ts) para HLS (.m3u8) para melhor compatibilidade web: ${converted}`, "info");
-                    streamToPlayUrl = converted;
-                }
-            }
-
-            const isMpegTs = streamToPlayUrl.includes('/ts') || streamToPlayUrl.includes('.ts') || streamToPlayUrl.includes('output=mpegts') || streamToPlayUrl.includes('type=mpegts');
+            
+            const isMpegTs = (streamToPlayUrl.includes('/ts') || streamToPlayUrl.includes('.ts') || streamToPlayUrl.includes('output=mpegts') || streamToPlayUrl.includes('type=mpegts')) && !streamToPlayUrl.toLowerCase().includes('.m3u8');
             const isStaticVideo = streamToPlayUrl.includes('.mp4') || streamToPlayUrl.includes('.mkv') || streamToPlayUrl.includes('.webm') || streamToPlayUrl.includes('.avi');
             
             const playable = getPlayableStreamUrl(streamToPlayUrl, effectiveSelectorValue);
