@@ -50,8 +50,8 @@ module.exports = function handler(req, res) {
             const client = parsedUrl.protocol === 'https:' ? https : http;
             
             const forwardHeaders = {
-                'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': req.headers['accept'] || '*/*',
+                'User-Agent': 'VLC/3.0.18',
+                'Accept': '*/*',
                 'Connection': 'keep-alive'
             };
             
