@@ -1,0 +1,21 @@
+{
+  "name": "bgstreaming-web",
+  "version": "1.0.0",
+  "description": "MK21 MultiServidor Web - IPTV Web Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'Static HTML - no build required'",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": [
+    "iptv",
+    "streaming",
+    "web"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
