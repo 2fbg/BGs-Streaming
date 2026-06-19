@@ -1,0 +1,23 @@
+{
+  "name": "bgstreaming-web",
+  "version": "1.0.0",
+  "description": "MK21 MultiServidor Web - IPTV Web Player",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Static site - no build required'",
+    "dev": "echo 'Use a local server to run this site'",
+    "lint": "echo 'No linter configured'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.12"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "iptv",
+    "streaming",
+    "web"
+  ],
+  "author": "MK21",
+  "license": "MIT"
+}
