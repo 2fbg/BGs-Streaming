@@ -6348,40 +6348,105 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Shortcut to launcher Keygen if desired
+                        // Direct fully-integrated key generator for admin mode
                         if (isAdminMode) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF231E12))
-                                    .border(BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        try {
-                                            val intent = android.content.Intent(context, com.example.KeygenActivity::class.java)
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            // Ignore
+                            Text(
+                                text = "GERADOR DE CHAVES AUTÔNOMO",
+                                color = GoldPremium,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+                            )
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF231E12)),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    var remoteMacInput by remember { mutableStateOf("") }
+                                    var generatedCode by remember { mutableStateOf("") }
+
+                                    OutlinedTextField(
+                                        value = remoteMacInput,
+                                        onValueChange = { mac ->
+                                            remoteMacInput = mac
+                                            if (mac.isNotEmpty()) {
+                                                val cleanMac = mac.replace("[^A-Fa-f0-9]".toRegex(), "").take(12).uppercase()
+                                                val paddedMac = cleanMac.padEnd(12, 'F')
+                                                val formattedMac = paddedMac.chunked(2).joinToString(":")
+                                                val salt = "MK21_GOLDEN_SALT_2026"
+                                                val rawInput = formattedMac + salt
+                                                generatedCode = try {
+                                                    val md5 = java.security.MessageDigest.getInstance("MD5")
+                                                    val hashBytes = md5.digest(rawInput.toByteArray(Charsets.UTF_8))
+                                                    val sb = StringBuilder()
+                                                    for (b in hashBytes) {
+                                                        sb.append(String.format("%02X", b))
+                                                    }
+                                                    val fullHash = sb.toString()
+                                                    val p1 = fullHash.take(4)
+                                                    val p2 = fullHash.substring(4, 8)
+                                                    val p3 = fullHash.substring(8, 12)
+                                                    "MK-$p1-$p2-$p3"
+                                                } catch (e: Exception) {
+                                                    "MK-ERR"
+                                                }
+                                            } else {
+                                                generatedCode = ""
+                                            }
+                                        },
+                                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                        label = { Text("Virtual MAC do Cliente", color = Color.Gray, fontSize = 9.sp) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = GoldPremium,
+                                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                                            focusedLabelColor = GoldPremium
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    if (generatedCode.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = "CÓDIGO GERADO:",
+                                                    color = Color.Gray,
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = generatedCode,
+                                                    color = Color.Green,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(generatedCode))
+                                                    android.widget.Toast.makeText(context, "Código copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ContentCopy,
+                                                    contentDescription = "Copiar Código",
+                                                    tint = GoldPremium,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.VpnKey,
-                                    contentDescription = "Gerador",
-                                    tint = GoldPremium,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "ABRIR GERADOR DE CHAVES (ADMIN)",
-                                    color = GoldPremium,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp
-                                )
+                                }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                         }
