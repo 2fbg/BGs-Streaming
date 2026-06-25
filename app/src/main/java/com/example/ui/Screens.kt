@@ -588,6 +588,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     val manualLists by viewModel.manualPlaylists.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
     val errorMsg by viewModel.errorMessage.collectAsState()
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     var showManualDialog by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<com.example.data.model.ManualPlaylist?>(null) }
@@ -692,6 +693,23 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = {
+                                            clipboardManager?.getText()?.text?.let { clipboardText ->
+                                                viewModel.setCredentials(clipboardText.trim(), password)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentPaste,
+                                            contentDescription = "Colar usuário",
+                                            tint = Color.Gray.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                },
                                 isError = isUsernameExceeded,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
@@ -724,15 +742,37 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     )
                                 },
                                 trailingIcon = {
-                                    IconButton(
-                                        onClick = { passwordVisible = !passwordVisible }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(end = 4.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                            contentDescription = if (passwordVisible) "Ocultar senha" else "Mostrar senha",
-                                            tint = Color.Gray.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(16.dp)
-                                        )
+                                        IconButton(
+                                            onClick = {
+                                                clipboardManager?.getText()?.text?.let { clipboardText ->
+                                                    viewModel.setCredentials(username, clipboardText.trim())
+                                                }
+                                            },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ContentPaste,
+                                                contentDescription = "Colar senha",
+                                                tint = Color.Gray.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(
+                                            onClick = { passwordVisible = !passwordVisible },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                                contentDescription = if (passwordVisible) "Ocultar senha" else "Mostrar senha",
+                                                tint = Color.Gray.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 },
                                 isError = isPasswordExceeded,
