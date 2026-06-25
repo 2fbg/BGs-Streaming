@@ -592,6 +592,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     var showManualDialog by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<com.example.data.model.ManualPlaylist?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Predef, 1: Manual List
+    var passwordVisible by remember { mutableStateOf(false) }
 
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black
     Box(
@@ -722,9 +723,21 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { passwordVisible = !passwordVisible }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                            contentDescription = if (passwordVisible) "Ocultar senha" else "Mostrar senha",
+                                            tint = Color.Gray.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                },
                                 isError = isPasswordExceeded,
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
                                     .weight(1f)
                                     .testTag("password_input"),

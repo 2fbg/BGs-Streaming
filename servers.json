@@ -2,12 +2,12 @@
   {
     "id": "server_1",
     "name": "VLOG",
-    "baseUrl": "http://vlogmk.de"
+    "baseUrl": "http://somentevlog.xyz"
   },
   {
     "id": "server_2",
     "name": "LUB TV",
-    "baseUrl": "http://triimundial.shop"
+    "baseUrl": "http://pitclear.sbs"
   },
   {
     "id": "server_3",
@@ -22,16 +22,11 @@
   {
     "id": "server_5",
     "name": "CB6000",
-    "baseUrl": "http://cb6.fun"
+    "baseUrl": "http://painelplyon.top"
   },
   {
     "id": "server_6",
     "name": "MK21 TV",
     "baseUrl": "http://appsmk.org"
-  },
-  {
-    "id": "server_7",
-    "name": "NOVA+",
-    "baseUrl": "http://novamk21.win"
   }
 ]

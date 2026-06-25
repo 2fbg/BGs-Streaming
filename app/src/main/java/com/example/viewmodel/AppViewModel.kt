@@ -34,11 +34,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val preferencesService = PreferencesService(application)
     
     private val staticDefaultServers = listOf(
-        ServerProfile("server_1", "VLOG", "http://vlogmk.de"),
-        ServerProfile("server_2", "LUB TV", "http://triimundial.shop"),
+        ServerProfile("server_1", "VLOG", "http://somentevlog.xyz"),
+        ServerProfile("server_2", "LUB TV", "http://pitclear.sbs"),
         ServerProfile("server_3", "CINELON21", "http://infinixparcerias.site"),
         ServerProfile("server_4", "TANNIX", "http://unituf.online"),
-        ServerProfile("server_5", "CB6000", "http://cb6.fun"),
+        ServerProfile("server_5", "CB6000", "http://painelplyon.top"),
         ServerProfile("server_6", "MK21 TV", "http://appsmk.org")
     )
 
@@ -357,11 +357,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val lowercaseBaseUrl = baseUrl.lowercase()
 
                 // Normalization block for predefined premium lists to prevent duplicates and keep names matching
-                if (lowercaseBaseUrl.contains("vlogmk.de") || lowercaseBaseUrl.contains("newphase.sbs")) {
-                    targetBaseUrl = "http://vlogmk.de"
+                if (lowercaseBaseUrl.contains("vlogmk.de") || lowercaseBaseUrl.contains("somentevlog.xyz") || lowercaseBaseUrl.contains("newphase.sbs")) {
+                    targetBaseUrl = "http://somentevlog.xyz"
                     targetName = "VLOG"
-                } else if (lowercaseBaseUrl.contains("triimundial.shop") || lowercaseBaseUrl.contains("lubtv.fun")) {
-                    targetBaseUrl = "http://triimundial.shop"
+                } else if (lowercaseBaseUrl.contains("triimundial.shop") || lowercaseBaseUrl.contains("pitclear.sbs") || lowercaseBaseUrl.contains("lubtv.fun")) {
+                    targetBaseUrl = "http://pitclear.sbs"
                     targetName = "LUB TV"
                 } else if (lowercaseBaseUrl.contains("infinixparcerias.site") || lowercaseBaseUrl.contains("cinelontv.work") || lowercaseBaseUrl.contains("cinelon")) {
                     targetBaseUrl = "http://infinixparcerias.site"
@@ -369,8 +369,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 } else if (lowercaseBaseUrl.contains("unituf.online") || lowercaseBaseUrl.contains("tannix26.shop") || lowercaseBaseUrl.contains("tannix")) {
                     targetBaseUrl = "http://unituf.online"
                     targetName = "TANNIX"
-                } else if (lowercaseBaseUrl.contains("cb6.fun") || lowercaseBaseUrl.contains("cb6000")) {
-                    targetBaseUrl = "http://cb6.fun"
+                } else if (lowercaseBaseUrl.contains("cb6.fun") || lowercaseBaseUrl.contains("painelplyon.top") || lowercaseBaseUrl.contains("cb6000")) {
+                    targetBaseUrl = "http://painelplyon.top"
                     targetName = "CB6000"
                 } else if (lowercaseBaseUrl.contains("appsmk.org") || lowercaseBaseUrl.contains("mk21.uk") || lowercaseBaseUrl.contains("mk21")) {
                     targetBaseUrl = "http://appsmk.org"
@@ -453,15 +453,94 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val list = mutableListOf<ServerProfile>()
         try {
             val trimmed = jsonStr.trim()
-            if (trimmed.startsWith("[")) {
-                val array = org.json.JSONArray(trimmed)
-                for (i in 0 until array.length()) {
-                    val obj = array.getJSONObject(i)
-                    val id = obj.optString("id", "")
-                    val name = obj.optString("name", "")
-                    val baseUrl = obj.optString("baseUrl", "")
-                    if (id.isNotEmpty() && name.isNotEmpty() && baseUrl.isNotEmpty()) {
-                        list.add(ServerProfile(id, name, baseUrl))
+            if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+                if (trimmed.startsWith("[")) {
+                    val array = org.json.JSONArray(trimmed)
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val name = obj.optString("name", "").ifEmpty { obj.optString("title", "").ifEmpty { obj.optString("label", "") } }
+                        var baseUrl = obj.optString("baseUrl", "").ifEmpty { 
+                            obj.optString("url", "").ifEmpty { 
+                                obj.optString("base_url", "").ifEmpty { 
+                                    obj.optString("host", "") 
+                                } 
+                            } 
+                        }
+                        
+                        // Clean baseUrl trailing slashes or php paths if any
+                        if (baseUrl.isNotEmpty()) {
+                            val phpIndex = baseUrl.indexOf("/get.php")
+                            val altPhpIndex = if (phpIndex != -1) phpIndex else baseUrl.indexOf("/player_api.php")
+                            val nextSlashIndex = if (altPhpIndex != -1) altPhpIndex else {
+                                if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+                                    baseUrl.indexOf("/", 8)
+                                } else {
+                                    baseUrl.indexOf("/")
+                                }
+                            }
+                            if (nextSlashIndex != -1 && nextSlashIndex > 4) {
+                                baseUrl = baseUrl.substring(0, nextSlashIndex)
+                            }
+                        }
+                        
+                        val id = obj.optString("id", "").ifEmpty { "server_dynamic_${name.hashCode()}_$i" }
+                        
+                        if (name.isNotEmpty() && baseUrl.isNotEmpty()) {
+                            list.add(ServerProfile(id, name, baseUrl))
+                        }
+                    }
+                } else {
+                    val rootObj = org.json.JSONObject(trimmed)
+                    if (rootObj.has("servers")) {
+                        val array = rootObj.optJSONArray("servers")
+                        if (array != null) {
+                            for (i in 0 until array.length()) {
+                                val obj = array.getJSONObject(i)
+                                val name = obj.optString("name", "").ifEmpty { obj.optString("title", "").ifEmpty { obj.optString("label", "") } }
+                                var baseUrl = obj.optString("baseUrl", "").ifEmpty { 
+                                    obj.optString("url", "").ifEmpty { 
+                                        obj.optString("base_url", "").ifEmpty { 
+                                            obj.optString("host", "") 
+                                        } 
+                                    } 
+                                }
+                                if (baseUrl.isNotEmpty()) {
+                                    val phpIndex = baseUrl.indexOf("/get.php")
+                                    val altPhpIndex = if (phpIndex != -1) phpIndex else baseUrl.indexOf("/player_api.php")
+                                    val nextSlashIndex = if (altPhpIndex != -1) altPhpIndex else {
+                                        if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+                                            baseUrl.indexOf("/", 8)
+                                        } else {
+                                            baseUrl.indexOf("/")
+                                        }
+                                    }
+                                    if (nextSlashIndex != -1 && nextSlashIndex > 4) {
+                                        baseUrl = baseUrl.substring(0, nextSlashIndex)
+                                    }
+                                }
+                                val id = obj.optString("id", "").ifEmpty { "server_dynamic_${name.hashCode()}_$i" }
+                                if (name.isNotEmpty() && baseUrl.isNotEmpty()) {
+                                    list.add(ServerProfile(id, name, baseUrl))
+                                }
+                            }
+                        }
+                    } else {
+                        val keys = rootObj.keys()
+                        var i = 0
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            var value = rootObj.optString(key, "")
+                            if (value.startsWith("http://") || value.startsWith("https://")) {
+                                val phpIndex = value.indexOf("/get.php")
+                                val altPhpIndex = if (phpIndex != -1) phpIndex else value.indexOf("/player_api.php")
+                                val nextSlashIndex = if (altPhpIndex != -1) altPhpIndex else value.indexOf("/", 8)
+                                if (nextSlashIndex != -1 && nextSlashIndex > 4) {
+                                    value = value.substring(0, nextSlashIndex)
+                                }
+                                list.add(ServerProfile("dynamic_obj_$i", key, value))
+                            }
+                            i++
+                        }
                     }
                 }
             } else {
