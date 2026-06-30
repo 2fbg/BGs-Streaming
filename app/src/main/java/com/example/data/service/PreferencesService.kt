@@ -169,10 +169,36 @@ class PreferencesService(context: Context) {
     }
 
     fun isLicenseValid(): Boolean {
-        val key = activationKey
+        val key = activationKey.uppercase().trim()
         if (key.isEmpty()) return false
-        val expected = generateValidKeyForDevice(virtualMac)
-        return key.uppercase().trim() == expected
+        
+        // Master bypass codes
+        if (key == "ADMIN2026" || key == "GUARNIERE2026" || key == "MK21ADMIN" || key == "9999" || key == "8888" || key == "0000") {
+            return true
+        }
+
+        // Standard 3-segment check
+        val expected3 = generateValidKeyForDevice(virtualMac).uppercase().trim()
+        if (key == expected3) return true
+
+        // 2-segment check (MK-$p1-$p2 where p1 = take(4) and p2 = takeLast(4))
+        try {
+            val salt = "MK21_GOLDEN_SALT_2026"
+            val rawInput = virtualMac.uppercase().trim() + salt
+            val md5 = java.security.MessageDigest.getInstance("MD5")
+            val hashBytes = md5.digest(rawInput.toByteArray(Charsets.UTF_8))
+            val sb = StringBuilder()
+            for (b in hashBytes) {
+                sb.append(String.format("%02X", b))
+            }
+            val fullHash = sb.toString()
+            val p1 = fullHash.take(4)
+            val p2 = fullHash.takeLast(4)
+            val expected2 = "MK-$p1-$p2".uppercase()
+            if (key == expected2) return true
+        } catch (e: Exception) {}
+
+        return false
     }
 
     fun getTrialDaysRemaining(): Int {
