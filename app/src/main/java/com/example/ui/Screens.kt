@@ -691,9 +691,9 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         val isUsernameExceeded = username.length > 15
                         val isPasswordExceeded = password.length > 15
 
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             OutlinedTextField(
                                 value = username,
@@ -729,7 +729,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                 isError = isUsernameExceeded,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .fillMaxWidth()
                                     .testTag("username_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -795,7 +795,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                 visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .fillMaxWidth()
                                     .testTag("password_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
