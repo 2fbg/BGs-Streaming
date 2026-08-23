@@ -3645,8 +3645,8 @@ fun VideoPlayerUI(
                             change.consume()
                             
                             if (dragSide == 1) {
-                                // Left-side Swipe: Audio volume
-                                val delta = -dragAmount.y / size.height.toFloat() * 0.75f
+                                // Left-side Touch Gesture: Audio Volume
+                                val delta = -dragAmount.y / size.height.toFloat() * 0.85f
                                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                                 var volPercent = volumeValue
                                 if (isMuted && delta > 0) {
@@ -3665,8 +3665,8 @@ fun VideoPlayerUI(
                                 showVolumeOverlay = true
                                 showBrightnessOverlay = false
                             } else {
-                                // Right-side Swipe: Screen Brightness (smooth progression)
-                                val delta = -dragAmount.y / size.height.toFloat() * 0.45f
+                                // Right-side Touch Gesture: Screen Brightness (faster progression)
+                                val delta = -dragAmount.y / size.height.toFloat() * 1.15f
                                 brightnessValue = (brightnessValue + delta).coerceIn(0.01f, 1.0f)
                                 if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
                                     activity.runOnUiThread {
@@ -3730,13 +3730,62 @@ fun VideoPlayerUI(
             }
         )
 
-        // Custom Visual Sidebar Overlays (Swipe Brightness & Volume)
-        // Volume sidebar (Left)
+        // Custom Visual Sidebar Overlays
+        // Brightness sidebar (Left side of screen)
         AnimatedVisibility(
-            visible = showVolumeOverlay,
+            visible = showBrightnessOverlay,
             enter = fadeIn() + slideInHorizontally { -it },
             exit = fadeOut() + slideOutHorizontally { -it },
             modifier = Modifier.align(Alignment.CenterStart).padding(start = 32.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Brightness5,
+                    contentDescription = "Brightness Indicator",
+                    tint = GoldPremium,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(brightnessValue)
+                            .align(Alignment.BottomStart)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(GoldPremium)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "${(brightnessValue * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Volume sidebar (Right side of screen)
+        AnimatedVisibility(
+            visible = showVolumeOverlay,
+            enter = fadeIn() + slideInHorizontally { it },
+            exit = fadeOut() + slideOutHorizontally { it },
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -3778,55 +3827,6 @@ fun VideoPlayerUI(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "${(volumeValue * 100).toInt()}%",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Brightness sidebar (Right)
-        AnimatedVisibility(
-            visible = showBrightnessOverlay,
-            enter = fadeIn() + slideInHorizontally { it },
-            exit = fadeOut() + slideOutHorizontally { it },
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .width(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.Black.copy(alpha = 0.75f))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-                    .padding(vertical = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Brightness5,
-                    contentDescription = "Brightness Indicator",
-                    tint = GoldPremium,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .width(5.dp)
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color.White.copy(alpha = 0.15f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(brightnessValue)
-                            .align(Alignment.BottomStart)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(GoldPremium)
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "${(brightnessValue * 100).toInt()}%",
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold

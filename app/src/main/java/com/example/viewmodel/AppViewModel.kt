@@ -318,14 +318,35 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadCachedServers() {
         val cachedJson = preferencesService.cachedServersJson
+        val merged = mutableListOf<ServerProfile>()
+        // Always include all 9 static default servers with their official URLs
+        merged.addAll(staticDefaultServers)
+
         if (cachedJson.isNotEmpty()) {
             val parsed = parseServersJson(cachedJson)
-            if (parsed.size >= staticDefaultServers.size) {
-                _predefinedServersState.value = parsed
-                return
+            for (srv in parsed) {
+                // Add any additional custom server that is not already in the default 9
+                if (!merged.any { it.name.equals(srv.name, ignoreCase = true) || it.baseUrl.equals(srv.baseUrl, ignoreCase = true) || (it.name == "MK21 PRÓ" && srv.name == "MK21 TV") }) {
+                    merged.add(srv)
+                }
             }
         }
-        _predefinedServersState.value = staticDefaultServers
+        _predefinedServersState.value = merged
+        
+        // Save back the normalized 9+ server list so SharedPreferences cache is in sync
+        try {
+            val array = org.json.JSONArray()
+            for (profile in merged) {
+                val obj = org.json.JSONObject()
+                obj.put("id", profile.id)
+                obj.put("name", profile.name)
+                obj.put("baseUrl", profile.baseUrl)
+                array.put(obj)
+            }
+            preferencesService.cachedServersJson = array.toString()
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     fun parseServersFromPlainText(text: String): List<ServerProfile> {
@@ -449,8 +470,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         var anyImported = false
 
         if (parsed.isNotEmpty()) {
+            val merged = mutableListOf<ServerProfile>()
+            merged.addAll(staticDefaultServers)
+            for (srv in parsed) {
+                val existingIndex = merged.indexOfFirst { it.name.equals(srv.name, ignoreCase = true) || it.id == srv.id }
+                if (existingIndex != -1) {
+                    merged[existingIndex] = srv
+                } else if (!merged.any { it.baseUrl.equals(srv.baseUrl, ignoreCase = true) }) {
+                    merged.add(srv)
+                }
+            }
+            
             val array = org.json.JSONArray()
-            for (profile in parsed) {
+            for (profile in merged) {
                 val obj = org.json.JSONObject()
                 obj.put("id", profile.id)
                 obj.put("name", profile.name)
@@ -459,7 +491,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             val jsonStr = array.toString()
             preferencesService.cachedServersJson = jsonStr
-            _predefinedServersState.value = parsed
+            _predefinedServersState.value = merged
             anyImported = true
         }
 
