@@ -34,12 +34,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val preferencesService = PreferencesService(application)
     
     private val staticDefaultServers = listOf(
-        ServerProfile("server_1", "VLOG", "http://somentevlog.xyz"),
-        ServerProfile("server_2", "LUB TV", "http://pitclear.sbs"),
-        ServerProfile("server_3", "CINELON21", "http://infinixparcerias.site"),
-        ServerProfile("server_4", "TANNIX", "http://unituf.online"),
+        ServerProfile("server_1", "VLOG", "http://new-link.shop"),
+        ServerProfile("server_2", "LUB TV", "http://alfatecloan.sbs"),
+        ServerProfile("server_3", "CINELON21", "http://connstar.xyz"),
+        ServerProfile("server_4", "TANNIX", "http://tannix26.shop"),
         ServerProfile("server_5", "CB6000", "http://painelplyon.top"),
-        ServerProfile("server_6", "MK21 TV", "http://appsmk.org")
+        ServerProfile("server_6", "MK21 PRÓ", "http://mk21.uk"),
+        ServerProfile("server_7", "MULTT TV", "http://hll4.top"),
+        ServerProfile("server_8", "CINEVO", "http://antaresfusion.shop"),
+        ServerProfile("server_9", "MULTT BOX", "http://cdnconn.xyz")
     )
 
     private val _predefinedServersState = MutableStateFlow<List<ServerProfile>>(staticDefaultServers)
@@ -317,10 +320,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val cachedJson = preferencesService.cachedServersJson
         if (cachedJson.isNotEmpty()) {
             val parsed = parseServersJson(cachedJson)
-            if (parsed.isNotEmpty()) {
+            if (parsed.size >= staticDefaultServers.size) {
                 _predefinedServersState.value = parsed
+                return
             }
         }
+        _predefinedServersState.value = staticDefaultServers
     }
 
     fun parseServersFromPlainText(text: String): List<ServerProfile> {
@@ -357,24 +362,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val lowercaseBaseUrl = baseUrl.lowercase()
 
                 // Normalization block for predefined premium lists to prevent duplicates and keep names matching
-                if (lowercaseBaseUrl.contains("vlogmk.de") || lowercaseBaseUrl.contains("somentevlog.xyz") || lowercaseBaseUrl.contains("newphase.sbs")) {
-                    targetBaseUrl = "http://somentevlog.xyz"
+                if (lowercaseBaseUrl.contains("new-link.shop") || lowercaseBaseUrl.contains("opbx-w.shop") || lowercaseBaseUrl.contains("somentevlog.xyz") || lowercaseBaseUrl.contains("vlogmk.de") || lowercaseBaseUrl.contains("newphase.sbs")) {
+                    targetBaseUrl = "http://new-link.shop"
                     targetName = "VLOG"
-                } else if (lowercaseBaseUrl.contains("triimundial.shop") || lowercaseBaseUrl.contains("pitclear.sbs") || lowercaseBaseUrl.contains("lubtv.fun")) {
-                    targetBaseUrl = "http://pitclear.sbs"
+                } else if (lowercaseBaseUrl.contains("alfatecloan.sbs") || lowercaseBaseUrl.contains("pitclear.sbs") || lowercaseBaseUrl.contains("triimundial.shop") || lowercaseBaseUrl.contains("lubtv.fun")) {
+                    targetBaseUrl = "http://alfatecloan.sbs"
                     targetName = "LUB TV"
-                } else if (lowercaseBaseUrl.contains("infinixparcerias.site") || lowercaseBaseUrl.contains("cinelontv.work") || lowercaseBaseUrl.contains("cinelon")) {
-                    targetBaseUrl = "http://infinixparcerias.site"
+                } else if (lowercaseBaseUrl.contains("connstar.xyz") || lowercaseBaseUrl.contains("infinixparcerias.site") || lowercaseBaseUrl.contains("cinelontv.work") || lowercaseBaseUrl.contains("cinelon")) {
+                    targetBaseUrl = "http://connstar.xyz"
                     targetName = "CINELON21"
-                } else if (lowercaseBaseUrl.contains("unituf.online") || lowercaseBaseUrl.contains("tannix26.shop") || lowercaseBaseUrl.contains("tannix")) {
-                    targetBaseUrl = "http://unituf.online"
+                } else if (lowercaseBaseUrl.contains("tannix26.shop") || lowercaseBaseUrl.contains("cdnassandplay.online") || lowercaseBaseUrl.contains("unituf.online") || lowercaseBaseUrl.contains("tannix")) {
+                    targetBaseUrl = "http://tannix26.shop"
                     targetName = "TANNIX"
-                } else if (lowercaseBaseUrl.contains("cb6.fun") || lowercaseBaseUrl.contains("painelplyon.top") || lowercaseBaseUrl.contains("cb6000")) {
+                } else if (lowercaseBaseUrl.contains("painelplyon.top") || lowercaseBaseUrl.contains("cb6.fun") || lowercaseBaseUrl.contains("cb6000")) {
                     targetBaseUrl = "http://painelplyon.top"
                     targetName = "CB6000"
-                } else if (lowercaseBaseUrl.contains("appsmk.org") || lowercaseBaseUrl.contains("mk21.uk") || lowercaseBaseUrl.contains("mk21")) {
-                    targetBaseUrl = "http://appsmk.org"
-                    targetName = "MK21 TV"
+                } else if (lowercaseBaseUrl.contains("mk21.uk") || lowercaseBaseUrl.contains("appsmk.org") || lowercaseBaseUrl.contains("mk21")) {
+                    targetBaseUrl = "http://mk21.uk"
+                    targetName = "MK21 PRÓ"
+                } else if (lowercaseBaseUrl.contains("hll4.top") || lowercaseBaseUrl.contains("multt tv")) {
+                    targetBaseUrl = "http://hll4.top"
+                    targetName = "MULTT TV"
+                } else if (lowercaseBaseUrl.contains("antaresfusion.shop") || lowercaseBaseUrl.contains("cinevo")) {
+                    targetBaseUrl = "http://antaresfusion.shop"
+                    targetName = "CINEVO"
+                } else if (lowercaseBaseUrl.contains("cdnconn.xyz") || lowercaseBaseUrl.contains("multt box")) {
+                    targetBaseUrl = "http://cdnconn.xyz"
+                    targetName = "MULTT BOX"
                 }
 
                 if (baseUrlsAdded.contains(targetBaseUrl.lowercase())) {
@@ -467,8 +481,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 var url = trimmed.substring(httpIndex).split(" ").firstOrNull() ?: ""
                 if (url.contains(".m3u", ignoreCase = true) || url.contains("get.php", ignoreCase = true) || url.contains(".m3u8", ignoreCase = true)) {
                     var listName = trimmed.replace(url, "")
-                        .replace("[🟢🔴🔵⚪🟠🟣✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
-                        .replace("*", "").replace(":", "").replace("-", "").replace("_", "").trim()
+                        .replace("[🟢🔴🔵⚪🟠🟣🟤🟡⚫✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
+                        .replace("*", "")
+                        .replace("(?i)Link ".toRegex(), "")
+                        .replace("(?i)\\(M3U\\)".toRegex(), "")
+                        .replace("(?i)M3U".toRegex(), "")
+                        .replace(":", "")
+                        .replace("-", "")
+                        .replace("_", "")
+                        .trim()
                     if (listName.isEmpty()) {
                         listName = "Lista Manual ${parsed.size + 1}"
                     }
@@ -479,20 +500,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
             // Extract username & password if present in panel text
             val lower = trimmed.lowercase()
-            if (lower.contains("usuário:") || lower.contains("usuario:") || lower.contains("user:") || lower.contains("username:")) {
+            if (lower.contains("usuário") || lower.contains("usuario") || lower.contains("user:") || lower.contains("username:")) {
                 val parts = trimmed.split(":")
                 if (parts.size >= 2) {
-                    val userVal = parts[1].trim().split(" ").firstOrNull() ?: ""
+                    val userVal = parts.drop(1).joinToString(":").replace("*", "").trim().split(" ").firstOrNull() ?: ""
                     if (userVal.isNotEmpty()) {
                         _username.value = userVal
                         preferencesService.username = userVal
                     }
                 }
             }
-            if (lower.contains("senha:") || lower.contains("pass:") || lower.contains("password:")) {
+            if (lower.contains("senha") || lower.contains("pass:") || lower.contains("password:")) {
                 val parts = trimmed.split(":")
                 if (parts.size >= 2) {
-                    val passVal = parts[1].trim().split(" ").firstOrNull() ?: ""
+                    val passVal = parts.drop(1).joinToString(":").replace("*", "").trim().split(" ").firstOrNull() ?: ""
                     if (passVal.isNotEmpty()) {
                         _password.value = passVal
                         preferencesService.password = passVal
