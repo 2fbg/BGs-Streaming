@@ -2,22 +2,22 @@
   {
     "id": "server_1",
     "name": "VLOG",
-    "baseUrl": "http://somentevlog.xyz"
+    "baseUrl": "http://new-link.shop"
   },
   {
     "id": "server_2",
     "name": "LUB TV",
-    "baseUrl": "http://pitclear.sbs"
+    "baseUrl": "http://alfatecloan.sbs"
   },
   {
     "id": "server_3",
     "name": "CINELON21",
-    "baseUrl": "http://infinixparcerias.site"
+    "baseUrl": "http://connstar.xyz"
   },
   {
     "id": "server_4",
     "name": "TANNIX",
-    "baseUrl": "http://unituf.online"
+    "baseUrl": "http://tannix26.shop"
   },
   {
     "id": "server_5",
@@ -26,7 +26,22 @@
   },
   {
     "id": "server_6",
-    "name": "MK21 TV",
-    "baseUrl": "http://appsmk.org"
+    "name": "MK21 PRÓ",
+    "baseUrl": "http://mk21.uk"
+  },
+  {
+    "id": "server_7",
+    "name": "MULTT TV",
+    "baseUrl": "http://hll4.top"
+  },
+  {
+    "id": "server_8",
+    "name": "CINEVO",
+    "baseUrl": "http://antaresfusion.shop"
+  },
+  {
+    "id": "server_9",
+    "name": "MULTT BOX",
+    "baseUrl": "http://cdnconn.xyz"
   }
 ]

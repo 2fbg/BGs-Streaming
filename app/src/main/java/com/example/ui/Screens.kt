@@ -586,6 +586,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     val username by viewModel.username.collectAsState()
     val password by viewModel.password.collectAsState()
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
+    val predefinedServersList by viewModel.predefinedServersState.collectAsState()
     val manualLists by viewModel.manualPlaylists.collectAsState()
     val loadingProgress by viewModel.loadingProgress.collectAsState()
     val errorMsg by viewModel.errorMessage.collectAsState()
@@ -847,7 +848,9 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         Spacer(modifier = Modifier.height(6.dp))
 
                         var serverExpanded by remember { mutableStateOf(false) }
-                        val selectedServer = viewModel.predefinedServers.find { it.name == activePlaylist } ?: viewModel.predefinedServers.first()
+                        val selectedServer = predefinedServersList.find { it.name == activePlaylist } 
+                            ?: predefinedServersList.firstOrNull() 
+                            ?: com.example.data.model.ServerProfile("server_5", "CB6000", "http://painelplyon.top")
 
                         Box(
                             modifier = Modifier
@@ -906,7 +909,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     .background(Color(0xFF0C0C0F))
                                     .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(10.dp))
                             ) {
-                                viewModel.predefinedServers.forEach { server ->
+                                predefinedServersList.forEach { server ->
                                     val isSelected = activePlaylist == server.name
                                     DropdownMenuItem(
                                         text = {
@@ -1706,6 +1709,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
+    val predefinedServersList by viewModel.predefinedServersState.collectAsState()
     val manualLists by viewModel.manualPlaylists.collectAsState()
     val contentType by viewModel.selectedContentType.collectAsState()
     val activeCategory by viewModel.selectedCategory.collectAsState()
@@ -1809,7 +1813,7 @@ fun HomeScreen(
                                 onClick = {},
                                 enabled = false
                             )
-                            viewModel.predefinedServers.forEach { server ->
+                            predefinedServersList.forEach { server ->
                                 DropdownMenuItem(
                                     text = { Text(server.name, color = Color.White, fontSize = 13.sp) },
                                     onClick = {
@@ -1993,7 +1997,7 @@ fun HomeScreen(
                                 onClick = {},
                                 enabled = false
                             )
-                            viewModel.predefinedServers.forEach { server ->
+                            predefinedServersList.forEach { server ->
                                 DropdownMenuItem(
                                     text = { Text(server.name, color = Color.White, fontSize = 13.sp) },
                                     onClick = {

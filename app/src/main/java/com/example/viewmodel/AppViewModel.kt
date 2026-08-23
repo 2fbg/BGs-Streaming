@@ -46,6 +46,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     private val _predefinedServersState = MutableStateFlow<List<ServerProfile>>(staticDefaultServers)
+    val predefinedServersState: StateFlow<List<ServerProfile>> = _predefinedServersState.asStateFlow()
     
     val predefinedServers: List<ServerProfile>
         get() = _predefinedServersState.value
@@ -316,24 +317,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         .build()
 
-    private fun loadCachedServers() {
-        val cachedJson = preferencesService.cachedServersJson
+    fun mergeWithDefaults(incoming: List<ServerProfile>): List<ServerProfile> {
         val merged = mutableListOf<ServerProfile>()
-        // Always include all 9 static default servers with their official URLs
         merged.addAll(staticDefaultServers)
 
-        if (cachedJson.isNotEmpty()) {
-            val parsed = parseServersJson(cachedJson)
-            for (srv in parsed) {
-                // Add any additional custom server that is not already in the default 9
-                if (!merged.any { it.name.equals(srv.name, ignoreCase = true) || it.baseUrl.equals(srv.baseUrl, ignoreCase = true) || (it.name == "MK21 PRÓ" && srv.name == "MK21 TV") }) {
-                    merged.add(srv)
+        for (inc in incoming) {
+            val matchingIndex = merged.indexOfFirst {
+                it.name.equals(inc.name, ignoreCase = true) ||
+                it.id == inc.id ||
+                (it.name == "MK21 PRÓ" && (inc.name.equals("MK21 TV", ignoreCase = true) || inc.name.equals("MK21", ignoreCase = true)))
+            }
+            if (matchingIndex != -1) {
+                val isOldDep = inc.baseUrl.contains("somentevlog.xyz") || inc.baseUrl.contains("pitclear.sbs") ||
+                        inc.baseUrl.contains("infinixparcerias.site") || inc.baseUrl.contains("unituf.online") ||
+                        inc.baseUrl.contains("appsmk.org")
+                if (!isOldDep && inc.baseUrl.isNotBlank() && inc.baseUrl.startsWith("http")) {
+                    merged[matchingIndex] = merged[matchingIndex].copy(baseUrl = inc.baseUrl)
+                }
+            } else {
+                if (!merged.any { it.baseUrl.equals(inc.baseUrl, ignoreCase = true) }) {
+                    merged.add(inc)
                 }
             }
         }
+        return merged
+    }
+
+    private fun loadCachedServers() {
+        val cachedJson = preferencesService.cachedServersJson
+        val parsed = if (cachedJson.isNotEmpty()) parseServersJson(cachedJson) else emptyList()
+        val merged = mergeWithDefaults(parsed)
         _predefinedServersState.value = merged
         
-        // Save back the normalized 9+ server list so SharedPreferences cache is in sync
         try {
             val array = org.json.JSONArray()
             for (profile in merged) {
@@ -691,9 +706,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                 if (!bodyString.isNullOrEmpty()) {
                                     val parsed = parseServersJson(bodyString)
                                     if (parsed.isNotEmpty()) {
-                                        preferencesService.cachedServersJson = bodyString
-                                        _predefinedServersState.value = parsed
-                                        Log.d("MK21_VM", "Loaded ${parsed.size} dynamic servers from $url on attempt $attempt!")
+                                        val merged = mergeWithDefaults(parsed)
+                                        try {
+                                            val array = org.json.JSONArray()
+                                            for (profile in merged) {
+                                                val obj = org.json.JSONObject()
+                                                obj.put("id", profile.id)
+                                                obj.put("name", profile.name)
+                                                obj.put("baseUrl", profile.baseUrl)
+                                                array.put(obj)
+                                            }
+                                            preferencesService.cachedServersJson = array.toString()
+                                        } catch (e: Exception) {}
+                                        _predefinedServersState.value = merged
+                                        Log.d("MK21_VM", "Loaded and merged ${merged.size} dynamic servers from $url on attempt $attempt!")
                                         success = true
                                         break
                                     }
