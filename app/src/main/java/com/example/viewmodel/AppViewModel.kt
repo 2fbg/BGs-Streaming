@@ -432,6 +432,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importServersFromPlainText(pastedText: String): Boolean {
         val parsed = parseServersFromPlainText(pastedText)
+        var anyImported = false
+
         if (parsed.isNotEmpty()) {
             val array = org.json.JSONArray()
             for (profile in parsed) {
@@ -444,9 +446,62 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val jsonStr = array.toString()
             preferencesService.cachedServersJson = jsonStr
             _predefinedServersState.value = parsed
-            return true
+            anyImported = true
         }
-        return false
+
+        // Also extract and save any explicit M3U links / manual lists and credentials
+        val lines = pastedText.split("\n", "\r")
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) continue
+
+            val httpIndex = if (trimmed.contains("http://", ignoreCase = true)) {
+                trimmed.indexOf("http://", ignoreCase = true)
+            } else if (trimmed.contains("https://", ignoreCase = true)) {
+                trimmed.indexOf("https://", ignoreCase = true)
+            } else {
+                -1
+            }
+
+            if (httpIndex != -1) {
+                var url = trimmed.substring(httpIndex).split(" ").firstOrNull() ?: ""
+                if (url.contains(".m3u", ignoreCase = true) || url.contains("get.php", ignoreCase = true) || url.contains(".m3u8", ignoreCase = true)) {
+                    var listName = trimmed.replace(url, "")
+                        .replace("[🟢🔴🔵⚪🟠🟣✅🔰✔️🌟📱📺🌐🆔💻🔗]".toRegex(), "")
+                        .replace("*", "").replace(":", "").replace("-", "").replace("_", "").trim()
+                    if (listName.isEmpty()) {
+                        listName = "Lista Manual ${parsed.size + 1}"
+                    }
+                    addManualPlaylist(listName, url)
+                    anyImported = true
+                }
+            }
+
+            // Extract username & password if present in panel text
+            val lower = trimmed.lowercase()
+            if (lower.contains("usuário:") || lower.contains("usuario:") || lower.contains("user:") || lower.contains("username:")) {
+                val parts = trimmed.split(":")
+                if (parts.size >= 2) {
+                    val userVal = parts[1].trim().split(" ").firstOrNull() ?: ""
+                    if (userVal.isNotEmpty()) {
+                        _username.value = userVal
+                        preferencesService.username = userVal
+                    }
+                }
+            }
+            if (lower.contains("senha:") || lower.contains("pass:") || lower.contains("password:")) {
+                val parts = trimmed.split(":")
+                if (parts.size >= 2) {
+                    val passVal = parts[1].trim().split(" ").firstOrNull() ?: ""
+                    if (passVal.isNotEmpty()) {
+                        _password.value = passVal
+                        preferencesService.password = passVal
+                    }
+                }
+            }
+        }
+
+        return anyImported
     }
 
     private fun parseServersJson(jsonStr: String): List<ServerProfile> {

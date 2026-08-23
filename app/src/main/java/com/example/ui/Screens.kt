@@ -582,6 +582,7 @@ fun StartupGateScreen() {
 @Composable
 fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val username by viewModel.username.collectAsState()
     val password by viewModel.password.collectAsState()
     val activePlaylist by viewModel.activePlaylistName.collectAsState()
@@ -591,6 +592,8 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     var showManualDialog by remember { mutableStateOf(false) }
+    var showImportPanelDialogInLogin by remember { mutableStateOf(false) }
+    var importStatusMsg by remember { mutableStateOf<String?>(null) }
     var editingPlaylist by remember { mutableStateOf<com.example.data.model.ManualPlaylist?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Predef, 1: Manual List
     var passwordVisible by remember { mutableStateOf(false) }
@@ -953,8 +956,13 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                 color = Color.White,
                                 fontSize = 16.sp
                             )
-                            IconButton(onClick = { showManualDialog = true }) {
-                                Icon(Icons.Default.AddCircle, contentDescription = "Add List", tint = GoldPremium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { showImportPanelDialogInLogin = true }) {
+                                    Icon(Icons.Default.ContentPaste, contentDescription = "Importar Painel", tint = GoldPremium)
+                                }
+                                IconButton(onClick = { showManualDialog = true }) {
+                                    Icon(Icons.Default.AddCircle, contentDescription = "Add List", tint = GoldPremium)
+                                }
                             }
                         }
                         
@@ -1290,6 +1298,117 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                 colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.SophisticatedRedStart)
                             ) {
                                 Text("Salvar", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Import Panel text directly into App and Manual Lists
+        if (showImportPanelDialogInLogin) {
+            var panelTextInput by remember { mutableStateOf("") }
+            Dialog(onDismissRequest = { 
+                showImportPanelDialogInLogin = false 
+                importStatusMsg = null
+            }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131111)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.width(320.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Importar Painel de Listas",
+                            color = GoldPremium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Cole o texto do painel/revendedor. O app salvará automaticamente os servidores, links M3U e credenciais.",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = panelTextInput,
+                            onValueChange = { panelTextInput = it },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 10.sp),
+                            label = { Text("Texto do Painel (URLs ou M3U)", color = Color.Gray, fontSize = 10.sp) },
+                            minLines = 4,
+                            maxLines = 6,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
+                                focusedContainerColor = Color(0xFF09090C),
+                                unfocusedContainerColor = Color(0xFF09090C),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(120.dp)
+                        )
+
+                        if (importStatusMsg != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = importStatusMsg ?: "",
+                                color = GoldPremium,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { 
+                                    showImportPanelDialogInLogin = false 
+                                    importStatusMsg = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (panelTextInput.trim().isNotEmpty()) {
+                                        val success = viewModel.importServersFromPlainText(panelTextInput)
+                                        if (success) {
+                                            importStatusMsg = "Listas e servidores importados com sucesso!"
+                                            coroutineScope.launch {
+                                                delay(1200)
+                                                showImportPanelDialogInLogin = false
+                                                importStatusMsg = null
+                                            }
+                                        } else {
+                                            importStatusMsg = "Nenhum servidor ou link M3U válido encontrado."
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.SophisticatedRedStart),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("IMPORTAR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
                     }
@@ -3487,6 +3606,7 @@ fun VideoPlayerUI(
             }
             if (activity?.isFinishing == false && activity?.isDestroyed == false) {
                 try {
+                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                     window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } catch (e: Exception) {
                     // Prevent crash during window detachment
@@ -3508,7 +3628,7 @@ fun VideoPlayerUI(
                 if (isInPipMode) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown()
-                    var dragSide = if (down.position.x < size.width / 2f) 1 else 2 // 1: Left (Brightness), 2: Right (Volume)
+                    var dragSide = if (down.position.x < size.width / 2f) 1 else 2 // 1: Left (Volume), 2: Right (Brightness)
                     var totalDragY = 0f
                     var isDrag = false
                     
@@ -3523,26 +3643,10 @@ fun VideoPlayerUI(
                         
                         if (isDrag) {
                             change.consume()
-                            val delta = -dragAmount.y / size.height.toFloat() * 1.5f
                             
                             if (dragSide == 1) {
-                                // Left-side Swipe: Screen Brightness
-                                brightnessValue = (brightnessValue + delta).coerceIn(0.01f, 1.0f)
-                                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
-                                    activity.runOnUiThread {
-                                        try {
-                                            val lp = activity.window.attributes
-                                            lp.screenBrightness = brightnessValue
-                                            activity.window.attributes = lp
-                                        } catch (e: Exception) {
-                                            // safety block
-                                        }
-                                    }
-                                }
-                                showBrightnessOverlay = true
-                                showVolumeOverlay = false
-                            } else {
-                                // Right-side Swipe: Audio volume
+                                // Left-side Swipe: Audio volume
+                                val delta = -dragAmount.y / size.height.toFloat() * 0.75f
                                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                                 var volPercent = volumeValue
                                 if (isMuted && delta > 0) {
@@ -3560,6 +3664,23 @@ fun VideoPlayerUI(
                                 
                                 showVolumeOverlay = true
                                 showBrightnessOverlay = false
+                            } else {
+                                // Right-side Swipe: Screen Brightness (smooth progression)
+                                val delta = -dragAmount.y / size.height.toFloat() * 0.45f
+                                brightnessValue = (brightnessValue + delta).coerceIn(0.01f, 1.0f)
+                                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                                    activity.runOnUiThread {
+                                        try {
+                                            val lp = activity.window.attributes
+                                            lp.screenBrightness = brightnessValue
+                                            activity.window.attributes = lp
+                                        } catch (e: Exception) {
+                                            // safety block
+                                        }
+                                    }
+                                }
+                                showBrightnessOverlay = true
+                                showVolumeOverlay = false
                             }
                             
                             // Visual overlay auto-dismiss timer
@@ -3610,61 +3731,12 @@ fun VideoPlayerUI(
         )
 
         // Custom Visual Sidebar Overlays (Swipe Brightness & Volume)
-        // Brightness sidebar (Left)
+        // Volume sidebar (Left)
         AnimatedVisibility(
-            visible = showBrightnessOverlay,
+            visible = showVolumeOverlay,
             enter = fadeIn() + slideInHorizontally { -it },
             exit = fadeOut() + slideOutHorizontally { -it },
             modifier = Modifier.align(Alignment.CenterStart).padding(start = 32.dp)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .width(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.Black.copy(alpha = 0.75f))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-                    .padding(vertical = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Brightness5,
-                    contentDescription = "Brightness Indicator",
-                    tint = GoldPremium,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .width(5.dp)
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color.White.copy(alpha = 0.15f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(brightnessValue)
-                            .align(Alignment.BottomStart)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(GoldPremium)
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "${(brightnessValue * 100).toInt()}%",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Volume sidebar (Right)
-        AnimatedVisibility(
-            visible = showVolumeOverlay,
-            enter = fadeIn() + slideInHorizontally { it },
-            exit = fadeOut() + slideOutHorizontally { it },
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -3706,6 +3778,55 @@ fun VideoPlayerUI(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "${(volumeValue * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Brightness sidebar (Right)
+        AnimatedVisibility(
+            visible = showBrightnessOverlay,
+            enter = fadeIn() + slideInHorizontally { it },
+            exit = fadeOut() + slideOutHorizontally { it },
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Brightness5,
+                    contentDescription = "Brightness Indicator",
+                    tint = GoldPremium,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(brightnessValue)
+                            .align(Alignment.BottomStart)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(GoldPremium)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "${(brightnessValue * 100).toInt()}%",
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -3890,6 +4011,29 @@ fun VideoPlayerUI(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            val currentOrientation = activity?.resources?.configuration?.orientation
+                            val newOrientation = if (currentOrientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            } else {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            }
+                            activity?.requestedOrientation = newOrientation
+                        },
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .testTag("player_rotate_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ScreenRotation,
+                            contentDescription = "Girar Tela",
+                            tint = GoldPremium,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
