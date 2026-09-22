@@ -84,9 +84,11 @@ android {
         )
       }
       storeFile = keystoreFile
-      storePassword = System.getenv("STORE_PASSWORD") ?: "F@bioGu@rniere1983!"
+      val envStorePass = System.getenv("STORE_PASSWORD")
+      val envKeyPass = System.getenv("KEY_PASSWORD")
+      storePassword = if (!envStorePass.isNullOrBlank()) envStorePass else "F@bioGu@rniere1983!"
       keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD") ?: "F@bioGu@rniere1983!"
+      keyPassword = if (!envKeyPass.isNullOrBlank()) envKeyPass else "F@bioGu@rniere1983!"
     }
     create("debugConfig") {
       val keystoreFile = file("${rootDir}/debug.keystore")
