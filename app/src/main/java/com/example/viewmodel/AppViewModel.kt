@@ -31,6 +31,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val playlistItemDao = db.playlistItemDao()
     private val manualPlaylistDao = db.manualPlaylistDao()
     
+    val repository: com.example.data.repository.IptvRepository = com.example.data.repository.IptvRepositoryImpl(
+        playlistItemDao,
+        manualPlaylistDao
+    )
+    
     val preferencesService = PreferencesService(application)
     
     private val staticDefaultServers = listOf(

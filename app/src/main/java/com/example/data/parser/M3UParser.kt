@@ -46,15 +46,21 @@ object M3UParser {
                 currentGroup = currentLine.substring(8).trim()
             } else if (!currentLine.startsWith("#")) {
                 // This is a stream URL line!
-                if (currentMetaData != null) {
-                    val item = parseItem(currentMetaData, currentLine, playlistSource, currentGroup)
-                    items.add(item)
+                val sanitizedUrl = sanitizeStreamUrl(currentLine)
+                if (sanitizedUrl != null) {
+                    if (currentMetaData != null) {
+                        val item = parseItem(currentMetaData, sanitizedUrl, playlistSource, currentGroup)
+                        items.add(item)
+                        currentMetaData = null
+                        currentGroup = null
+                    } else if (isValidUrl(sanitizedUrl)) {
+                        // Fallback: parse plain URL without metadata
+                        val item = parseUrlOnly(sanitizedUrl, playlistSource)
+                        items.add(item)
+                    }
+                } else {
                     currentMetaData = null
                     currentGroup = null
-                } else if (isValidUrl(currentLine)) {
-                    // Fallback: parse plain URL without metadata
-                    val item = parseUrlOnly(currentLine, playlistSource)
-                    items.add(item)
                 }
 
                 // Emitting progress at regular intervals
@@ -77,6 +83,28 @@ object M3UParser {
         }
 
         return items
+    }
+
+    /**
+     * Sanitizes stream URLs to only permit safe streaming protocols and reject local/file attacks.
+     */
+    fun sanitizeStreamUrl(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return null
+        val lower = trimmed.lowercase()
+        val isAllowedScheme = lower.startsWith("http://") || 
+                              lower.startsWith("https://") || 
+                              lower.startsWith("rtmp://") || 
+                              lower.startsWith("rtsp://") || 
+                              lower.startsWith("mms://")
+        return if (isAllowedScheme) trimmed else null
+    }
+
+    private fun sanitizeLogoUrl(rawLogo: String?): String? {
+        if (rawLogo.isNullOrBlank()) return null
+        val trimmed = rawLogo.trim()
+        val lower = trimmed.lowercase()
+        return if (lower.startsWith("http://") || lower.startsWith("https://")) trimmed else null
     }
 
     private fun isValidUrl(url: String): Boolean {
@@ -149,7 +177,7 @@ object M3UParser {
         return PlaylistItem(
             name = displayName,
             url = finalUrl,
-            logoUrl = logoUrl,
+            logoUrl = sanitizeLogoUrl(logoUrl),
             category = category,
             contentType = contentType.name,
             isAdult = isAdult,

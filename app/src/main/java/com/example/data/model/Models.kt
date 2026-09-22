@@ -1,6 +1,8 @@
 package com.example.data.model
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -13,6 +15,7 @@ enum class ContentType {
 /**
  * Represents a predefined Server configuration entry.
  */
+@Immutable
 data class ServerProfile(
     val id: String,
     val name: String,
@@ -21,8 +24,17 @@ data class ServerProfile(
 
 /**
  * Represents a parsed playlist channel, movie, or series.
+ * Optimized with composite indices for ultrafast filtering by category and content type.
  */
-@Entity(tableName = "playlist_items")
+@Immutable
+@Entity(
+    tableName = "playlist_items",
+    indices = [
+        Index(value = ["playlistSource", "contentType"]),
+        Index(value = ["playlistSource", "category", "contentType"]),
+        Index(value = ["playlistSource", "isFavorite"])
+    ]
+)
 data class PlaylistItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
@@ -39,6 +51,7 @@ data class PlaylistItem(
 /**
  * Represents a custom manual M3U playlist added by the user.
  */
+@Immutable
 @Entity(tableName = "manual_playlists")
 data class ManualPlaylist(
     @PrimaryKey val name: String,

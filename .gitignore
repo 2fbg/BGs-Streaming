@@ -18,3 +18,7 @@ local.properties
 debug.keystore
 my-upload-key.jks
 /my-upload-key.jks
+*.base64
+*.jks
+*.keystore
+secrets.properties
