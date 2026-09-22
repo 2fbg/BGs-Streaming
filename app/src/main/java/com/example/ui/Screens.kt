@@ -53,9 +53,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.AspectRatioFrameLayout
 import coil.compose.AsyncImage
@@ -3501,12 +3506,60 @@ fun VideoPlayerUI(
         }
     }
 
-    // Standard media3 ExoPlayer controller setup with proper scopes
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-            repeatMode = Player.REPEAT_MODE_OFF
+    // Helper function to build appropriate MediaItem with proper MIME type if needed
+    val createMediaItem: (String) -> MediaItem = remember {
+        { rawUrl ->
+            val builder = MediaItem.Builder().setUri(rawUrl)
+            val lower = rawUrl.lowercase()
+            when {
+                lower.contains(".m3u8") || lower.contains("/live/") -> {
+                    builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+                }
+                lower.contains(".mpd") -> {
+                    builder.setMimeType(MimeTypes.APPLICATION_MPD)
+                }
+                lower.contains(".mp4") -> {
+                    builder.setMimeType(MimeTypes.VIDEO_MP4)
+                }
+                lower.contains(".mkv") -> {
+                    builder.setMimeType(MimeTypes.VIDEO_MATROSKA)
+                }
+                lower.contains(".ts") -> {
+                    builder.setMimeType(MimeTypes.VIDEO_MP2T)
+                }
+            }
+            builder.build()
         }
+    }
+
+    // Standard media3 ExoPlayer controller setup with proper scopes, robust HTTP DataSource and User-Agent
+    val exoPlayer = remember {
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(20000)
+            .setKeepPostFor302Redirects(true)
+
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                15000, // minBufferMs
+                50000, // maxBufferMs
+                1500,  // bufferForPlaybackMs
+                3000   // bufferForPlaybackAfterRebufferMs
+            )
+            .build()
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
+            .build().apply {
+                playWhenReady = true
+                repeatMode = Player.REPEAT_MODE_OFF
+            }
     }
 
     // Remembered PlayerView reference to guarantee order of synchronization upon disposal without leaking context
@@ -3537,7 +3590,7 @@ fun VideoPlayerUI(
             } catch (e: Exception) {
                 // Ignore player transient reset errors
             }
-            val item = MediaItem.fromUri(url)
+            val item = createMediaItem(url)
             exoPlayer.setMediaItem(item)
             exoPlayer.prepare()
             exoPlayer.play()
@@ -3576,11 +3629,13 @@ fun VideoPlayerUI(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                Log.e("PlayerScreen", "ExoPlayer playback error [code=${error.errorCode}, name=${error.errorCodeName}]: ${error.message}", error)
                 if (retryCount < 5) {
                     retryCount++
                     Log.d("PlayerScreen", "Encountered player error, attempting auto-retry $retryCount/5: ${error.message}")
                 } else {
-                    errorMessage = "Impossível reproduzir canal/mídia. Conexão terminada pelo link."
+                    val detail = error.errorCodeName.replace("ERROR_CODE_", "").replace("_", " ").lowercase()
+                    errorMessage = "Impossível reproduzir canal/mídia ($detail). Conexão recusada ou formato incompatível."
                     isBuffering = false
                     try {
                         exoPlayer.stop() // Immediately free hardware decoder and avoid ANR/Main Thread starvation!
@@ -4087,7 +4142,7 @@ fun VideoPlayerUI(
                                         try {
                                             exoPlayer.stop()
                                             exoPlayer.clearMediaItems()
-                                            val item = MediaItem.fromUri(url)
+                                            val item = createMediaItem(url)
                                             exoPlayer.setMediaItem(item)
                                             exoPlayer.prepare()
                                             exoPlayer.play()

@@ -1,25 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- By default, disallow cleartext traffic to protect against MitM on public networks -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Allow cleartext HTTP traffic across all servers and IPTV stream backends -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
-
-    <!-- Specific cleartext exceptions strictly for IPTV backend stream servers that do not support TLS/HTTPS -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">new-link.shop</domain>
-        <domain includeSubdomains="true">alfatecloan.sbs</domain>
-        <domain includeSubdomains="true">connstar.xyz</domain>
-        <domain includeSubdomains="true">tannix26.shop</domain>
-        <domain includeSubdomains="true">painelplyon.top</domain>
-        <domain includeSubdomains="true">mk21.uk</domain>
-        <domain includeSubdomains="true">hll4.top</domain>
-        <domain includeSubdomains="true">antaresfusion.shop</domain>
-        <domain includeSubdomains="true">cdnconn.xyz</domain>
-        <!-- Local streaming / casting / proxy exceptions -->
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
 </network-security-config>
