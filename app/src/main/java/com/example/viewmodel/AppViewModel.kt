@@ -1315,20 +1315,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _errorMessage.value = null
             try {
                 val targetPlaylist = _activePlaylistName.value
-                val downloadUrl = getActivePlaylistDownloadUrl()
+                val candidateUrls = getActivePlaylistCandidateUrls(targetPlaylist)
                 
-                if (downloadUrl.isEmpty()) {
+                if (candidateUrls.isEmpty()) {
                     _errorMessage.value = "Por favor, configure o usuário/senha ou insira uma lista manual."
                     _loadingProgress.value = null
                     return@launch
                 }
 
                 _loadingProgress.value = 10 // connected
-                val request = Request.Builder().url(downloadUrl).build()
-                val response = okHttpClient.newCall(request).execute()
-                
-                if (!response.isSuccessful) {
-                    throw Exception("Falha de conexão com o servidor. Código: ${response.code}")
+                var response: okhttp3.Response? = null
+                var lastException: Exception? = null
+
+                for (url in candidateUrls) {
+                    try {
+                        val request = Request.Builder().url(url).build()
+                        val res = okHttpClient.newCall(request).execute()
+                        if (res.isSuccessful) {
+                            response = res
+                            break
+                        } else {
+                            res.close()
+                            lastException = Exception("Servidor respondeu com código: ${res.code}")
+                        }
+                    } catch (e: Exception) {
+                        lastException = e
+                    }
+                }
+
+                if (response == null || !response.isSuccessful) {
+                    throw lastException ?: Exception("Falha de conexão com o servidor.")
                 }
                 
                 _loadingProgress.value = 35 // downloading
@@ -1360,12 +1376,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun downloadAndParsePlaylistSilently(targetPlaylist: String = _activePlaylistName.value) {
         try {
-            val downloadUrl = getActivePlaylistDownloadUrl(targetPlaylist)
-            if (downloadUrl.isEmpty()) return
+            val candidateUrls = getActivePlaylistCandidateUrls(targetPlaylist)
+            if (candidateUrls.isEmpty()) return
 
-            val request = Request.Builder().url(downloadUrl).build()
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
+            var response: okhttp3.Response? = null
+            for (url in candidateUrls) {
+                try {
+                    val request = Request.Builder().url(url).build()
+                    val res = okHttpClient.newCall(request).execute()
+                    if (res.isSuccessful) {
+                        response = res
+                        break
+                    } else {
+                        res.close()
+                    }
+                } catch (ignored: Exception) { }
+            }
+
+            if (response != null && response.isSuccessful) {
                 response.body?.byteStream()?.let { stream ->
                     val parsedItems = M3UParser.parse(stream, targetPlaylist) { _ -> }
                     if (parsedItems.isNotEmpty()) {
@@ -1378,7 +1406,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun getActivePlaylistDownloadUrl(targetPlaylist: String = _activePlaylistName.value): String {
+    private fun getActivePlaylistCandidateUrls(targetPlaylist: String = _activePlaylistName.value): List<String> {
         val currentPlaylist = targetPlaylist
         
         // Is it a predefined server?
@@ -1387,7 +1415,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val user = _username.value.trim()
             val pass = _password.value.trim()
             if (user.isEmpty() || pass.isEmpty()) {
-                return ""
+                return emptyList()
             }
             // Construct base URL, ensuring there's a scheme and keeping HTTPS if provided
             var base = predefinedServer.baseUrl
@@ -1397,15 +1425,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val encodedUser = try { java.net.URLEncoder.encode(user, "UTF-8") } catch (e: Exception) { user }
             val encodedPass = try { java.net.URLEncoder.encode(pass, "UTF-8") } catch (e: Exception) { pass }
             val formatParam = if (preferencesService.liveStreamFormat == "HLS (.m3u8)") "hls" else "mpegts"
-            return "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3u_plus&output=$formatParam"
+
+            // Multiple fallback patterns: simple get.php (widely compatible with newer panel setups), standard m3uplus, and m3u_plus
+            return listOf(
+                "$base/get.php?username=$encodedUser&password=$encodedPass",
+                "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3uplus&output=$formatParam",
+                "$base/get.php?username=$encodedUser&password=$encodedPass&type=m3u_plus&output=$formatParam"
+            )
         }
         
         // Is it a manual list?
-        var manualUrl = ""
         val matched = manualPlaylists.value.find { it.name == currentPlaylist }
-        if (matched != null) {
-            manualUrl = matched.url
+        if (matched != null && matched.url.isNotEmpty()) {
+            return listOf(matched.url)
         }
-        return manualUrl
+        return emptyList()
+    }
+
+    private fun getActivePlaylistDownloadUrl(targetPlaylist: String = _activePlaylistName.value): String {
+        return getActivePlaylistCandidateUrls(targetPlaylist).firstOrNull() ?: ""
     }
 }

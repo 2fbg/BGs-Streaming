@@ -696,10 +696,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // USERNAME & PASSWORD IN A SINGLE CONTIGUOUS MODERN ROW WITH WARN ON OVERFLOW
-                        val isUsernameExceeded = username.length > 15
-                        val isPasswordExceeded = password.length > 15
-
+                        // USERNAME & PASSWORD IN A SINGLE CONTIGUOUS MODERN ROW
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -735,16 +732,16 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         )
                                     }
                                 },
-                                isError = isUsernameExceeded,
+                                isError = false,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("username_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
-                                    unfocusedBorderColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.12f),
-                                    focusedLabelColor = if (isUsernameExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
+                                    focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                    focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
                                     unfocusedContainerColor = Color(0xFF09090C),
                                     focusedTextColor = Color.White,
@@ -800,7 +797,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                         }
                                     }
                                 },
-                                isError = isPasswordExceeded,
+                                isError = false,
                                 visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 modifier = Modifier
@@ -808,37 +805,15 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                                     .testTag("password_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
-                                    unfocusedBorderColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.12f),
-                                    focusedLabelColor = if (isPasswordExceeded) com.example.ui.theme.NetflixRed else com.example.ui.theme.SophisticatedRedStart,
+                                    focusedBorderColor = com.example.ui.theme.SophisticatedRedStart,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                    focusedLabelColor = com.example.ui.theme.SophisticatedRedStart,
                                     focusedContainerColor = Color(0xFF09090C),
                                     unfocusedContainerColor = Color(0xFF09090C),
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White
                                 )
                             )
-                        }
-
-                        if (isUsernameExceeded || isPasswordExceeded) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "Warning",
-                                    tint = com.example.ui.theme.NetflixRed,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Aviso: O limite recomendado é 15 caracteres!",
-                                    color = com.example.ui.theme.NetflixRed,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
