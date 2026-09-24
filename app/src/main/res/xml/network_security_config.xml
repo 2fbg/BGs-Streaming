@@ -7,8 +7,16 @@
     </base-config>
     <!-- Permitir HTTP apenas para domínios de streaming conhecidos -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">new-link.shop</domain>
+        <domain includeSubdomains="true">myopbx.beer</domain>
         <domain includeSubdomains="true">alfatecloan.sbs</domain>
+        <domain includeSubdomains="true">coliseuop.site</domain>
+        <domain includeSubdomains="true">gip26.sbs</domain>
+        <domain includeSubdomains="true">cdn.caterlune.top</domain>
+        <domain includeSubdomains="true">caterlune.top</domain>
+        <domain includeSubdomains="true">app.tigerouro.shop</domain>
+        <domain includeSubdomains="true">tigerouro.shop</domain>
+        <domain includeSubdomains="true">cp2026.sbs</domain>
+        <domain includeSubdomains="true">new-link.shop</domain>
         <domain includeSubdomains="true">connstar.xyz</domain>
         <domain includeSubdomains="true">tannix26.shop</domain>
         <domain includeSubdomains="true">painelplyon.top</domain>

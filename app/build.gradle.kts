@@ -12,7 +12,9 @@ fun decodeBase64OrGenerateKeystore(
   keystoreFile: java.io.File,
   base64File: java.io.File,
   alias: String,
-  dname: String
+  dname: String,
+  storePass: String,
+  keyPass: String
 ) {
   if (keystoreFile.exists()) return
 
@@ -29,20 +31,20 @@ fun decodeBase64OrGenerateKeystore(
     }
   }
 
-  val pass = System.getenv("STORE_PASSWORD") ?: System.getenv("DEBUG_STORE_PASSWORD") ?: "android"
-
   try {
     println("Keystore not found. Generating on-the-fly: ${keystoreFile.absolutePath}")
+    val storeType = if (keystoreFile.name.endsWith(".jks", ignoreCase = true)) "JKS" else "PKCS12"
     val pb = ProcessBuilder(
       "keytool", "-genkeypair",
       "-noprompt",
       "-keystore", keystoreFile.absolutePath,
+      "-storetype", storeType,
       "-keyalg", "RSA",
       "-keysize", "2048",
       "-validity", "10000",
       "-alias", alias,
-      "-storepass", pass,
-      "-keypass", pass,
+      "-storepass", storePass,
+      "-keypass", keyPass,
       "-dname", dname
     )
     val process = pb.start()
@@ -75,35 +77,52 @@ android {
   }
 
   signingConfigs {
-    create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      val keystoreFile = file(keystorePath)
-      if (keystorePath == "${rootDir}/my-upload-key.jks") {
-        decodeBase64OrGenerateKeystore(
-          keystoreFile,
-          file("${rootDir}/my-upload-key.base64"),
-          "upload",
-          "CN=Fabio Guarniere, O=MK21, C=BR"
-        )
-      }
-      storeFile = keystoreFile
-      storePassword = System.getenv("STORE_PASSWORD") ?: ""
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-    }
+    val storePass = System.getenv("STORE_PASSWORD")
+    val keyPass = System.getenv("KEY_PASSWORD")
+    val hasReleaseCredentials = !storePass.isNullOrEmpty() && !keyPass.isNullOrEmpty()
+
     create("debugConfig") {
-      val keystoreFile = file("${rootDir}/debug.keystore")
+      val keystoreFile = File(rootProject.rootDir, "debug.keystore")
+      val base64File = File(rootProject.rootDir, "debug.keystore.base64")
       decodeBase64OrGenerateKeystore(
         keystoreFile,
-        file("${rootDir}/debug.keystore.base64"),
+        base64File,
         "androiddebugkey",
-        "CN=Android Debug, O=Android, C=US"
+        "CN=Android Debug, O=Android, C=US",
+        "android",
+        "android"
       )
       storeFile = keystoreFile
-      val debugPass = System.getenv("DEBUG_STORE_PASSWORD") ?: "android"
-      storePassword = debugPass
+      storePassword = "android"
       keyAlias = "androiddebugkey"
-      keyPassword = debugPass
+      keyPassword = "android"
+    }
+
+    create("release") {
+      if (hasReleaseCredentials) {
+        val keystorePath = System.getenv("KEYSTORE_PATH")
+        val keystoreFile = if (!keystorePath.isNullOrEmpty()) file(keystorePath) else File(rootProject.rootDir, "my-upload-key.jks")
+        val base64File = File(rootProject.rootDir, "my-upload-key.base64")
+        decodeBase64OrGenerateKeystore(
+          keystoreFile,
+          base64File,
+          "upload",
+          "CN=Fabio Guarniere, O=MK21, C=BR",
+          storePass,
+          keyPass
+        )
+        storeFile = keystoreFile
+        storePassword = storePass
+        keyAlias = "upload"
+        keyPassword = keyPass
+      } else {
+        // Fallback to debug keystore for development / preview release builds
+        val debugKeystore = File(rootProject.rootDir, "debug.keystore")
+        storeFile = debugKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -117,18 +136,6 @@ android {
     }
     debug {
       signingConfig = signingConfigs.getByName("debugConfig")
-    }
-  }
-
-  gradle.taskGraph.whenReady {
-    val isReleaseBuild = allTasks.any { it.name.contains("Release", ignoreCase = true) }
-    if (isReleaseBuild) {
-      if (System.getenv("STORE_PASSWORD").isNullOrEmpty()) {
-        throw GradleException("STORE_PASSWORD não definido. Configure no .env ou CI/CD.")
-      }
-      if (System.getenv("KEY_PASSWORD").isNullOrEmpty()) {
-        throw GradleException("KEY_PASSWORD não definido. Configure no .env ou CI/CD.")
-      }
     }
   }
   compileOptions {

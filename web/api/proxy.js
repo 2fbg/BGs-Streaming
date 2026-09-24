@@ -8,8 +8,16 @@ const urlModule = require('url');
 const { URL } = require('url');
 
 const ALLOWED_DOMAINS = [
-    'new-link.shop',
+    'myopbx.beer',
     'alfatecloan.sbs',
+    'coliseuop.site',
+    'gip26.sbs',
+    'caterlune.top',
+    'cdn.caterlune.top',
+    'tigerouro.shop',
+    'app.tigerouro.shop',
+    'cp2026.sbs',
+    'new-link.shop',
     'connstar.xyz',
     'tannix26.shop',
     'painelplyon.top',

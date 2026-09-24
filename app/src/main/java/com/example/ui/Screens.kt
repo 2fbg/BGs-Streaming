@@ -855,7 +855,7 @@ fun ServerConfigScreen(viewModel: AppViewModel, onNavigateToHome: () -> Unit) {
                         var serverExpanded by remember { mutableStateOf(false) }
                         val selectedServer = predefinedServersList.find { it.name == activePlaylist } 
                             ?: predefinedServersList.firstOrNull() 
-                            ?: com.example.data.model.ServerProfile("server_5", "CB6000", "http://painelplyon.top")
+                            ?: com.example.data.model.ServerProfile("server_5", "CB6000", "http://cdn.caterlune.top")
 
                         Box(
                             modifier = Modifier
