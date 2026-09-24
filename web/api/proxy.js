@@ -5,10 +5,60 @@
 const http = require('http');
 const https = require('https');
 const urlModule = require('url');
+const { URL } = require('url');
+
+const ALLOWED_DOMAINS = [
+    'new-link.shop',
+    'alfatecloan.sbs',
+    'connstar.xyz',
+    'tannix26.shop',
+    'painelplyon.top',
+    'mk21.uk',
+    'hll4.top',
+    'antaresfusion.shop',
+    'cdnconn.xyz',
+    'cdn.jsdelivr.net',
+    'fonts.googleapis.com',
+    'fonts.gstatic.com'
+];
+
+const ALLOWED_ORIGINS = ['https://2fbg.github.io'];
+
+// Basic in-memory rate limiting per IP
+const requestCounts = new Map();
+const MAX_REQUESTS_PER_MINUTE = 30;
+
+function isRateLimited(clientIp) {
+    const now = Date.now();
+    const windowStart = now - 60000;
+    let record = requestCounts.get(clientIp);
+
+    if (!record) {
+        record = [];
+        requestCounts.set(clientIp, record);
+    }
+
+    const recent = record.filter(timestamp => timestamp > windowStart);
+    recent.push(now);
+    requestCounts.set(clientIp, recent);
+
+    if (requestCounts.size > 2000) {
+        for (const [ip, timestamps] of requestCounts.entries()) {
+            if (timestamps.every(t => t <= windowStart)) {
+                requestCounts.delete(ip);
+            }
+        }
+    }
+
+    return recent.length > MAX_REQUESTS_PER_MINUTE;
+}
 
 module.exports = function handler(req, res) {
-    // Set permissive CORS headers for the proxy
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Restrict CORS to authorized frontend origins
+    const origin = req.headers.origin;
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
 
@@ -18,10 +68,32 @@ module.exports = function handler(req, res) {
         return;
     }
 
+    // Rate limiting check
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (isRateLimited(clientIp)) {
+        res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' });
+        return;
+    }
+
     const targetUrlStr = req.query.url;
 
     if (!targetUrlStr) {
-        res.status(400).send('Falta o parâmetro url com o link de destino.');
+        res.status(400).json({ error: 'Falta o parâmetro url com o link de destino.' });
+        return;
+    }
+
+    let decodedUrl;
+    try {
+        decodedUrl = decodeURIComponent(targetUrlStr);
+        const parsedTarget = new URL(decodedUrl);
+        if (!ALLOWED_DOMAINS.some(d =>
+            parsedTarget.hostname === d || parsedTarget.hostname.endsWith('.' + d)
+        )) {
+            res.status(403).json({ error: 'Domínio não permitido' });
+            return;
+        }
+    } catch (e) {
+        res.status(400).json({ error: 'URL inválida' });
         return;
     }
 
@@ -32,9 +104,16 @@ module.exports = function handler(req, res) {
         }
 
         try {
-            const parsedUrl = urlModule.parse(currentUrlStr);
+            const parsedUrl = new URL(currentUrlStr);
+            if (!ALLOWED_DOMAINS.some(d =>
+                parsedUrl.hostname === d || parsedUrl.hostname.endsWith('.' + d)
+            )) {
+                res.status(403).json({ error: 'Domínio de redirecionamento não permitido' });
+                return;
+            }
+
             const client = parsedUrl.protocol === 'https:' ? https : http;
-            
+
             const headers = {
                 'User-Agent': 'VLC/3.0.18',
                 'Accept': '*/*'
@@ -48,7 +127,7 @@ module.exports = function handler(req, res) {
             const options = {
                 hostname: parsedUrl.hostname,
                 port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-                path: parsedUrl.path || parsedUrl.pathname + (parsedUrl.search || ''),
+                path: parsedUrl.pathname + parsedUrl.search,
                 method: 'GET',
                 headers: headers
             };
@@ -73,10 +152,14 @@ module.exports = function handler(req, res) {
                 // Construct response headers
                 const responseHeaders = {
                     'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
-                    'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': 'GET, OPTIONS',
                     'Access-Control-Allow-Headers': '*'
                 };
+
+                const currentOrigin = req.headers.origin;
+                if (ALLOWED_ORIGINS.includes(currentOrigin)) {
+                    responseHeaders['Access-Control-Allow-Origin'] = currentOrigin;
+                }
 
                 // Forward vital headers for media byte ranges, content length, and seeking
                 if (proxyRes.headers['content-range']) {
@@ -90,8 +173,8 @@ module.exports = function handler(req, res) {
                 }
 
                 res.writeHead(statusCode, responseHeaders);
-                
-                // Pipe the data directly - this handles both text (M3U8) and binary (TS) perfectly with minimal memory footprint
+
+                // Pipe the data directly
                 proxyRes.pipe(res);
             });
 
@@ -108,7 +191,6 @@ module.exports = function handler(req, res) {
     }
 
     try {
-        const decodedUrl = decodeURIComponent(targetUrlStr);
         doProxy(decodedUrl);
     } catch (error) {
         console.error('IPTV Proxy Decode Error:', error);

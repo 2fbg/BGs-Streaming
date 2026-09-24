@@ -56,4 +56,30 @@ class ExampleRobolectricTest {
     val viewModel = AppViewModel(app)
     assertNotNull(viewModel)
   }
+
+  @Test
+  fun `test hmac sha256 license validation`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val prefs = PreferencesService(context)
+    val mac = prefs.virtualMac
+    val validKey = prefs.generateValidKeyForDevice(mac)
+
+    // Initially with empty key, license is invalid
+    prefs.activationKey = ""
+    org.junit.Assert.assertFalse(prefs.isLicenseValid())
+
+    // With invalid or bypass key, license must be invalid
+    prefs.activationKey = "ADMIN2026"
+    org.junit.Assert.assertFalse(prefs.isLicenseValid())
+
+    prefs.activationKey = "GUARNIERE2026"
+    org.junit.Assert.assertFalse(prefs.isLicenseValid())
+
+    prefs.activationKey = "9999"
+    org.junit.Assert.assertFalse(prefs.isLicenseValid())
+
+    // With legitimate HMAC-SHA256 generated key, license is valid
+    prefs.activationKey = validKey
+    org.junit.Assert.assertTrue(prefs.isLicenseValid())
+  }
 }

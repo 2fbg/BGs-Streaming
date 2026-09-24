@@ -12,7 +12,6 @@ fun decodeBase64OrGenerateKeystore(
   keystoreFile: java.io.File,
   base64File: java.io.File,
   alias: String,
-  pass: String,
   dname: String
 ) {
   if (keystoreFile.exists()) return
@@ -29,6 +28,8 @@ fun decodeBase64OrGenerateKeystore(
       println("Failed to decode base64 file ${base64File.name}: ${e.message}")
     }
   }
+
+  val pass = System.getenv("STORE_PASSWORD") ?: System.getenv("DEBUG_STORE_PASSWORD") ?: "android"
 
   try {
     println("Keystore not found. Generating on-the-fly: ${keystoreFile.absolutePath}")
@@ -68,6 +69,9 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    val licenseSecret = System.getenv("LICENSE_SECRET") ?: "MK21_DEFAULT_HMAC_SECRET"
+    buildConfigField("String", "LICENSE_SECRET", "\"$licenseSecret\"")
   }
 
   signingConfigs {
@@ -79,16 +83,13 @@ android {
           keystoreFile,
           file("${rootDir}/my-upload-key.base64"),
           "upload",
-          "F@bioGu@rniere1983!",
           "CN=Fabio Guarniere, O=MK21, C=BR"
         )
       }
       storeFile = keystoreFile
-      val envStorePass = System.getenv("STORE_PASSWORD")
-      val envKeyPass = System.getenv("KEY_PASSWORD")
-      storePassword = if (!envStorePass.isNullOrBlank()) envStorePass else "F@bioGu@rniere1983!"
+      storePassword = System.getenv("STORE_PASSWORD") ?: ""
       keyAlias = "upload"
-      keyPassword = if (!envKeyPass.isNullOrBlank()) envKeyPass else "F@bioGu@rniere1983!"
+      keyPassword = System.getenv("KEY_PASSWORD") ?: ""
     }
     create("debugConfig") {
       val keystoreFile = file("${rootDir}/debug.keystore")
@@ -96,25 +97,38 @@ android {
         keystoreFile,
         file("${rootDir}/debug.keystore.base64"),
         "androiddebugkey",
-        "android",
         "CN=Android Debug, O=Android, C=US"
       )
       storeFile = keystoreFile
-      storePassword = "android"
+      val debugPass = System.getenv("DEBUG_STORE_PASSWORD") ?: "android"
+      storePassword = debugPass
       keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      keyPassword = debugPass
     }
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
       signingConfig = signingConfigs.getByName("debugConfig")
+    }
+  }
+
+  gradle.taskGraph.whenReady {
+    val isReleaseBuild = allTasks.any { it.name.contains("Release", ignoreCase = true) }
+    if (isReleaseBuild) {
+      if (System.getenv("STORE_PASSWORD").isNullOrEmpty()) {
+        throw GradleException("STORE_PASSWORD não definido. Configure no .env ou CI/CD.")
+      }
+      if (System.getenv("KEY_PASSWORD").isNullOrEmpty()) {
+        throw GradleException("KEY_PASSWORD não definido. Configure no .env ou CI/CD.")
+      }
     }
   }
   compileOptions {
@@ -160,6 +174,8 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.security.crypto)
+  implementation(libs.okio)
   implementation(libs.coil.compose)
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.exoplayer.hls)
@@ -200,6 +216,8 @@ tasks.register("generateReleaseKeystore") {
       println("Keystore already exists at ${keystoreFile.absolutePath}")
       return@doLast
     }
+    val storePass = System.getenv("STORE_PASSWORD")
+        ?: throw GradleException("STORE_PASSWORD não definido. Configure no .env ou CI/CD.")
     val pb = ProcessBuilder(
       "keytool", "-genkeypair",
       "-v",
@@ -208,8 +226,8 @@ tasks.register("generateReleaseKeystore") {
       "-keysize", "2048",
       "-validity", "10000",
       "-alias", "upload",
-      "-storepass", "F@bioGu@rniere1983!",
-      "-keypass", "F@bioGu@rniere1983!",
+      "-storepass", storePass,
+      "-keypass", storePass,
       "-dname", "CN=Fabio Guarniere, O=MK21, C=BR"
     )
     val exitCode = pb.inheritIO().start().waitFor()

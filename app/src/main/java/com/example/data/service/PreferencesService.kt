@@ -2,18 +2,65 @@ package com.example.data.service
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import android.util.Base64
-import java.security.KeyStore
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.example.BuildConfig
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 class PreferencesService(context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("mk21_pref_store", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = try {
+        val masterKey: MasterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        EncryptedSharedPreferences.create(
+            context,
+            "mk21_secure_pref_store",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Throwable) {
+        Log.w("PreferencesService", "Failed to initialize EncryptedSharedPreferences (falling back to standard prefs for testing): ${e.message}")
+        context.getSharedPreferences("mk21_secure_pref_store_fallback", Context.MODE_PRIVATE)
+    }
+
+    init {
+        // Migration: If data exists in old unencrypted SharedPreferences ("mk21_pref_store"),
+        // migrate all key-values to EncryptedSharedPreferences and clear old prefs.
+        try {
+            val oldPrefs = context.getSharedPreferences("mk21_pref_store", Context.MODE_PRIVATE)
+            val allOld = oldPrefs.all
+            if (allOld.isNotEmpty()) {
+                val editor = prefs.edit()
+                for ((key, value) in allOld) {
+                    when (value) {
+                        is String -> {
+                            val cleanVal = if (value.startsWith("v1:") || value.startsWith("fallback:")) {
+                                // Strip legacy prefix if any legacy format existed
+                                value.substringAfter(":")
+                            } else {
+                                value
+                            }
+                            editor.putString(key, cleanVal)
+                        }
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Long -> editor.putLong(key, value)
+                        is Int -> editor.putInt(key, value)
+                        is Float -> editor.putFloat(key, value)
+                    }
+                }
+                editor.apply()
+                oldPrefs.edit().clear().apply()
+                Log.d("PreferencesService", "Successfully migrated legacy SharedPreferences to EncryptedSharedPreferences")
+            }
+        } catch (e: Throwable) {
+            Log.w("PreferencesService", "Error during legacy prefs migration: ${e.message}")
+        }
+    }
 
     companion object {
         private const val KEY_USERNAME = "username"
@@ -22,48 +69,16 @@ class PreferencesService(context: Context) {
         private const val KEY_ACTIVE_PLAYLIST_NAME = "active_playlist_name"
         private const val KEY_ADULT_PIN = "adult_pin"
         private const val KEY_LAST_UPDATE_PREFIX = "last_list_update_"
-        
-        // Let's also store whether standard server credentials should override manual lists
         private const val KEY_USE_SAME_CREDENTIALS = "use_same_credentials"
     }
 
     var username: String
-        get() {
-            val raw = try { prefs.getString(KEY_USERNAME, "") ?: "" } catch (e: Throwable) { "" }
-            if (raw.isEmpty()) {
-                return ""
-            }
-            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
-                // Migration: raw is old plaintext. Encrypt and save.
-                val encrypted = KeystoreHelper.encrypt(raw)
-                try { prefs.edit().putString(KEY_USERNAME, encrypted).apply() } catch (e: Throwable) {}
-                return raw
-            }
-            return KeystoreHelper.decrypt(raw)
-        }
-        set(value) {
-            val encrypted = KeystoreHelper.encrypt(value)
-            try { prefs.edit().putString(KEY_USERNAME, encrypted).apply() } catch (e: Throwable) {}
-        }
+        get() = try { prefs.getString(KEY_USERNAME, "") ?: "" } catch (e: Throwable) { "" }
+        set(value) { try { prefs.edit().putString(KEY_USERNAME, value).apply() } catch (e: Throwable) {} }
 
     var password: String
-        get() {
-            val raw = try { prefs.getString(KEY_PASSWORD, "") ?: "" } catch (e: Throwable) { "" }
-            if (raw.isEmpty()) {
-                return ""
-            }
-            if (!raw.startsWith("v1:") && !raw.startsWith("fallback:")) {
-                // Migration: raw is old plaintext. Encrypt and save.
-                val encrypted = KeystoreHelper.encrypt(raw)
-                try { prefs.edit().putString(KEY_PASSWORD, encrypted).apply() } catch (e: Throwable) {}
-                return raw
-            }
-            return KeystoreHelper.decrypt(raw)
-        }
-        set(value) {
-            val encrypted = KeystoreHelper.encrypt(value)
-            try { prefs.edit().putString(KEY_PASSWORD, encrypted).apply() } catch (e: Throwable) {}
-        }
+        get() = try { prefs.getString(KEY_PASSWORD, "") ?: "" } catch (e: Throwable) { "" }
+        set(value) { try { prefs.edit().putString(KEY_PASSWORD, value).apply() } catch (e: Throwable) {} }
 
     var activeServerId: String
         get() = try { prefs.getString(KEY_ACTIVE_SERVER_ID, "server_1") ?: "server_1" } catch (e: Throwable) { "server_1" }
@@ -81,7 +96,6 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getBoolean(KEY_USE_SAME_CREDENTIALS, true) } catch (e: Throwable) { true }
         set(value) { try { prefs.edit().putBoolean(KEY_USE_SAME_CREDENTIALS, value).apply() } catch (e: Throwable) {} }
 
-    // New configuration properties for fully functional settings screen
     var useAmoledMode: Boolean
         get() = try { prefs.getBoolean("use_amoled_mode", false) } catch (e: Throwable) { false }
         set(value) { try { prefs.edit().putBoolean("use_amoled_mode", value).apply() } catch (e: Throwable) {} }
@@ -126,7 +140,6 @@ class PreferencesService(context: Context) {
         get() = try { prefs.getString("menu_sort_order", "Ordem por adição") ?: "Ordem por adição" } catch (e: Throwable) { "Ordem por adição" }
         set(value) { try { prefs.edit().putString("menu_sort_order", value).apply() } catch (e: Throwable) {} }
 
-    // Offline Licensing & 5-Day Trial Control properties
     var trialStartDate: Long
         get() = try { prefs.getLong("trial_start_date", 0L) } catch (e: Throwable) { 0L }
         set(value) { try { prefs.edit().putLong("trial_start_date", value).apply() } catch (e: Throwable) {} }
@@ -152,53 +165,30 @@ class PreferencesService(context: Context) {
         cleanId.chunked(2).joinToString(":")
     }
 
-    fun generateValidKeyForDevice(deviceMac: String): String {
-        val salt = "MK21_GOLDEN_SALT_2026"
-        val rawInput = deviceMac.uppercase().trim() + salt
-        val md5 = java.security.MessageDigest.getInstance("MD5")
-        val hashBytes = md5.digest(rawInput.toByteArray(Charsets.UTF_8))
-        val sb = StringBuilder()
-        for (b in hashBytes) {
-            sb.append(String.format("%02X", b))
-        }
-        val fullHash = sb.toString()
-        val p1 = fullHash.take(4)
-        val p2 = fullHash.substring(4, 8)
-        val p3 = fullHash.substring(8, 12)
+    /**
+     * Generates valid activation key for a device using HMAC-SHA256 with the app secret from BuildConfig.
+     */
+    fun generateValidKeyForDevice(deviceMac: String, secret: String = BuildConfig.LICENSE_SECRET): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val hashBytes = mac.doFinal(deviceMac.uppercase().trim().toByteArray(Charsets.UTF_8))
+        val hexHash = hashBytes.joinToString("") { "%02X".format(it) }
+        val p1 = hexHash.take(4)
+        val p2 = hexHash.substring(4, 8)
+        val p3 = hexHash.substring(8, 12)
         return "MK-$p1-$p2-$p3"
     }
 
+    /**
+     * Verifies license key validity. No master bypass codes are permitted.
+     */
     fun isLicenseValid(): Boolean {
         val key = activationKey.uppercase().trim()
         if (key.isEmpty()) return false
-        
-        // Master bypass codes
-        if (key == "ADMIN2026" || key == "GUARNIERE2026" || key == "MK21ADMIN" || key == "9999" || key == "8888" || key == "0000") {
-            return true
-        }
 
-        // Standard 3-segment check
-        val expected3 = generateValidKeyForDevice(virtualMac).uppercase().trim()
-        if (key == expected3) return true
-
-        // 2-segment check (MK-$p1-$p2 where p1 = take(4) and p2 = takeLast(4))
-        try {
-            val salt = "MK21_GOLDEN_SALT_2026"
-            val rawInput = virtualMac.uppercase().trim() + salt
-            val md5 = java.security.MessageDigest.getInstance("MD5")
-            val hashBytes = md5.digest(rawInput.toByteArray(Charsets.UTF_8))
-            val sb = StringBuilder()
-            for (b in hashBytes) {
-                sb.append(String.format("%02X", b))
-            }
-            val fullHash = sb.toString()
-            val p1 = fullHash.take(4)
-            val p2 = fullHash.takeLast(4)
-            val expected2 = "MK-$p1-$p2".uppercase()
-            if (key == expected2) return true
-        } catch (e: Exception) {}
-
-        return false
+        // Standard 3-segment HMAC-SHA256 check
+        val expected = generateValidKeyForDevice(virtualMac).uppercase().trim()
+        return key == expected
     }
 
     fun getTrialDaysRemaining(): Int {
@@ -258,79 +248,5 @@ class PreferencesService(context: Context) {
         return activePlaylistName.isNotEmpty() && (
             !isPredefined || (username.isNotEmpty() && password.isNotEmpty())
         )
-    }
-}
-
-object KeystoreHelper {
-    private const val TRANSFORMATION = "AES/CBC/PKCS5Padding"
-    private const val ALGORITHM = "AES"
-
-    // A secure static 128-bit key for local software encryption
-    private val keyBytes = byteArrayOf(
-        0x4D, 0x4B, 0x32, 0x31, 0x53, 0x65, 0x63, 0x75, // "MK21Secu"
-        0x72, 0x65, 0x50, 0x61, 0x73, 0x73, 0x77, 0x64  // "rePasswd"
-    )
-    private val secretKey = javax.crypto.spec.SecretKeySpec(keyBytes, ALGORITHM)
-
-    fun encrypt(plainText: String): String {
-        if (plainText.isEmpty()) return ""
-        try {
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-            val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
-            val iv = cipher.iv ?: ByteArray(16)
-            val ivBase64 = Base64.encodeToString(iv, Base64.NO_WRAP)
-            val encryptedBase64 = Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
-            return "v1:$ivBase64.$encryptedBase64"
-        } catch (e: Throwable) {
-            android.util.Log.e("KeystoreHelper", "Encryption failed, falling back to base64 encoding", e)
-        }
-        
-        // Fallback: Simple Base64 encoding prefixed with "fallback:" so we don't crash
-        return try {
-            val base64 = Base64.encodeToString(plainText.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-            "fallback:$base64"
-        } catch (e: Throwable) {
-            ""
-        }
-    }
-
-    fun decrypt(cipherText: String): String {
-        if (cipherText.isEmpty()) return ""
-        
-        // Check if it's the premium V1 software key encryption format
-        if (cipherText.startsWith("v1:")) {
-            try {
-                val securePart = cipherText.substring(3)
-                if (securePart.contains(".")) {
-                    val parts = securePart.split(".")
-                    if (parts.size >= 2) {
-                        val iv = Base64.decode(parts[0], Base64.NO_WRAP)
-                        val encryptedBytes = Base64.decode(parts[1], Base64.NO_WRAP)
-                        
-                        val cipher = Cipher.getInstance(TRANSFORMATION)
-                        val ivSpec = javax.crypto.spec.IvParameterSpec(iv)
-                        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
-                        val decryptedBytes = cipher.doFinal(encryptedBytes)
-                        return String(decryptedBytes, Charsets.UTF_8)
-                    }
-                }
-            } catch (e: Throwable) {
-                android.util.Log.e("KeystoreHelper", "Decryption failed, seeking fallback", e)
-            }
-        }
-        
-        // Check if it is the fallback format
-        if (cipherText.startsWith("fallback:")) {
-            try {
-                val base64Part = cipherText.substring(9)
-                val decodedBytes = Base64.decode(base64Part, Base64.NO_WRAP)
-                return String(decodedBytes, Charsets.UTF_8)
-            } catch (e: Throwable) {
-                android.util.Log.e("KeystoreHelper", "Fallback decoding failed", e)
-            }
-        }
-        
-        return cipherText
     }
 }

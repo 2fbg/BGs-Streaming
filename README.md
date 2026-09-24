@@ -118,7 +118,10 @@ graph TD
    ```bash
    cp .env.example .env
    ```
-   Edite o `.env` caso deseje integrar recursos opcionais de IA (Google AI Studio / Gemini API).
+   Edite as variáveis de ambiente necessárias:
+   - `STORE_PASSWORD` e `KEY_PASSWORD`: Senhas para assinatura de Release do APK/AAB.
+   - `LICENSE_SECRET`: Segredo HMAC-SHA256 para validação de licença.
+   - `GEMINI_API_KEY`: Chave de API opcional para recursos de IA.
 
 3. **Gere a Keystore de desenvolvimento (se necessário):**
    O projeto inclui geração automática da keystore de debug ao executar o Gradle.

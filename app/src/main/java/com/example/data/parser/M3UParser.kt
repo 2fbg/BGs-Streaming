@@ -1,77 +1,84 @@
 package com.example.data.parser
 
 import com.example.data.model.PlaylistItem
-import java.io.BufferedReader
+import okio.buffer
+import okio.source
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.net.URI
 
 object M3UParser {
 
     /**
-     * Parse an M3U playlist from an input stream.
+     * Parse an M3U playlist from an input stream using Okio for optimized I/O buffering.
      * Extracts tags such as tvg-logo, group-title, tvg-name, and applies content-type heuristics.
      */
     fun parse(inputStream: InputStream, playlistSource: String, onProgress: (Int) -> Unit): List<PlaylistItem> {
-        val reader = BufferedReader(InputStreamReader(inputStream))
+        val source = inputStream.source().buffer()
         val items = mutableListOf<PlaylistItem>()
 
-        var line: String?
         var currentMetaData: String? = null
         var currentGroup: String? = null
         var processedLines = 0
         var firstLine: String? = null
-        
-        while (reader.readLine().also { line = it } != null) {
-            var currentLine = line!!.trim()
-            processedLines++
-            
-            // Check and strip UTF-8 BOM if present on the very first read lines or general lines
-            if (currentLine.startsWith("\uFEFF")) {
-                currentLine = currentLine.substring(1).trim()
-            }
-            
-            if (currentLine.isEmpty()) continue
 
-            if (firstLine == null) {
-                firstLine = currentLine
-            }
+        try {
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                var currentLine = line.trim()
+                processedLines++
 
-            if (currentLine.startsWith("#EXTM3U", ignoreCase = true)) {
-                // Ignore header
-                continue
-            } else if (currentLine.startsWith("#EXTINF", ignoreCase = true)) {
-                currentMetaData = currentLine
-            } else if (currentLine.startsWith("#EXTGRP:", ignoreCase = true)) {
-                currentGroup = currentLine.substring(8).trim()
-            } else if (!currentLine.startsWith("#")) {
-                // This is a stream URL line!
-                val sanitizedUrl = sanitizeStreamUrl(currentLine)
-                if (sanitizedUrl != null) {
-                    if (currentMetaData != null) {
-                        val item = parseItem(currentMetaData, sanitizedUrl, playlistSource, currentGroup)
-                        items.add(item)
+                // Check and strip UTF-8 BOM if present on the very first read lines or general lines
+                if (currentLine.startsWith("\uFEFF")) {
+                    currentLine = currentLine.substring(1).trim()
+                }
+
+                if (currentLine.isEmpty()) continue
+
+                if (firstLine == null) {
+                    firstLine = currentLine
+                }
+
+                if (currentLine.startsWith("#EXTM3U", ignoreCase = true)) {
+                    // Ignore header
+                    continue
+                } else if (currentLine.startsWith("#EXTINF", ignoreCase = true)) {
+                    currentMetaData = currentLine
+                } else if (currentLine.startsWith("#EXTGRP:", ignoreCase = true)) {
+                    currentGroup = currentLine.substring(8).trim()
+                } else if (!currentLine.startsWith("#")) {
+                    // This is a stream URL line!
+                    val sanitizedUrl = sanitizeStreamUrl(currentLine)
+                    if (sanitizedUrl != null) {
+                        if (currentMetaData != null) {
+                            val item = parseItem(currentMetaData, sanitizedUrl, playlistSource, currentGroup)
+                            items.add(item)
+                            currentMetaData = null
+                            currentGroup = null
+                        } else if (isValidUrl(sanitizedUrl)) {
+                            // Fallback: parse plain URL without metadata
+                            val item = parseUrlOnly(sanitizedUrl, playlistSource)
+                            items.add(item)
+                        }
+                    } else {
                         currentMetaData = null
                         currentGroup = null
-                    } else if (isValidUrl(sanitizedUrl)) {
-                        // Fallback: parse plain URL without metadata
-                        val item = parseUrlOnly(sanitizedUrl, playlistSource)
-                        items.add(item)
                     }
-                } else {
-                    currentMetaData = null
-                    currentGroup = null
-                }
 
-                // Emitting progress at regular intervals
-                if (items.size % 400 == 0) {
-                    val progress = (items.size * 100 / (items.size + 1000)).coerceAtMost(99)
-                    onProgress(progress)
+                    // Emitting progress at regular intervals
+                    if (items.size % 400 == 0) {
+                        val progress = (items.size * 100 / (items.size + 1000)).coerceAtMost(99)
+                        onProgress(progress)
+                    }
                 }
             }
+        } finally {
+            try {
+                source.close()
+            } catch (e: Exception) {
+                // Ignore close errors
+            }
         }
-        
-        reader.close()
+
         onProgress(100)
 
         // If no items were parsed, diagnose why (e.g. server returned an HTML failure portal)

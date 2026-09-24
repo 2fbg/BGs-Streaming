@@ -40,15 +40,15 @@ interface PlaylistItemDao {
     @Transaction
     suspend fun clearAndInsertPlaylistItems(source: String, items: List<PlaylistItem>) {
         clearPlaylistItems(source)
-        // Chunk inserting to prevent SQLite binder transaction limit / variable limit violations on big lists
-        items.chunked(50).forEach { chunk ->
+        // Chunk inserting in optimal batches (500 items) to prevent SQLite binder transaction limit
+        items.chunked(500).forEach { chunk ->
             insertItems(chunk)
         }
     }
 
     @Transaction
     suspend fun insertChunkInTransaction(items: List<PlaylistItem>) {
-        items.chunked(80).forEach { chunk ->
+        items.chunked(500).forEach { chunk ->
             insertItems(chunk)
         }
     }
