@@ -2957,6 +2957,7 @@ fun GroupedSeriesCard(series: GroupedSeries, onClick: () -> Unit) {
 }
 
 fun formatTime(ms: Long): String {
+    if (ms <= 0L) return "00:00"
     val totalSeconds = ms / 1000
     val seconds = totalSeconds % 60
     val minutes = (totalSeconds / 60) % 60
@@ -4886,6 +4887,9 @@ fun VideoPlayerUI(
                         }
                     }
 
+                    val maxDuration = duration.toFloat().coerceAtLeast(1f)
+                    val safePos = currentPos.toFloat().coerceIn(0f, maxDuration)
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -4900,16 +4904,17 @@ fun VideoPlayerUI(
                             fontWeight = FontWeight.Bold
                         )
                         Slider(
-                            value = currentPos.toFloat(),
+                            value = safePos,
                             onValueChange = {
                                 try {
-                                    exoPlayer.seekTo(it.toLong())
-                                    currentPos = it.toLong()
+                                    val targetMs = it.toLong().coerceIn(0L, duration.coerceAtLeast(1L))
+                                    exoPlayer.seekTo(targetMs)
+                                    currentPos = targetMs
                                 } catch (e: Exception) {
                                     // Ignore if player is stopped or released
                                 }
                             },
-                            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                            valueRange = 0f..maxDuration,
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(
                                 thumbColor = NetflixRed,
@@ -6403,6 +6408,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
     var showSyncIntervalDialog by remember { mutableStateOf(false) }
     var showSyncAllListsDialog by remember { mutableStateOf(false) }
     var showHideProgressDialog by remember { mutableStateOf(false) }
+    var showDiagnosticLogsDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -6463,7 +6469,8 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                         "Modo AMOLED" to Icons.Default.DarkMode,
                         "Espelhar com a TV" to Icons.Default.ConnectedTv,
                         "Backup & Restauração" to Icons.Default.Share,
-                        "Atualizações do App" to Icons.Default.Refresh
+                        "Atualizações do App" to Icons.Default.Refresh,
+                        "Logs e Diagnóstico" to Icons.Default.BugReport
                     )
 
                     configList.chunked(2).forEach { pair ->
@@ -6489,6 +6496,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                                                 showGitHubUpdateDialog = true
                                                 viewModel.checkForUpdates()
                                             }
+                                            "Logs e Diagnóstico" -> showDiagnosticLogsDialog = true
                                         }
                                     },
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF161515)),
@@ -8442,6 +8450,110 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("FECHAR", color = Color.White, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dialog: Diagnóstico e Logs de Falha
+        if (showDiagnosticLogsDialog) {
+            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+            var crashLog by remember { mutableStateOf(com.example.utils.CrashLogger.getLatestCrashLog(context)) }
+            val diagInfo = remember { com.example.utils.CrashLogger.getSystemDiagnosticInfo(context) }
+
+            Dialog(onDismissRequest = { showDiagnosticLogsDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141315)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth().padding(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.BugReport, contentDescription = null, tint = GoldPremium, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Diagnóstico & Logs de Falha", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+
+                        Text(
+                            text = diagInfo,
+                            color = Color.LightGray,
+                            fontSize = 10.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                        Text(
+                            text = if (crashLog != null) "Último Relatório de Erro Capturado:" else "Nenhum erro crítico capturado no momento.",
+                            color = if (crashLog != null) Color(0xFFFF5252) else Color.Green,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+
+                        if (crashLog != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 100.dp, max = 220.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                                    .padding(8.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = crashLog!!,
+                                    color = Color(0xFFFF8A80),
+                                    fontSize = 9.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (crashLog != null) {
+                                Button(
+                                    onClick = {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(crashLog!!))
+                                        android.widget.Toast.makeText(context, "Log copiado para a Área de Transferência!", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = GoldPremium),
+                                    modifier = Modifier.weight(1.2f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("COPIAR LOG", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        com.example.utils.CrashLogger.clearLogs(context)
+                                        crashLog = null
+                                        android.widget.Toast.makeText(context, "Logs limpos com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.weight(0.9f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                                ) {
+                                    Text("LIMPAR", color = Color.LightGray, fontSize = 10.sp)
+                                }
+                            }
+
+                            Button(
+                                onClick = { showDiagnosticLogsDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                modifier = Modifier.weight(0.9f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("FECHAR", color = Color.White, fontSize = 10.sp)
+                            }
                         }
                     }
                 }

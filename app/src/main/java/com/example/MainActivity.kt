@@ -37,12 +37,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Log all standard thread-level exceptions for clean diagnostics, then delegate to default handler
-        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e("MK21_CRASH", "Uncaught exception on thread: ${thread.name}", throwable)
-            defaultHandler?.uncaughtException(thread, throwable)
-        }
+        // Initialize autonomous Crash Logger to capture full diagnostics and stack traces
+        com.example.utils.CrashLogger.init(applicationContext)
 
         // Proper edgeToEdge execution to extend views elegantly under notches
         enableEdgeToEdge()
