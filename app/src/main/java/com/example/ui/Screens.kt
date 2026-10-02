@@ -3451,7 +3451,7 @@ fun GridItemCard(
 }
 
 /**
- * DIÁLOGO MODAL DE PRÉVIA & GUIA EPG DO CANAL AO VIVO
+ * DIÁLOGO MODAL DE PRÉVIA COM MINI PLAYER AO VIVO & GUIA EPG DO CANAL
  */
 @Composable
 fun ChannelEpgPreviewDialog(
@@ -3459,8 +3459,54 @@ fun ChannelEpgPreviewDialog(
     onDismiss: () -> Unit,
     onPlay: (PlaylistItem) -> Unit
 ) {
+    val context = LocalContext.current
     val schedule = remember(item.name) { getChannelEpgSchedule(item.name) }
     val currentProgram = remember(schedule) { schedule.firstOrNull { it.isCurrent } ?: schedule.firstOrNull() }
+
+    var isMiniBuffering by remember { mutableStateOf(true) }
+    var isMuted by remember { mutableStateOf(false) }
+
+    // Dedicated lightweight ExoPlayer instance for Live Stream Mini Preview
+    val miniPlayer = remember(item.url) {
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(8000)
+            .setReadTimeoutMs(15000)
+
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
+                val mediaItem = MediaItem.Builder().setUri(item.url)
+                val lower = item.url.lowercase()
+                if (lower.contains(".m3u8") || lower.contains("/live/")) {
+                    mediaItem.setMimeType(MimeTypes.APPLICATION_M3U8)
+                } else if (lower.contains(".mpd")) {
+                    mediaItem.setMimeType(MimeTypes.APPLICATION_MPD)
+                }
+                setMediaItem(mediaItem.build())
+                prepare()
+                playWhenReady = true
+                volume = 1f
+            }
+    }
+
+    DisposableEffect(miniPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                isMiniBuffering = state == Player.STATE_BUFFERING
+            }
+        }
+        miniPlayer.addListener(listener)
+        onDispose {
+            miniPlayer.removeListener(listener)
+            miniPlayer.stop()
+            miniPlayer.release()
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -3469,12 +3515,13 @@ fun ChannelEpgPreviewDialog(
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp)
+                .padding(vertical = 10.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(18.dp)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
                 // Header: Logo + Channel Name + Close
                 Row(
@@ -3483,7 +3530,7 @@ fun ChannelEpgPreviewDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(50.dp)
+                            .size(46.dp)
                             .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
                             .padding(6.dp),
                         contentAlignment = Alignment.Center
@@ -3499,13 +3546,13 @@ fun ChannelEpgPreviewDialog(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = item.category.uppercase(),
-                                fontSize = 9.sp,
+                                fontSize = 8.sp,
                                 color = GoldPremium,
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp
@@ -3519,7 +3566,7 @@ fun ChannelEpgPreviewDialog(
                             ) {
                                 Text(
                                     text = "AO VIVO",
-                                    fontSize = 8.sp,
+                                    fontSize = 7.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = NetflixRed
                                 )
@@ -3527,7 +3574,7 @@ fun ChannelEpgPreviewDialog(
                         }
                         Text(
                             text = item.name,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             maxLines = 1,
@@ -3545,7 +3592,127 @@ fun ChannelEpgPreviewDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // MINI PLAYER 16:9 LIVE VIDEO CONTAINER (CLICK TO OPEN FULLSCREEN NORMAL PLAYER)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.Black)
+                        .border(1.dp, NetflixRed.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .clickable {
+                            // Single click on video transitions directly to normal fullscreen player!
+                            onDismiss()
+                            onPlay(item)
+                        }
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                player = miniPlayer
+                                useController = false
+                                layoutParams = FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Buffering Indicator
+                    if (isMiniBuffering) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = NetflixRed,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+
+                    // Top Bar Overlays: Live Badge + Mute Toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .align(Alignment.TopStart),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(NetflixRed.copy(alpha = 0.85f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(Color.White, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "PRÉVIA AO VIVO",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                isMuted = !isMuted
+                                miniPlayer.volume = if (isMuted) 0f else 1f
+                            },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                contentDescription = "Áudio da Prévia",
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+
+                    // Bottom Right Action: Click to Fullscreen Hint
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Fullscreen,
+                                contentDescription = "Tela Cheia",
+                                tint = GoldPremium,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Clique para Tela Cheia",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Passando Agora Hero Card
                 if (currentProgram != null) {
@@ -3555,17 +3722,17 @@ fun ChannelEpgPreviewDialog(
                         border = BorderStroke(1.dp, NetflixRed.copy(alpha = 0.35f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(7.dp)
                                         .background(NetflixRed, CircleShape)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "PASSANDO AGORA",
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
                                     color = NetflixRed,
                                     letterSpacing = 1.sp
@@ -3573,38 +3740,38 @@ fun ChannelEpgPreviewDialog(
                                 Spacer(modifier = Modifier.weight(1f))
                                 Text(
                                     text = currentProgram.timeRange,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = GoldPremium
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = currentProgram.title,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
                                 text = currentProgram.description,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 color = Color(0xFFB0B0C0),
-                                lineHeight = 15.sp
+                                lineHeight = 14.sp
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             LinearProgressIndicator(
                                 progress = { currentProgram.progressPercent },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp)),
                                 color = NetflixRed,
                                 trackColor = Color.White.copy(alpha = 0.1f)
                             )
@@ -3612,7 +3779,7 @@ fun ChannelEpgPreviewDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "PROGRAMAÇÃO DO DIA",
@@ -3622,30 +3789,29 @@ fun ChannelEpgPreviewDialog(
                     letterSpacing = 1.sp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                val listScrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 160.dp)
-                        .verticalScroll(listScrollState)
+                        .heightIn(max = 130.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     schedule.forEach { prog ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = prog.timeRange,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (prog.isCurrent) GoldPremium else Color.Gray,
-                                modifier = Modifier.width(82.dp)
+                                modifier = Modifier.width(78.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = prog.title,
                                 fontSize = 11.sp,
@@ -3669,9 +3835,9 @@ fun ChannelEpgPreviewDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Play Button
+                // Transition directly to normal fullscreen player!
                 Button(
                     onClick = {
                         onDismiss()
@@ -3684,16 +3850,16 @@ fun ChannelEpgPreviewDialog(
                         .height(46.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Assistir",
+                        imageVector = Icons.Default.Fullscreen,
+                        contentDescription = "Tela Cheia",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "ASSISTIR CANAL AGORA",
+                        text = "ABRIR NO PLAYER NORMAL (TELA CHEIA)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = Color.White
                     )
                 }
