@@ -1,0 +1,339 @@
+package com.example.data.parser
+
+import com.example.data.model.PlaylistItem
+import okio.buffer
+import okio.source
+import java.io.InputStream
+import java.net.URI
+
+object M3UParser {
+
+    /**
+     * Parse an M3U playlist from an input stream using Okio for optimized I/O buffering.
+     * Extracts tags such as tvg-logo, group-title, tvg-name, and applies content-type heuristics.
+     */
+    fun parse(inputStream: InputStream, playlistSource: String, onProgress: (Int) -> Unit): List<PlaylistItem> {
+        val source = inputStream.source().buffer()
+        val items = mutableListOf<PlaylistItem>()
+
+        var currentMetaData: String? = null
+        var currentGroup: String? = null
+        var processedLines = 0
+        var firstLine: String? = null
+
+        try {
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                var currentLine = line.trim()
+                processedLines++
+
+                // Check and strip UTF-8 BOM if present on the very first read lines or general lines
+                if (currentLine.startsWith("\uFEFF")) {
+                    currentLine = currentLine.substring(1).trim()
+                }
+
+                if (currentLine.isEmpty()) continue
+
+                if (firstLine == null) {
+                    firstLine = currentLine
+                }
+
+                if (currentLine.startsWith("#EXTM3U", ignoreCase = true)) {
+                    // Ignore header
+                    continue
+                } else if (currentLine.startsWith("#EXTINF", ignoreCase = true)) {
+                    currentMetaData = currentLine
+                } else if (currentLine.startsWith("#EXTGRP:", ignoreCase = true)) {
+                    currentGroup = currentLine.substring(8).trim()
+                } else if (!currentLine.startsWith("#")) {
+                    // This is a stream URL line!
+                    val sanitizedUrl = sanitizeStreamUrl(currentLine)
+                    if (sanitizedUrl != null) {
+                        if (currentMetaData != null) {
+                            val item = parseItem(currentMetaData, sanitizedUrl, playlistSource, currentGroup)
+                            items.add(item)
+                            currentMetaData = null
+                            currentGroup = null
+                        } else if (isValidUrl(sanitizedUrl)) {
+                            // Fallback: parse plain URL without metadata
+                            val item = parseUrlOnly(sanitizedUrl, playlistSource)
+                            items.add(item)
+                        }
+                    } else {
+                        currentMetaData = null
+                        currentGroup = null
+                    }
+
+                    // Emitting progress at regular intervals
+                    if (items.size % 400 == 0) {
+                        val progress = (items.size * 100 / (items.size + 1000)).coerceAtMost(99)
+                        onProgress(progress)
+                    }
+                }
+            }
+        } finally {
+            try {
+                source.close()
+            } catch (e: Exception) {
+                // Ignore close errors
+            }
+        }
+
+        onProgress(100)
+
+        // If no items were parsed, diagnose why (e.g. server returned an HTML failure portal)
+        if (items.isEmpty()) {
+            val diagnosis = diagnoseContent(firstLine)
+            if (diagnosis != null) {
+                throw Exception(diagnosis)
+            }
+        }
+
+        return items
+    }
+
+    /**
+     * Sanitizes stream URLs to only permit safe streaming protocols and reject local/file attacks.
+     */
+    fun sanitizeStreamUrl(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return null
+        val lower = trimmed.lowercase()
+        val isAllowedScheme = lower.startsWith("http://") || 
+                              lower.startsWith("https://") || 
+                              lower.startsWith("rtmp://") || 
+                              lower.startsWith("rtsp://") || 
+                              lower.startsWith("mms://")
+        return if (isAllowedScheme) trimmed else null
+    }
+
+    private fun sanitizeLogoUrl(rawLogo: String?): String? {
+        if (rawLogo.isNullOrBlank()) return null
+        val trimmed = rawLogo.trim()
+        val lower = trimmed.lowercase()
+        return if (lower.startsWith("http://") || lower.startsWith("https://")) trimmed else null
+    }
+
+    private fun isValidUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.startsWith("http://") || 
+               lower.startsWith("https://") || 
+               lower.startsWith("rtmp://") || 
+               lower.startsWith("rtsp://") || 
+               lower.startsWith("mms://")
+    }
+
+    private fun parseUrlOnly(streamUrl: String, playlistSource: String): PlaylistItem {
+        val finalUrl = streamUrl
+        val uri = try {
+            URI(finalUrl)
+        } catch (e: Exception) {
+            null
+        }
+        val path = uri?.path ?: finalUrl
+        val lastSegment = path.substringAfterLast('/')
+        val displayName = if (lastSegment.isNotEmpty()) {
+            lastSegment.substringBeforeLast('.')
+        } else {
+            "Canal Manual"
+        }
+        val category = "Canais Gerais"
+        val contentType = determineType(displayName, category, finalUrl)
+        return PlaylistItem(
+            name = displayName.ifEmpty { "Canal Manual" },
+            url = finalUrl,
+            logoUrl = null,
+            category = category,
+            contentType = contentType.name,
+            isAdult = isAdultContent(displayName, category),
+            playlistSource = playlistSource
+        )
+    }
+
+    private fun parseItem(metadataLine: String, streamUrl: String, playlistSource: String, fallbackGroup: String? = null): PlaylistItem {
+        // Extract display name (last part of metadata after comma)
+        val commaIndex = metadataLine.lastIndexOf(',')
+        var displayName = if (commaIndex != -1 && commaIndex < metadataLine.length - 1) {
+            metadataLine.substring(commaIndex + 1).trim()
+        } else {
+            "Untitled Stream"
+        }
+
+        // Extract attributes case-insensitively
+        val logoUrl = extractAttribute(metadataLine, "tvg-logo") ?: extractAttribute(metadataLine, "logo")
+        var category = extractAttribute(metadataLine, "group-title") ?: fallbackGroup ?: "Canais Gerais"
+        
+        // Sanitize category
+        if (category.trim().isEmpty()) {
+            category = fallbackGroup ?: "Canais Gerais"
+        }
+
+        val tvgName = extractAttribute(metadataLine, "tvg-name")
+        if (tvgName != null && displayName == "Untitled Stream") {
+            displayName = tvgName
+        }
+
+        val finalUrl = streamUrl
+
+        // Determine content-type (Ao Vivo, Filmes, Séries)
+        val contentType = determineType(displayName, category, finalUrl)
+
+        // Check for adult content
+        val isAdult = isAdultContent(displayName, category)
+
+        return PlaylistItem(
+            name = displayName,
+            url = finalUrl,
+            logoUrl = sanitizeLogoUrl(logoUrl),
+            category = category,
+            contentType = contentType.name,
+            isAdult = isAdult,
+            playlistSource = playlistSource
+        )
+    }
+
+    private fun extractAttribute(line: String, attrName: String): String? {
+        val lineLower = line.lowercase()
+        val attrNameLower = attrName.lowercase()
+        
+        val target = "$attrNameLower=\""
+        var index = lineLower.indexOf(target)
+        if (index != -1) {
+            val start = index + target.length
+            val end = line.indexOf("\"", start)
+            if (end != -1) {
+                return line.substring(start, end)
+            }
+        }
+        
+        // Fallback without quotes (e.g. tvg-logo=http://url)
+        val targetFallback = "$attrNameLower="
+        index = lineLower.indexOf(targetFallback)
+        if (index != -1) {
+            val start = index + targetFallback.length
+            var end = line.indexOf(" ", start)
+            if (end == -1) {
+                end = line.indexOf(",", start)
+            }
+            if (end == -1) {
+                end = line.length
+            }
+            if (end > start) {
+                return line.substring(start, end).replace("\"", "").trim()
+            }
+        }
+        return null
+    }
+
+    private fun determineType(name: String, category: String, url: String): com.example.data.model.ContentType {
+        val uppercaseName = name.uppercase()
+        val uppercaseCategory = category.uppercase()
+        val uppercaseUrl = url.uppercase()
+
+        // Explicit URL check first to capitalize on Xtream classification format
+        if (uppercaseUrl.contains("/SERIES/")) {
+            return com.example.data.model.ContentType.SERIES
+        }
+        if (uppercaseUrl.contains("/MOVIE/")) {
+            return com.example.data.model.ContentType.MOVIE
+        }
+        if (uppercaseUrl.contains("/LIVE/")) {
+            return com.example.data.model.ContentType.LIVE
+        }
+
+        // Explicit series keywords
+        val seriesCategories = listOf(
+            "SERIES", "SÉRIES", "SERIADOS", "SEASON", "TEMPORADA", "EPISODIOS", "EPISÓDIOS",
+            "ANIME", "ANIMES", "NOVELAS", "NOVELA"
+        )
+        // Explicit movie keywords
+        val movieCategories = listOf(
+            "FILMES", "MOVIES", "VOD", "CINEMA", "BLOCKBUSTER", "LANCAMENTOS", "LANÇAMENTOS",
+            "PREMIUM FILMES", "CINE", "ACTION", "COMEDY", "DRAMA", "HORROR", "TERROR"
+        )
+
+        // Look for series patterns in category name or stream title first
+        if (seriesCategories.any { uppercaseCategory.contains(it) } || 
+            uppercaseName.contains("S0") || uppercaseName.contains("E0") ||
+            uppercaseName.contains("TEMPORADA") || uppercaseName.contains("CAPITULO") || uppercaseName.contains("EPISODIO")) {
+            return com.example.data.model.ContentType.SERIES
+        }
+
+        // Look for movie patterns in category next
+        if (movieCategories.any { uppercaseCategory.contains(it) }) {
+            return com.example.data.model.ContentType.MOVIE
+        }
+
+        // Fallbacks based on URL extensions
+        if (uppercaseUrl.endsWith(".MP4") || uppercaseUrl.endsWith(".MKV") || uppercaseUrl.endsWith(".AVI")) {
+            return if (uppercaseUrl.contains("/SERIES/") || uppercaseUrl.contains("/EPISODES/") || uppercaseUrl.contains("S0") || uppercaseUrl.contains("E0")) {
+                com.example.data.model.ContentType.SERIES
+            } else {
+                com.example.data.model.ContentType.MOVIE
+            }
+        }
+
+        // Live matches (often ending with .m3u8, .ts, or has /live/)
+        if (uppercaseUrl.contains("/LIVE/") || uppercaseUrl.endsWith(".M3U8") || uppercaseUrl.endsWith(".TS") || uppercaseUrl.contains(".TS?")) {
+            return com.example.data.model.ContentType.LIVE
+        }
+
+        return com.example.data.model.ContentType.LIVE // default is Ao Vivo
+    }
+
+    private fun isAdultContent(name: String, category: String): Boolean {
+        val pattern = listOf(
+            "18+", "ADULTO", "ADULT", "XXX", "SEXY", "PLAYBOY", "PENTHOUSE", "VENUS", "HOT ", "HUSTLER", "FORBIDDEN", "FORA DA LEI", "S0X"
+        )
+        val upperName = name.uppercase()
+        val upperCategory = category.uppercase()
+        return pattern.any { upperName.contains(it) || upperCategory.contains(it) }
+    }
+
+    private fun diagnoseContent(firstLine: String?): String? {
+        if (firstLine == null) return null
+        val lower = firstLine.lowercase()
+        
+        // HTML check
+        if (lower.startsWith("<html") || lower.startsWith("<!doc") || lower.contains("<html>")) {
+            return "O servidor retornou uma página HTML ao invés da lista. Verifique se o usuário/senha estão corretos ou se o servidor está funcionando."
+        }
+        
+        // JSON check
+        if (lower.startsWith("{") || lower.startsWith("[")) {
+            if (lower.contains("message") || lower.contains("error") || lower.contains("status")) {
+                return "O servidor retornou um erro em formato JSON. Verifique seus dados de acesso."
+            }
+        }
+        
+        // Common plain text auth errors
+        if (lower.contains("invalid username or password") || 
+            lower.contains("authorization failed") || 
+            lower.contains("auth failed") || 
+            lower.contains("invalid credentials") ||
+            lower.contains("usuario invalido") ||
+            lower.contains("senha incorreta") ||
+            lower.contains("credenciais incorretas") ||
+            lower.contains("acesso negado") ||
+            lower.contains("unauthorized")) {
+            return "Usuário ou senha inválidos no servidor contratado."
+        }
+        
+        if (lower.contains("account expired") || 
+            lower.contains("expired") || 
+            lower.contains("vencido") || 
+            lower.contains("expirou") || 
+            lower.contains("vencida")) {
+            return "Sua conta de IPTV expirou ou está inativa no servidor."
+        }
+        
+        if (lower.contains("limit reached") || 
+            lower.contains("too many connections") || 
+            lower.contains("limite de conex") || 
+            lower.contains("max connections")) {
+            return "Limite de conexões simultâneas atingido no servidor."
+        }
+        
+        return null
+    }
+}

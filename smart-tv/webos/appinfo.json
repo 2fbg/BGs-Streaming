@@ -1,0 +1,22 @@
+{
+  "id": "com.fbg2.mk21streaming",
+  "version": "1.0.1",
+  "vendor": "FBG2",
+  "type": "web",
+  "main": "index.html",
+  "title": "MK21 Streaming",
+  "requiredACG": [],
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgImage": "splash.png",
+  "splashBackground": "splash.png",
+  "resolution": "1920x1080",
+  "transparent": false,
+  "handlesRelaunch": true,
+  "supportTouch": false,
+  "requiredMemory": 512,
+  "disableBackHistoryAPI": false,
+  "accessibility": {
+    "supportsAudioGuidance": true
+  }
+}
