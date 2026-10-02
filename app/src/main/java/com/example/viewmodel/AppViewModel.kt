@@ -1474,23 +1474,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun exportBackupJson(onResult: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val playlists = manualPlaylistDao.getAllManualPlaylistsList()
+                val manualPlaylists = manualPlaylistDao.getAllManualPlaylistsList()
+                val allServers = _predefinedServersState.value
                 val favorites = playlistItemDao.getAllFavoriteItems()
                 val json = JSONObject().apply {
                     put("app", "MK21 MultiServidor")
-                    put("version", 1)
+                    put("version", 2)
                     put("exportedAt", System.currentTimeMillis())
                     put("username", preferencesService.username)
+                    put("password", preferencesService.password)
                     put("activePlaylist", preferencesService.activePlaylistName)
                     put("useAmoledMode", preferencesService.useAmoledMode)
+                    put("parentalPin", preferencesService.adultPin)
+                    // Export ALL configured servers / lists
+                    put("servers", JSONArray().apply {
+                        allServers.forEach { s ->
+                            put(JSONObject().apply {
+                                put("id", s.id)
+                                put("name", s.name)
+                                put("baseUrl", s.baseUrl)
+                                put("username", s.username ?: "")
+                                put("password", s.password ?: "")
+                                put("isActive", s.isActive)
+                            })
+                        }
+                    })
+                    // Export ALL manual M3U playlists
                     put("playlists", JSONArray().apply {
-                        playlists.forEach { p ->
+                        manualPlaylists.forEach { p ->
                             put(JSONObject().apply {
                                 put("name", p.name)
                                 put("url", p.url)
                             })
                         }
                     })
+                    // Export favorites across all lists
                     put("favorites", JSONArray().apply {
                         favorites.forEach { f ->
                             put(JSONObject().apply {
@@ -1498,6 +1516,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                 put("url", f.url)
                                 put("category", f.category)
                                 put("type", f.contentType)
+                                put("playlistSource", f.playlistSource)
+                                put("logoUrl", f.logoUrl ?: "")
                             })
                         }
                     })
@@ -1513,8 +1533,78 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val obj = JSONObject(jsonStr)
-                val playlistsArr = obj.optJSONArray("playlists")
                 var restoredPlaylists = 0
+                var restoredServers = 0
+                var restoredFavorites = 0
+
+                // Restore credentials & preferences if present
+                if (obj.has("username")) {
+                    val u = obj.optString("username", "")
+                    if (u.isNotEmpty()) {
+                        preferencesService.username = u
+                        _username.value = u
+                    }
+                }
+                if (obj.has("password")) {
+                    val p = obj.optString("password", "")
+                    if (p.isNotEmpty()) {
+                        preferencesService.password = p
+                        _password.value = p
+                    }
+                }
+                if (obj.has("activePlaylist")) {
+                    val act = obj.optString("activePlaylist", "")
+                    if (act.isNotEmpty()) {
+                        preferencesService.activePlaylistName = act
+                        _activePlaylistName.value = act
+                    }
+                }
+                if (obj.has("parentalPin")) {
+                    val pin = obj.optString("parentalPin", "")
+                    if (pin.isNotEmpty()) {
+                        preferencesService.adultPin = pin
+                    }
+                }
+
+                // 1. Restore all servers
+                val serversArr = obj.optJSONArray("servers")
+                if (serversArr != null && serversArr.length() > 0) {
+                    val currentServers = _predefinedServersState.value.toMutableList()
+                    for (i in 0 until serversArr.length()) {
+                        val sObj = serversArr.getJSONObject(i)
+                        val id = sObj.optString("id", "srv_${System.currentTimeMillis()}_$i")
+                        val name = sObj.optString("name", "")
+                        val baseUrl = sObj.optString("baseUrl", "")
+                        val sUser = sObj.optString("username", "").takeIf { it.isNotEmpty() }
+                        val sPass = sObj.optString("password", "").takeIf { it.isNotEmpty() }
+                        val isActive = sObj.optBoolean("isActive", true)
+                        if (name.isNotEmpty() && baseUrl.isNotEmpty()) {
+                            val newProfile = ServerProfile(id, name, baseUrl, sUser, sPass, isActive)
+                            val idx = currentServers.indexOfFirst { it.name.equals(name, ignoreCase = true) || it.id == id }
+                            if (idx != -1) {
+                                currentServers[idx] = newProfile
+                            } else {
+                                currentServers.add(newProfile)
+                            }
+                            restoredServers++
+                        }
+                    }
+                    _predefinedServersState.value = currentServers
+
+                    // Persist servers to preferences
+                    val array = JSONArray()
+                    for (profile in currentServers) {
+                        val sObj = JSONObject()
+                        sObj.put("id", profile.id)
+                        sObj.put("name", profile.name)
+                        sObj.put("baseUrl", profile.baseUrl)
+                        array.put(sObj)
+                    }
+                    preferencesService.cachedServersJson = array.toString()
+                }
+
+                // 2. Restore manual playlists
+                val playlistsArr = obj.optJSONArray("playlists")
                 if (playlistsArr != null) {
                     for (i in 0 until playlistsArr.length()) {
                         val pObj = playlistsArr.getJSONObject(i)
@@ -1524,8 +1614,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         restoredPlaylists++
                     }
                 }
+
+                // 3. Restore favorites
+                val favArr = obj.optJSONArray("favorites")
+                if (favArr != null) {
+                    val favItems = mutableListOf<PlaylistItem>()
+                    for (i in 0 until favArr.length()) {
+                        val fObj = favArr.getJSONObject(i)
+                        val name = fObj.optString("name", "")
+                        val url = fObj.optString("url", "")
+                        val cat = fObj.optString("category", "Favoritos")
+                        val type = fObj.optString("type", ContentType.LIVE.name)
+                        val source = fObj.optString("playlistSource", preferencesService.activePlaylistName)
+                        val logo = fObj.optString("logoUrl", "")
+                        if (name.isNotEmpty() && url.isNotEmpty()) {
+                            favItems.add(
+                                PlaylistItem(
+                                    name = name,
+                                    url = url,
+                                    category = cat,
+                                    logoUrl = logo.ifEmpty { null },
+                                    contentType = type,
+                                    playlistSource = source,
+                                    isFavorite = true
+                                )
+                            )
+                            restoredFavorites++
+                        }
+                    }
+                    if (favItems.isNotEmpty()) {
+                        playlistItemDao.insertItems(favItems)
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
-                    onResult(true, "$restoredPlaylists lista(s) restaurada(s) com sucesso!")
+                    onResult(
+                        true,
+                        "Backup restaurado! $restoredServers servidor(es), $restoredPlaylists lista(s) e $restoredFavorites favorito(s)."
+                    )
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

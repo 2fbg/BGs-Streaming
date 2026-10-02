@@ -2962,7 +2962,7 @@ fun formatTime(ms: Long): String {
     val minutes = (totalSeconds / 60) % 60
     val hours = totalSeconds / 3600
     return if (hours > 0) {
-        String.format("%02d:%01d:%02d", hours, minutes, seconds)
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
     } else {
         String.format("%02d:%02d", minutes, seconds)
     }
@@ -6716,7 +6716,7 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
 
             // Footer version
             Text(
-                text = "MK21 MultiServidor v1.21.PRO - Android Engine - by FBG2",
+                text = "MK21 MultiServidor v${com.example.BuildConfig.VERSION_NAME} PRO - Android Engine - by FBG2",
                 color = Color.Gray,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
@@ -8393,11 +8393,28 @@ fun SettingsScreen(viewModel: AppViewModel, onNavigateBack: () -> Unit) {
                             is com.example.viewmodel.AppViewModel.UpdateCheckState.UpToDate -> {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.Green, modifier = Modifier.size(36.dp))
-                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(state.message, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    
+                                    // Button to force re-download/update directly inside the app
+                                    OutlinedButton(
+                                        onClick = {
+                                            viewModel.startInAppDownloadAndInstall(
+                                                context,
+                                                "https://github.com/2fbg/BGs-Streaming/releases/download/v1.2/MK21-v1.2.apk"
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, GoldPremium.copy(alpha = 0.5f))
+                                    ) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null, tint = GoldPremium, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("REINSTALAR / ATUALIZAR DIRETO NO APP", color = GoldPremium, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                    }
                                 }
                             }
                             is com.example.viewmodel.AppViewModel.UpdateCheckState.Error -> {
