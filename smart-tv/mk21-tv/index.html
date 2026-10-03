@@ -5,279 +5,186 @@
   <meta name="viewport" content="width=1920, user-scalable=no">
   <title>MK21 Play</title>
   <link rel="stylesheet" href="styles.css">
-  <!-- HLS.js para streaming na Smart TV LG webOS -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-  <!-- ================= 1. SIDEBAR LATERAL (MENU COMPLETO VIZZION PLAY) ================= -->
-  <aside class="sidebar">
-    <!-- LOGO MK21 PLAY (CLICAR VOLTA PARA O INÍCIO) -->
-    <div id="btnLogoHome" class="sidebar-logo" tabindex="0" title="Voltar ao Início">
-      <span class="logo-badge">MK21</span>
-      <span class="logo-text">PLAY <span>OTT</span></span>
-    </div>
-
-    <!-- MENU DE NAVEGAÇÃO VERTICAL -->
-    <ul class="sidebar-nav">
-      <li>
-        <button id="navSearch" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">🔍</span> <span>Pesquisar</span>
-        </button>
-      </li>
-      <li>
-        <button id="navHome" class="nav-item-btn active" tabindex="0">
-          <span class="nav-icon">🏠</span> <span>Início</span>
-        </button>
-      </li>
-      <li>
-        <button id="navLiveTv" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">📺</span> <span>TV ao vivo</span>
-        </button>
-      </li>
-      <li>
-        <button id="navMovies" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">🎬</span> <span>Filmes</span>
-        </button>
-      </li>
-      <li>
-        <button id="navSeries" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">🍿</span> <span>Séries</span>
-        </button>
-      </li>
-      <li>
-        <button id="navLists" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">📑</span> <span>Listas</span>
-        </button>
-      </li>
-      <li>
-        <button id="navSettings" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">⚙️</span> <span>Configurações</span>
-        </button>
-      </li>
-      <li>
-        <button id="navRefreshList" class="nav-item-btn" tabindex="0">
-          <span class="nav-icon">🔄</span> <span>Atualizar lista</span>
-        </button>
-      </li>
-    </ul>
-
-    <!-- INFORMAÇÕES DA CONTA NO RODAPÉ DA SIDEBAR -->
-    <div class="sidebar-footer">
-      <div id="btnAccountBadge" class="account-badge-btn" tabindex="0">
-        <strong>Plano Anual: Ativo</strong>
-        <span>Expira: 15/03/2027</span><br>
-        <span style="font-size: 11px; opacity: 0.8;">MAC: F0:86:20:F1:5E:E4</span>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ================= 2. ÁREA DE CONTEÚDO PRINCIPAL ================= -->
-  <main class="main-wrapper">
-
-    <!-- BARRA SUPERIOR DE STATUS -->
-    <header class="top-status-bar">
-      <div class="top-pills">
-        <span class="pill-info">👤 Usuário: <strong>601334065</strong></span>
-        <button id="btnTopServer" class="server-quick-btn" tabindex="0">
-          <span id="txtTopServerName">🟢 VLOG</span> <span>▼</span>
-        </button>
-        <span id="txtSyncStatus" class="pill-info" style="color: #4caf50;">⚡ Catálogo pronto</span>
+  <!-- ================= TOP BAR (HEADER) ================= -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-box">
+        <span class="logo-badge">MK21</span>
+        <span class="logo-title">PLAY <span>OTT</span></span>
       </div>
 
-      <div class="top-pills">
-        <button id="btnTopLock" class="server-quick-btn" tabindex="0">
-          <span id="txtLockIcon">🔒</span> <span id="txtLockLabel">Adulto (Bloqueado)</span>
-        </button>
-        <div id="liveClock" class="clock-live">00:00:00</div>
-      </div>
-    </header>
-
-    <!-- CONTAINER DAS TELAS -->
-    <div class="view-container">
-
-      <!-- ================= TELA A: INÍCIO (HOME COM CARROSSEL E 3 CARDS) ================= -->
-      <section id="viewHome">
-        <!-- CARROSSEL INFINITO DE DESTAQUES -->
-        <div id="heroBanner" class="hero-carousel" tabindex="0" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1600&q=80');">
-          <div class="hero-info">
-            <span class="hero-tag" id="heroBadge">🔥 DESTAQUE MK21</span>
-            <h1 class="hero-title" id="heroTitle">Animal Planet FHD</h1>
-            <p class="hero-desc" id="heroDesc">Explore a vida selvagem e os mistérios da natureza em alta definição com transmissão ao vivo 24 horas.</p>
-            <button id="btnHeroPlay" class="hero-btn" tabindex="0">▶ Assistir Agora</button>
-          </div>
-        </div>
-
-        <!-- 3 GRANDES CARDS DO DASHBOARD -->
-        <div class="home-cards-row">
-          <div id="cardTvAoVivo" class="dash-card card-tv" tabindex="0">
-            <div class="dash-card-icon">📺</div>
-            <div>
-              <h3>TV AO VIVO</h3>
-              <p>Canais abertos, esportes, notícias e variedades.</p>
-            </div>
-            <div id="countTv" class="dash-badge">Carregando...</div>
-          </div>
-
-          <div id="cardFilmes" class="dash-card card-movies" tabindex="0">
-            <div class="dash-card-icon">🎬</div>
-            <div>
-              <h3>FILMES (VOD)</h3>
-              <p>Lançamentos e clássicos do cinema sob demanda.</p>
-            </div>
-            <div id="countMovies" class="dash-badge">Carregando...</div>
-          </div>
-
-          <div id="cardSeries" class="dash-card card-series" tabindex="0">
-            <div class="dash-card-icon">🍿</div>
-            <div>
-              <h3>SÉRIES</h3>
-              <p>Temporadas completas atualizadas semanalmente.</p>
-            </div>
-            <div id="countSeries" class="dash-badge">Carregando...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= TELA B: TV AO VIVO (COM EPG E MINI-PLAYER) ================= -->
-      <section id="viewChannels" class="hidden">
-        <!-- COLUNA 1: CATEGORIAS -->
-        <div class="pane">
-          <div class="pane-title">
-            <span>📁 Categorias</span>
-            <span id="badgeCategoriesCount" class="badge-counter">0</span>
-          </div>
-          <ul id="listCategories" class="list-scroll"></ul>
-        </div>
-
-        <!-- COLUNA 2: CANAIS -->
-        <div class="pane">
-          <div class="pane-title">
-            <span id="titleActiveCategory">📺 Todos os Canais</span>
-            <span id="badgeChannelsCount" class="badge-counter">0</span>
-          </div>
-          <div style="padding: 10px; background: rgba(0,0,0,0.25); display: flex; gap: 8px;">
-            <input id="inputChannelSearch" type="text" placeholder="🔍 Filtrar canal..." style="flex:1; padding: 10px 14px; background: #121520; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 18px;" tabindex="0">
-            <button id="btnVoiceSearch" class="server-quick-btn" title="Busca por Voz" tabindex="0">🎙️ Voz</button>
-          </div>
-          <ul id="listChannels" class="list-scroll"></ul>
-        </div>
-
-        <!-- COLUNA 3: PLAYER DE VÍDEO & EPG -->
-        <div class="pane player-container">
-          <div id="videoContainer" class="video-wrapper" tabindex="0" title="Clique duas vezes ou pressione OK para tela cheia">
-            <video id="tvPlayer" playsinline></video>
-          </div>
-
-          <!-- GUIA ELETRÔNICO DE PROGRAMAÇÃO (EPG) -->
-          <div class="epg-card">
-            <h3 id="epgCurrentChannel" class="epg-now-title">Selecione um canal</h3>
-            <p id="epgNowShow" style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">Programa Ao Vivo</p>
-            <div class="epg-bar"><div class="epg-progress"></div></div>
-            <div style="display: flex; justify-content: space-between;">
-              <span id="epgTimes" class="epg-time">Ao vivo • Em transmissão</span>
-              <span id="epgQuality" class="badge-counter">FHD 1080p</span>
-            </div>
-            <p id="epgNextShow" class="epg-next">A seguir: Programação Geral da Emissora</p>
-          </div>
-
-          <div style="display: flex; gap: 10px;">
-            <button id="btnFullscreenNow" class="hero-btn" style="flex: 1; padding: 12px;" tabindex="0">⛶ Tela Cheia</button>
-            <button id="btnFavChannel" class="server-quick-btn" style="padding: 12px 18px;" tabindex="0">⭐ Favoritar</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= TELA C: FILMES E SÉRIES (VOD GRID) ================= -->
-      <section id="viewVod" class="hidden" style="padding: 25px 35px; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 id="titleVodScreen" style="margin: 0; font-size: 32px; font-weight: 800;">🎬 Catálogo Sob Demanda</h2>
-          <div style="display: flex; gap: 12px;">
-            <input id="inputVodSearch" type="text" placeholder="🔍 Buscar título..." style="padding: 10px 16px; background: #1a1e2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 18px;" tabindex="0">
-          </div>
-        </div>
-        <div id="gridVodItems" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px;"></div>
-      </section>
-
-      <!-- ================= TELA D: LISTAS & SERVIDORES (COM LISTA MANUAL) ================= -->
-      <section id="viewLists" class="hidden">
-        <h2 style="margin: 0; font-size: 30px; font-weight: 800;">📑 Servidores e Listas MK21</h2>
-        <p style="color: var(--text-muted); margin: 6px 0 20px 0;">Alterne entre os 7 servidores pré-carregados ou adicione uma lista personalizada:</p>
-
-        <div id="serversCardsList" class="servers-container"></div>
-
-        <!-- FORMULÁRIO DE LISTA MANUAL -->
-        <div class="manual-box">
-          <h3 style="margin: 0 0 8px 0; font-size: 22px; color: #ffd54f;">➕ Adicionar Lista Manual (M3U ou Xtream)</h3>
-          <p style="color: var(--text-muted); font-size: 16px; margin: 0 0 14px 0;">Insira uma URL HTTP da playlist ou servidor alternativo:</p>
-          <input id="inputManualUrl" type="url" placeholder="http://servidor.com/get.php?username=...&password=..." tabindex="0">
-          <div style="display: flex; gap: 12px;">
-            <button id="btnLoadManualList" class="hero-btn" tabindex="0">Conectar e Salvar Lista</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= TELA E: CONFIGURAÇÕES (CLONE EXATO VIZZION PLAY) ================= -->
-      <section id="viewSettings" class="hidden">
-        <!-- MENU DE CONFIGURAÇÕES (COLUNA ESQUERDA) -->
-        <div class="settings-menu">
-          <button id="optInfoGeral" class="setting-opt-btn active" tabindex="0">⚙️ Informação geral</button>
-          <button id="optMudarIdioma" class="setting-opt-btn" tabindex="0">🌐 Mudar idioma</button>
-          <button id="optFormatoFluxo" class="setting-opt-btn" tabindex="0">📺 Alterar formato de fluxo</button>
-          <button id="optAlterarPin" class="setting-opt-btn" tabindex="0">🔒 Alterar código pin</button>
-          <button id="optGerenciarCat" class="setting-opt-btn" tabindex="0">🚫 Gerenciar categorias</button>
-          <button id="optLimparStorage" class="setting-opt-btn" tabindex="0">🗑️ Limpar armazenamento</button>
-          <button id="optConfigTempo" class="setting-opt-btn" tabindex="0">⏱️ Configurações de tempo</button>
-          <div style="padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--card-border); margin-top: 8px;">
-            <span style="font-size: 18px; font-weight: 600;">🎬 Usar API TMDB</span>
-            <input type="checkbox" id="toggleTmdb" checked style="width: 24px; height: 24px; cursor: pointer;" tabindex="0">
-          </div>
-        </div>
-
-        <!-- PAINEL DE DETALHES DA CONFIGURAÇÃO (COLUNA DIREITA) -->
-        <div id="settingsDetailPanel" class="settings-panel">
-          <!-- CONTEÚDO DINÂMICO RENDERIZADO VIA JS -->
-        </div>
-      </section>
-
+      <!-- ABAS PRINCIPAIS DE NAVEGAÇÃO -->
+      <nav class="main-tabs">
+        <button id="tabLiveTv" class="tab-btn active" tabindex="0">📺 TV AO VIVO</button>
+        <button id="tabMovies" class="tab-btn" tabindex="0">🎬 FILMES</button>
+        <button id="tabSeries" class="tab-btn" tabindex="0">🍿 SÉRIES</button>
+        <button id="tabFavs" class="tab-btn" tabindex="0">⭐ FAVORITOS</button>
+        <button id="tabSettings" class="tab-btn" tabindex="0">⚙️ CONFIGURAÇÕES</button>
+      </nav>
     </div>
+
+    <div class="header-right">
+      <button id="btnHeaderServer" class="action-btn server-pill" tabindex="0">
+        <span id="txtActiveServer">🔵 CB6000</span> <span style="font-size: 12px; opacity:0.7;">▼</span>
+      </button>
+
+      <button id="btnRefreshList" class="action-btn" title="Atualizar lista agora" tabindex="0">
+        🔄 Atualizar
+      </button>
+
+      <button id="btnHeaderAdult" class="action-btn lock-pill" tabindex="0">
+        <span id="txtLockIcon">🔒</span> <span id="txtLockText">Adulto (Bloqueado)</span>
+      </button>
+
+      <div id="liveClock" class="clock-display">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- ================= CORPO PRINCIPAL (DIRETO PARA O APP, SEM HOME) ================= -->
+  <main class="app-body">
+
+    <!-- ================= PAINEL 1: TV AO VIVO (3 COLUNAS) ================= -->
+    <section id="sectionTv" class="content-section">
+      
+      <!-- COLUNA 1: CATEGORIAS (24%) -->
+      <div class="col-pane col-categories">
+        <div class="pane-header">
+          <span>📁 Categorias</span>
+          <span id="badgeCatCount" class="counter-badge">0</span>
+        </div>
+        <ul id="listCategories" class="pane-scroll"></ul>
+      </div>
+
+      <!-- COLUNA 2: CANAIS (36%) -->
+      <div class="col-pane col-channels">
+        <div class="pane-header">
+          <span id="txtCurrentCategoryTitle">📺 Todos os Canais</span>
+          <span id="badgeChannelsCount" class="counter-badge">0</span>
+        </div>
+        <div class="search-box">
+          <input id="inputChannelSearch" type="text" placeholder="🔍 Buscar canal..." tabindex="0">
+          <button id="btnVoiceSearch" class="voice-btn" tabindex="0">🎙️</button>
+        </div>
+        <ul id="listChannels" class="pane-scroll"></ul>
+      </div>
+
+      <!-- COLUNA 3: PLAYER DE VÍDEO & EPG (40%) -->
+      <div class="col-pane col-player">
+        <div id="videoContainer" class="video-box" tabindex="0">
+          <video id="tvPlayer" playsinline></video>
+          <div id="channelOverlay" class="channel-overlay hidden">Animal Planet FHD</div>
+        </div>
+
+        <!-- GUIA DE PROGRAMAÇÃO (EPG) -->
+        <div class="epg-card">
+          <h2 id="epgTitle" class="epg-name">Selecione um canal</h2>
+          <p id="epgGroup" class="epg-sub">Categoria: Geral</p>
+          <div class="epg-bar"><div class="epg-progress"></div></div>
+          <div class="epg-meta">
+            <span id="epgStatus">🔴 Transmissão Ao Vivo</span>
+            <span class="badge-quality">FHD 1080p</span>
+          </div>
+          <p id="epgNext" class="epg-next-text">A seguir: Programação Normal</p>
+        </div>
+
+        <div class="player-controls">
+          <button id="btnFullscreen" class="ctrl-btn primary" tabindex="0">⛶ Tela Cheia</button>
+          <button id="btnPlayPause" class="ctrl-btn" tabindex="0">⏯ Pausar</button>
+          <button id="btnFavorite" class="ctrl-btn" tabindex="0">⭐ Favoritar</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= PAINEL 2: FILMES & SÉRIES (VOD GRID) ================= -->
+    <section id="sectionVod" class="content-section hidden">
+      <div class="vod-topbar">
+        <h2 id="txtVodTitle">🎬 Catálogo de Filmes</h2>
+        <input id="inputVodSearch" type="text" placeholder="🔍 Buscar título..." class="vod-search" tabindex="0">
+      </div>
+      <div id="gridVod" class="vod-grid-scroll"></div>
+    </section>
+
+    <!-- ================= PAINEL 3: CONFIGURAÇÕES (CLONE VIZZION PLAY FOTOS) ================= -->
+    <section id="sectionSettings" class="content-section hidden">
+      <div class="settings-left-menu">
+        <button id="cfgBtnInfo" class="cfg-menu-item active" tabindex="0">⚙️ Informação geral</button>
+        <button id="cfgBtnIdioma" class="cfg-menu-item" tabindex="0">🌐 Mudar idioma</button>
+        <button id="cfgBtnFluxo" class="cfg-menu-item" tabindex="0">📺 Alterar formato de fluxo</button>
+        <button id="cfgBtnPin" class="cfg-menu-item" tabindex="0">🔒 Alterar código pin</button>
+        <button id="cfgBtnCategorias" class="cfg-menu-item" tabindex="0">🚫 Gerenciar categorias</button>
+        <button id="cfgBtnLimpar" class="cfg-menu-item" tabindex="0">🗑️ Limpar armazenamento</button>
+        <button id="cfgBtnTempo" class="cfg-menu-item" tabindex="0">⏱️ Configurações de tempo</button>
+        <div class="cfg-tmdb-toggle">
+          <span>🎬 Usar API TMDB</span>
+          <input type="checkbox" id="cfgToggleTmdb" checked style="width:22px; height:22px;">
+        </div>
+      </div>
+
+      <div id="settingsDetailBox" class="settings-detail-panel"></div>
+    </section>
+
   </main>
 
-  <!-- ================= MODAL DE CONFIRMAÇÃO DE SAÍDA (BOTÃO VOLTAR) ================= -->
-  <div id="modalConfirmExit" class="confirm-modal hidden">
-    <div class="confirm-card">
-      <h3 style="margin: 0 0 10px 0; font-size: 26px; color: #ffffff;">Sair do MK21 Play?</h3>
-      <p style="color: var(--text-muted); font-size: 18px; margin: 0;">Você deseja realmente fechar o aplicativo na sua Smart TV?</p>
-      <div class="confirm-actions">
-        <button id="btnCancelExit" class="btn-confirm cancel" tabindex="0">Continuar Assistindo</button>
-        <button id="btnConfirmExit" class="btn-confirm danger" tabindex="0">Sair</button>
+  <!-- ================= BARRA DE AJUDA DO CONTROLE LG ================= -->
+  <footer class="remote-bar">
+    <div class="remote-key"><span class="color-dot red"></span> <span>Trocar Servidor</span></div>
+    <div class="remote-key"><span class="color-dot green"></span> <span>Atualizar Lista</span></div>
+    <div class="remote-key"><span class="color-dot yellow"></span> <span>Favoritar</span></div>
+    <div class="remote-key"><span class="color-dot blue"></span> <span>Bloqueio 18+</span></div>
+    <div class="remote-key"><span>⮌ <strong>Voltar:</strong> Sair / Menu</span></div>
+  </footer>
+
+  <!-- ================= MODAL SELETOR DE SERVIDORES ================= -->
+  <div id="modalServerPicker" class="app-modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Selecionar Servidor MK21</span>
+        <button id="btnCloseServerPicker" class="ctrl-btn" style="padding: 6px 14px;" tabindex="0">✕</button>
       </div>
+      <div id="serverItemsGrid" class="servers-grid"></div>
     </div>
   </div>
 
   <!-- ================= MODAL PIN ADULTO ================= -->
-  <div id="modalPinAdult" class="confirm-modal hidden">
-    <div class="confirm-card" style="width: 440px;">
-      <h3 style="margin: 0 0 10px 0; font-size: 24px; color: #ffd54f;">🔒 Bloqueio Parental (18+)</h3>
-      <p style="color: #cbd5e1; font-size: 16px; margin: 0 0 14px 0;">Digite o PIN de 4 dígitos no controle remoto (Padrão: 0000):</p>
-      
-      <div id="displayPin" style="font-size: 42px; letter-spacing: 14px; background: #000; padding: 12px; border-radius: 8px; margin-bottom: 16px; color: #ffd54f;">----</div>
-
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 280px; margin: 0 auto 16px;">
-        <button class="hero-btn" data-key="1" style="background:#202536;" tabindex="0">1</button>
-        <button class="hero-btn" data-key="2" style="background:#202536;" tabindex="0">2</button>
-        <button class="hero-btn" data-key="3" style="background:#202536;" tabindex="0">3</button>
-        <button class="hero-btn" data-key="4" style="background:#202536;" tabindex="0">4</button>
-        <button class="hero-btn" data-key="5" style="background:#202536;" tabindex="0">5</button>
-        <button class="hero-btn" data-key="6" style="background:#202536;" tabindex="0">6</button>
-        <button class="hero-btn" data-key="7" style="background:#202536;" tabindex="0">7</button>
-        <button class="hero-btn" data-key="8" style="background:#202536;" tabindex="0">8</button>
-        <button class="hero-btn" data-key="9" style="background:#202536;" tabindex="0">9</button>
-        <button class="hero-btn" data-key="C" style="background:#631a1a;" tabindex="0">C</button>
-        <button class="hero-btn" data-key="0" style="background:#202536;" tabindex="0">0</button>
-        <button class="hero-btn" data-key="OK" style="background:#1d6324;" tabindex="0">OK</button>
+  <div id="modalPin" class="app-modal hidden">
+    <div class="modal-content" style="width: 440px; text-align: center;">
+      <div class="modal-header">
+        <span>🔒 Bloqueio Parental (18+)</span>
+        <button id="btnClosePin" class="ctrl-btn" style="padding: 6px 14px;" tabindex="0">✕</button>
       </div>
-      <button id="btnClosePin" class="btn-confirm cancel" style="width: 100%;" tabindex="0">Cancelar</button>
+      <p style="color:#aaa; font-size:17px; margin: 0 0 10px;">Digite a senha de 4 dígitos no controle remoto (Padrão: 0000):</p>
+      <div id="pinScreen" class="pin-display-box">----</div>
+      <div class="pin-pad-grid">
+        <button class="pin-key" data-k="1" tabindex="0">1</button>
+        <button class="pin-key" data-k="2" tabindex="0">2</button>
+        <button class="pin-key" data-k="3" tabindex="0">3</button>
+        <button class="pin-key" data-k="4" tabindex="0">4</button>
+        <button class="pin-key" data-k="5" tabindex="0">5</button>
+        <button class="pin-key" data-k="6" tabindex="0">6</button>
+        <button class="pin-key" data-k="7" tabindex="0">7</button>
+        <button class="pin-key" data-k="8" tabindex="0">8</button>
+        <button class="pin-key" data-k="9" tabindex="0">9</button>
+        <button class="pin-key" data-k="C" style="background:#5c1d1d;" tabindex="0">C</button>
+        <button class="pin-key" data-k="0" tabindex="0">0</button>
+        <button class="pin-key" data-k="OK" style="background:#1b5e20;" tabindex="0">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL CONFIRMAÇÃO DE SAÍDA ================= -->
+  <div id="modalExitConfirm" class="app-modal hidden">
+    <div class="modal-content" style="width: 480px; text-align: center;">
+      <h2 style="margin: 0 0 12px 0;">Sair do MK21 Play?</h2>
+      <p style="color:#aaa; font-size: 18px; margin: 0 0 24px 0;">Deseja realmente fechar o aplicativo na sua Smart TV?</p>
+      <div style="display:flex; gap:16px;">
+        <button id="btnExitCancel" class="ctrl-btn" style="flex:1; padding: 14px;" tabindex="0">Continuar Assistindo</button>
+        <button id="btnExitConfirm" class="ctrl-btn primary" style="flex:1; padding: 14px;" tabindex="0">Sair</button>
+      </div>
     </div>
   </div>
 

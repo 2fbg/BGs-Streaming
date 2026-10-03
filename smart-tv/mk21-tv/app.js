@@ -1,40 +1,32 @@
-// MK21 PLAY v2.2.0 — Smart TV Engine LG webOS (Clone Completo Vizzion Play)
+// MK21 PLAY v3.0.0 — Motor Estável sem Tela Home & com Separação Estrita de Canais/Filmes
 const $ = id => document.getElementById(id);
 
-// 1. POLYFILLS DE COMPATIBILIDADE CHROMIUM WEBOS
-if (!Element.prototype.replaceChildren) {
-  Element.prototype.replaceChildren = function() {
-    while (this.firstChild) this.removeChild(this.firstChild);
-    for (var i = 0; i < arguments.length; i++) this.appendChild(arguments[i]);
-  };
-}
-
-// 2. CONFIGURAÇÃO DOS 7 SERVIDORES MK21
+// 1. CONFIGURAÇÃO DOS 7 SERVIDORES MK21
 const SERVERS = [
+  { id: 'cb6000', name: '🔵 CB6000', url: 'http://cdn.caterlune.top/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'vlog', name: '🟢 VLOG', url: 'http://myopbx.beer/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'lub', name: '⚪ LUB TV', url: 'http://pottermax.sbs/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'cinelon', name: '🔴 CINELON21', url: 'http://coliseuop.site/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'tannix', name: '🟠 TANNIX', url: 'http://poptvcdn.online/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
-  { id: 'cb6000', name: '🔵 CB6000', url: 'http://cdn.caterlune.top/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'mk21pro', name: '🟣 MK21 PRÓ', url: 'http://app.vivoxi.xyz/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'multt', name: '🟤 MULTT TV', url: 'http://dali-as.skin/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' }
 ];
 
 const ADULT_KEYWORDS = ['ADULTO', 'ADULTOS', 'XXX', 'PLAYBOY', 'VENUS', 'SEXTREME', 'SEX', 'ERÓTICO', 'EROTICO', 'PRIVE', 'FORBIDDEN', 'HOT', '18+', 'PORNO', 'BABES', 'REDLIGHT'];
 
-// 3. BANCO DE DADOS LOCAL (IndexedDB)
-const DB_NAME = 'MK21_PLAY_DB_V3';
+// 2. BANCO DE DADOS LOCAL (IndexedDB)
+const DB_NAME = 'MK21_PLAY_V3_DB';
 const DB_VERSION = 1;
-const STORE_NAME = 'playlists';
+const STORE_NAME = 'catalog';
 
-function openCacheDB() {
+function openDB() {
   return new Promise(resolve => {
     if (!window.indexedDB) return resolve(null);
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'serverId' });
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
     };
     req.onsuccess = e => resolve(e.target.result);
@@ -42,129 +34,81 @@ function openCacheDB() {
   });
 }
 
-async function getCachedData(serverId) {
+async function getStoredData(id) {
   try {
-    const db = await openCacheDB();
+    const db = await openDB();
     if (!db) return null;
     return new Promise(resolve => {
       const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(serverId);
-      req.onsuccess = () => resolve(req.result || null);
+      const req = tx.objectStore(STORE_NAME).get(id);
+      req.onsuccess = () => resolve(req.result ? req.result.payload : null);
       req.onerror = () => resolve(null);
     });
   } catch (e) { return null; }
 }
 
-async function saveCachedData(serverId, data) {
+async function saveStoredData(id, payload) {
   try {
-    const db = await openCacheDB();
+    const db = await openDB();
     if (!db) return;
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.put({ serverId, data, updatedAt: Date.now() });
+    tx.objectStore(STORE_NAME).put({ id, payload, updatedAt: Date.now() });
   } catch (e) {}
 }
 
-// 4. ESTADO GERAL DO APLICATIVO
+// 3. ESTADO GLOBAL
 let currentServerIndex = 0;
-let currentView = 'home'; // 'home', 'channels', 'vod', 'lists', 'settings'
-let vodMode = 'movies'; // 'movies' ou 'series'
-let allItems = [];
-let liveTvItems = [];
+let currentTab = 'tv'; // 'tv', 'movies', 'series', 'favs', 'settings'
+let liveChannels = [];
 let movieItems = [];
 let seriesItems = [];
 let favoriteUrls = new Set();
 let isAdultUnlocked = false;
+let currentPin = '0000';
 let enteredPin = '';
 let activeChannel = null;
 let hlsInstance = null;
-let currentPin = '0000';
-let streamFormat = 'default'; // 'default', 'm3u8', 'ts'
-let currentLanguage = 'pt-BR';
 
-// Categorias e canais
-let liveCategories = {};
+// Categorias da TV ao Vivo
+let liveCategoriesMap = {};
 let liveCategoryKeys = [];
-let selectedLiveCategory = 'ALL';
-let currentFilteredChannels = [];
+let activeCategoryKey = 'ALL';
+let filteredChannels = [];
 
-// Carrossel de Destaques
-const HERO_ITEMS = [
-  { title: 'Animal Planet FHD', desc: 'Acompanhe documentários incríveis e a vida selvagem ao vivo.', tag: '🔥 MAIS ASSISTIDO', bg: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1600&q=80', search: 'Animal Planet' },
-  { title: 'HBO Max & Cinema 4K', desc: 'Filmes campeões de bilheteria e séries exclusivas com áudio 5.1.', tag: '🎬 CINEMA 4K', bg: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&q=80', search: 'HBO' },
-  { title: 'SporTV 1 & Premiere FHD', desc: 'Campeonatos de futebol, rodadas ao vivo e cobertura esportiva 24h.', tag: '⚽ AO VIVO', bg: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1600&q=80', search: 'SporTV' },
-  { title: 'Telecine Pipoca & Action', desc: 'As melhores aventuras, animações e filmes dublados para toda a família.', tag: '🍿 FILMES EM ALTA', bg: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=1600&q=80', search: 'Telecine' }
-];
-let heroIndex = 0;
+// Gerenciador de Foco Espacial do Controle Remoto (D-Pad)
+let activeColumn = 'channels'; // 'categories', 'channels', 'player', 'tabs'
+let focusedCatIdx = 0;
+let focusedChIdx = 0;
 
-// RELÓGIO DIGITAL
-function updateClock() {
-  const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
-  const str = `${h}:${m}:${s}`;
-  if ($('liveClock')) $('liveClock').textContent = str;
-
-  // Atualizar flip clock da tela de configurações
-  const flipH = $('flipHours');
-  const flipM = $('flipMinutes');
-  if (flipH && flipM) {
-    flipH.textContent = h;
-    flipM.textContent = m;
-  }
+// RELÓGIO
+function tickClock() {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  if ($('liveClock')) $('liveClock').textContent = `${h}:${m}:${s}`;
 }
-setInterval(updateClock, 1000);
-updateClock();
-
-// ROTAÇÃO AUTOMÁTICA DO CARROSSEL
-setInterval(() => {
-  heroIndex = (heroIndex + 1) % HERO_ITEMS.length;
-  updateHeroBanner();
-}, 6000);
-
-function updateHeroBanner() {
-  const item = HERO_ITEMS[heroIndex];
-  const banner = $('heroBanner');
-  if (!banner) return;
-  banner.style.backgroundImage = `url('${item.bg}')`;
-  $('heroBadge').textContent = item.tag;
-  $('heroTitle').textContent = item.title;
-  $('heroDesc').textContent = item.desc;
-}
-
-$('btnHeroPlay').onclick = () => {
-  const item = HERO_ITEMS[heroIndex];
-  switchView('channels');
-  $('inputChannelSearch').value = item.search;
-  renderLiveChannels();
-  setTimeout(() => {
-    const first = $('listChannels').querySelector('.item-btn');
-    if (first) first.click();
-  }, 300);
-};
+setInterval(tickClock, 1000);
+tickClock();
 
 // FAVORITOS
 try {
-  const savedFavs = localStorage.getItem('mk21_favs');
-  if (savedFavs) favoriteUrls = new Set(JSON.parse(savedFavs));
+  const f = localStorage.getItem('mk21_favs');
+  if (f) favoriteUrls = new Set(JSON.parse(f));
 } catch (e) {}
 
-function toggleFavorite(url) {
+function toggleFav(url) {
   if (favoriteUrls.has(url)) {
     favoriteUrls.delete(url);
-    if ($('btnFavChannel')) $('btnFavChannel').textContent = '⭐ Favoritar';
+    if ($('btnFavorite')) $('btnFavorite').textContent = '⭐ Favoritar';
   } else {
     favoriteUrls.add(url);
-    if ($('btnFavChannel')) $('btnFavChannel').textContent = '★ Favoritado';
+    if ($('btnFavorite')) $('btnFavorite').textContent = '★ Favoritado';
   }
-  try {
-    localStorage.setItem('mk21_favs', JSON.stringify(Array.from(favoriteUrls)));
-  } catch (e) {}
+  try { localStorage.setItem('mk21_favs', JSON.stringify(Array.from(favoriteUrls))); } catch (e) {}
+  if (activeCategoryKey === 'FAVORITES') renderChannelsList();
 }
 
-// 5. PARSER E OTIMIZAÇÃO DE MEMÓRIA (ANTI-CRASH)
 function isAdult(text) {
   if (!text) return false;
   const upper = text.toUpperCase();
@@ -174,9 +118,9 @@ function isAdult(text) {
   return false;
 }
 
-function parseAndClassifyM3U(content) {
+// 4. PARSER OTIMIZADO COM SEPARAÇÃO ESTRITA E PROTEÇÃO CONTRA ESTOURO DE MEMÓRIA (ANTI-CRASH)
+function parseM3USafely(content) {
   const lines = content.split(/\r?\n/);
-  const all = [];
   const live = [];
   const movies = [];
   const series = [];
@@ -185,28 +129,41 @@ function parseAndClassifyM3U(content) {
   let group = 'Geral';
   let logo = '';
 
+  // Limites máximos para evitar que a Smart TV reinicie por falta de memória (RAM)
+  const MAX_MOVIES = 1200;
+  const MAX_SERIES = 600;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('#EXTINF:')) {
-      const commaIdx = line.lastIndexOf(',');
-      name = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : 'Canal';
-      const gMatch = line.match(/group-title="([^"]*)"/i);
-      group = gMatch && gMatch[1] && gMatch[1].trim() ? gMatch[1].trim() : 'Geral';
-      const lMatch = line.match(/tvg-logo="([^"]*)"/i);
-      logo = lMatch && lMatch[1] ? lMatch[1].trim() : '';
+      const cIdx = line.lastIndexOf(',');
+      name = cIdx >= 0 ? line.slice(cIdx + 1).trim() : 'Canal';
+      const gM = line.match(/group-title="([^"]*)"/i);
+      group = gM && gM[1] && gM[1].trim() ? gM[1].trim() : 'Geral';
+      const lM = line.match(/tvg-logo="([^"]*)"/i);
+      logo = lM && lM[1] ? lM[1].trim() : '';
     } else if (/^https?:\/\//i.test(line)) {
-      const upperGroup = group.toUpperCase();
-      const upperName = name.toUpperCase();
-      const isAdultContent = isAdult(upperGroup) || isAdult(upperName);
+      const upGroup = group.toUpperCase();
+      const upName = name.toUpperCase();
+      const urlLower = line.toLowerCase();
+      const isAdultContent = isAdult(upGroup) || isAdult(upName);
 
       const item = { name, group, logo, url: line, isAdult: isAdultContent };
-      all.push(item);
 
-      if (upperGroup.includes('SÉRIE') || upperGroup.includes('SERIE') || upperName.includes('S01') || upperName.includes('S02') || upperName.includes('TEMPORADA') || line.includes('/series/')) {
-        series.push(item);
-      } else if (upperGroup.includes('FILME') || upperGroup.includes('MOVIE') || upperGroup.includes('VOD') || upperGroup.includes('CINE') || upperGroup.includes('4K FILMES') || line.includes('/movie/')) {
-        movies.push(item);
+      // SEPARAÇÃO ESTRITA:
+      // Filmes e Séries NÃO entram na TV Ao Vivo em hipótese alguma!
+      const isMovie = urlLower.includes('/movie/') || urlLower.endsWith('.mp4') || urlLower.endsWith('.mkv') ||
+                      upGroup.includes('FILME') || upGroup.includes('MOVIE') || upGroup.includes('VOD') || upGroup.includes('CINE') || upGroup.includes('4K FILMES');
+
+      const isSeries = urlLower.includes('/series/') || upGroup.includes('SERIE') || upGroup.includes('SÉRIE') ||
+                       upName.includes('S01') || upName.includes('S02') || upName.includes('TEMPORADA') || upName.includes('EPISODIO');
+
+      if (isSeries) {
+        if (series.length < MAX_SERIES) series.push(item);
+      } else if (isMovie) {
+        if (movies.length < MAX_MOVIES) movies.push(item);
       } else {
+        // É canal de TV ao vivo legítimo!
         live.push(item);
       }
 
@@ -216,197 +173,93 @@ function parseAndClassifyM3U(content) {
     }
   }
 
-  return { all, live, movies, series };
+  return { live, movies, series };
 }
 
-// 6. ROTEAMENTO DE TELAS
-function switchView(viewName) {
-  currentView = viewName;
-
-  // Esconder todas as telas
-  ['viewHome', 'viewChannels', 'viewVod', 'viewLists', 'viewSettings'].forEach(id => {
-    const el = $(id);
-    if (el) el.classList.add('hidden');
-  });
-
-  // Atualizar classe ativa na Sidebar
-  const navMap = {
-    'home': 'navHome',
-    'channels': 'navLiveTv',
-    'movies': 'navMovies',
-    'series': 'navSeries',
-    'lists': 'navLists',
-    'settings': 'navSettings'
-  };
-
-  document.querySelectorAll('.nav-item-btn').forEach(b => b.classList.remove('active'));
-  const activeNav = $(navMap[viewName]);
-  if (activeNav) activeNav.classList.add('active');
-
-  // Pausar player ao sair da tela de TV
-  if (viewName !== 'channels') {
-    const v = $('tvPlayer');
-    if (v && !v.paused) v.pause();
-  }
-
-  if (viewName === 'home') {
-    $('viewHome').classList.remove('hidden');
-    $('cardTvAoVivo').focus();
-  } else if (viewName === 'channels') {
-    $('viewChannels').classList.remove('hidden');
-    buildLiveCategories();
-    renderLiveCategories();
-    selectLiveCategory('ALL');
-  } else if (viewName === 'movies') {
-    vodMode = 'movies';
-    $('viewVod').classList.remove('hidden');
-    renderVodGrid();
-  } else if (viewName === 'series') {
-    vodMode = 'series';
-    $('viewVod').classList.remove('hidden');
-    renderVodGrid();
-  } else if (viewName === 'lists') {
-    $('viewLists').classList.remove('hidden');
-    renderServersList();
-  } else if (viewName === 'settings') {
-    $('viewSettings').classList.remove('hidden');
-    renderSettingsDetail('info');
-  }
-}
-
-// BOTÕES DA SIDEBAR
-$('btnLogoHome').onclick = () => switchView('home');
-$('navHome').onclick = () => switchView('home');
-$('navLiveTv').onclick = () => switchView('channels');
-$('navMovies').onclick = () => switchView('movies');
-$('navSeries').onclick = () => switchView('series');
-$('navLists').onclick = () => switchView('lists');
-$('navSettings').onclick = () => switchView('settings');
-$('navSearch').onclick = () => {
-  switchView('channels');
-  $('inputChannelSearch').focus();
-};
-$('btnAccountBadge').onclick = () => switchView('settings');
-
-// BOTÃO ATUALIZAR LISTA (FUNCIONAMENTO GARANTIDO)
-$('navRefreshList').onclick = () => {
-  $('txtSyncStatus').textContent = '🔄 Atualizando lista...';
-  loadServerData(true);
-};
-
-// 7. CARREGAMENTO DOS SERVIDORES (CACHE-FIRST + PRE-FETCH EM SEGUNDO PLANO)
-async function loadServerData(forceRefresh = false) {
+// 5. CARREGAMENTO DOS CANAIS DO SERVIDOR
+async function loadServer(forceRefresh = false) {
   const srv = SERVERS[currentServerIndex];
-  $('txtTopServerName').textContent = srv.name;
+  $('txtActiveServer').textContent = srv.name;
 
+  // 1. TENTA CARREGAR DO BANCO DE DADOS LOCAL INSTANTÂNEO
   if (!forceRefresh) {
-    const cached = await getCachedData(srv.id);
-    if (cached && cached.data) {
-      applyLoadedData(cached.data);
-      $('txtSyncStatus').textContent = '⚡ Instantâneo (' + srv.name + ')';
-      preloadRemainingServers();
+    const cached = await getStoredData(srv.id);
+    if (cached && cached.live && cached.live.length > 0) {
+      applyCatalog(cached);
       return;
     }
   }
 
-  $('txtSyncStatus').textContent = 'Baixando ' + srv.name + '...';
+  $('txtCurrentCategoryTitle').textContent = 'Conectando ao ' + srv.name + '...';
 
   try {
     const res = await fetch(srv.url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
-    const data = parseAndClassifyM3U(text);
+    const catalog = parseM3USafely(text);
 
-    saveCachedData(srv.id, data);
-    applyLoadedData(data);
-    $('txtSyncStatus').textContent = '✅ Catálogo pronto (' + srv.name + ')';
-
-    // Disparar pré-carregamento dos outros servidores em segundo plano
-    preloadRemainingServers();
+    saveStoredData(srv.id, catalog);
+    applyCatalog(catalog);
   } catch (err) {
-    console.error('Fetch error:', err);
-    $('txtSyncStatus').textContent = '⚠️ Falha na rede: ' + err.message;
+    console.error('Server error:', err);
+    alert('Erro ao carregar ' + srv.name + ': ' + err.message);
   }
 }
 
-function applyLoadedData(data) {
-  allItems = data.all || [];
-  liveTvItems = data.live || [];
-  movieItems = data.movies || [];
-  seriesItems = data.series || [];
+function applyCatalog(catalog) {
+  liveChannels = catalog.live || [];
+  movieItems = catalog.movies || [];
+  seriesItems = catalog.series || [];
 
-  if ($('countTv')) $('countTv').textContent = liveTvItems.length.toLocaleString('pt-BR') + ' Canais';
-  if ($('countMovies')) $('countMovies').textContent = movieItems.length.toLocaleString('pt-BR') + ' Títulos';
-  if ($('countSeries')) $('countSeries').textContent = seriesItems.length.toLocaleString('pt-BR') + ' Séries';
+  buildCategories();
+  renderCategoriesList();
+  selectCategory('ALL');
 }
 
-// BAIXAR OUTRAS LISTAS EM SEGUNDO PLANO PARA TROCA IMEDIATA
-let isPreloading = false;
-async function preloadRemainingServers() {
-  if (isPreloading) return;
-  isPreloading = true;
-
-  setTimeout(async () => {
-    for (let i = 0; i < SERVERS.length; i++) {
-      if (i === currentServerIndex) continue;
-      const srv = SERVERS[i];
-      const existing = await getCachedData(srv.id);
-      if (!existing) {
-        try {
-          const res = await fetch(srv.url);
-          if (res.ok) {
-            const txt = await res.text();
-            const d = parseAndClassifyM3U(txt);
-            saveCachedData(srv.id, d);
-          }
-        } catch (e) {}
-      }
-    }
-    isPreloading = false;
-  }, 4000);
-}
-
-// 8. TELA TV AO VIVO & EPG
-function buildLiveCategories() {
-  liveCategories = { 'ALL': [] };
+// 6. AGRUPAMENTO DAS CATEGORIAS DE TV AO VIVO (100% LIMPO DE FILMES)
+function buildCategories() {
+  liveCategoriesMap = { 'ALL': [] };
   liveCategoryKeys = ['ALL'];
 
-  liveTvItems.forEach(ch => {
-    if (!isAdultUnlocked && ch.isAdult) return;
-    liveCategories['ALL'].push(ch);
-    const g = ch.group;
-    if (!liveCategories[g]) {
-      liveCategories[g] = [];
-      liveCategoryKeys.push(g);
+  for (let i = 0; i < liveChannels.length; i++) {
+    const ch = liveChannels[i];
+    if (!isAdultUnlocked && ch.isAdult) continue;
+
+    liveCategoriesMap['ALL'].push(ch);
+    const grp = ch.group;
+    if (!liveCategoriesMap[grp]) {
+      liveCategoriesMap[grp] = [];
+      liveCategoryKeys.push(grp);
     }
-    liveCategories[g].push(ch);
-  });
+    liveCategoriesMap[grp].push(ch);
+  }
 }
 
-function renderLiveCategories() {
+function renderCategoriesList() {
   const ul = $('listCategories');
   ul.innerHTML = '';
   const fragment = document.createDocumentFragment();
 
-  $('badgeCategoriesCount').textContent = (liveCategoryKeys.length - 1);
+  $('badgeCatCount').textContent = (liveCategoryKeys.length - 1) + ' grupos';
 
-  liveCategoryKeys.forEach(catKey => {
+  liveCategoryKeys.forEach((k, idx) => {
     const li = document.createElement('li');
     const btn = document.createElement('button');
-    btn.className = 'item-btn' + (catKey === selectedLiveCategory ? ' active' : '');
+    btn.className = 'list-item-btn cat-item-btn' + (k === activeCategoryKey ? ' active' : '');
     btn.setAttribute('tabindex', '0');
+    btn.setAttribute('data-idx', idx);
 
-    const label = document.createElement('span');
-    label.textContent = catKey === 'ALL' ? '🌟 Todos os Canais' : catKey;
+    const spanName = document.createElement('span');
+    spanName.textContent = k === 'ALL' ? '🌟 Todos os Canais' : k;
 
-    const count = document.createElement('span');
-    count.className = 'badge-counter';
-    count.textContent = liveCategories[catKey] ? liveCategories[catKey].length : 0;
+    const spanCount = document.createElement('span');
+    spanCount.className = 'counter-badge';
+    spanCount.textContent = liveCategoriesMap[k] ? liveCategoriesMap[k].length : 0;
 
-    btn.appendChild(label);
-    btn.appendChild(count);
+    btn.appendChild(spanName);
+    btn.appendChild(spanCount);
 
-    btn.onclick = () => selectLiveCategory(catKey);
+    btn.onclick = () => selectCategory(k);
 
     li.appendChild(btn);
     fragment.appendChild(li);
@@ -415,64 +268,71 @@ function renderLiveCategories() {
   ul.appendChild(fragment);
 }
 
-function selectLiveCategory(catKey) {
-  selectedLiveCategory = catKey;
-  const btns = $('listCategories').querySelectorAll('.item-btn');
+function selectCategory(catKey) {
+  activeCategoryKey = catKey;
+
+  // Atualizar visual dos botões de categorias
+  const btns = $('listCategories').querySelectorAll('.cat-item-btn');
   btns.forEach(b => b.classList.remove('active'));
   const activeBtn = Array.from(btns).find(b => (catKey === 'ALL' && b.textContent.includes('Todos os Canais')) || b.textContent.startsWith(catKey));
   if (activeBtn) activeBtn.classList.add('active');
 
-  $('titleActiveCategory').textContent = catKey === 'ALL' ? '📺 Todos os Canais' : '📁 ' + catKey;
+  $('txtCurrentCategoryTitle').textContent = catKey === 'ALL' ? '📺 Todos os Canais' : '📁 ' + catKey;
   $('inputChannelSearch').value = '';
-  renderLiveChannels();
+  renderChannelsList();
 }
 
-function renderLiveChannels() {
-  const q = $('inputChannelSearch').value.toLowerCase().trim();
-  const base = liveCategories[selectedLiveCategory] || [];
-  currentFilteredChannels = q ? base.filter(c => c.name.toLowerCase().includes(q)) : base;
+// 7. RENDERIZAÇÃO DA LISTA DE CANAIS
+function renderChannelsList() {
+  const query = $('inputChannelSearch').value.toLowerCase().trim();
+  let base = liveCategoriesMap[activeCategoryKey] || [];
 
-  $('badgeChannelsCount').textContent = currentFilteredChannels.length;
+  if (activeCategoryKey === 'FAVORITES') {
+    base = liveChannels.filter(c => favoriteUrls.has(c.url));
+  }
+
+  filteredChannels = query ? base.filter(c => c.name.toLowerCase().includes(query)) : base;
+  $('badgeChannelsCount').textContent = filteredChannels.length;
+
   const ul = $('listChannels');
   ul.innerHTML = '';
 
-  if (currentFilteredChannels.length === 0) {
-    ul.innerHTML = '<li><button class="item-btn" disabled>Nenhum canal nesta categoria.</button></li>';
+  if (filteredChannels.length === 0) {
+    ul.innerHTML = '<li><button class="list-item-btn" disabled>Nenhum canal encontrado.</button></li>';
     return;
   }
 
   const fragment = document.createDocumentFragment();
-  // Limite de 80 canais por renderização para evitar Out-Of-Memory na TV LG
-  const limit = Math.min(currentFilteredChannels.length, 80);
+  // Limite estrito de 60 itens por renderização para fluidez máxima no controle remoto
+  const limit = Math.min(filteredChannels.length, 60);
 
   for (let i = 0; i < limit; i++) {
-    const ch = currentFilteredChannels[i];
+    const ch = filteredChannels[i];
     const li = document.createElement('li');
     const btn = document.createElement('button');
-    btn.className = 'item-btn' + (activeChannel && activeChannel.url === ch.url ? ' active' : '');
+    btn.className = 'list-item-btn' + (activeChannel && activeChannel.url === ch.url ? ' active' : '');
     btn.setAttribute('tabindex', '0');
+    btn.setAttribute('data-idx', i);
 
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = (favoriteUrls.has(ch.url) ? '★ ' : '') + ch.name;
-    btn.appendChild(titleSpan);
+    const spanTitle = document.createElement('span');
+    spanTitle.textContent = (favoriteUrls.has(ch.url) ? '★ ' : '') + ch.name;
+    btn.appendChild(spanTitle);
 
     if (ch.isAdult) {
-      const t = document.createElement('span');
-      t.className = 'badge-counter';
-      t.textContent = '+18';
-      btn.appendChild(t);
+      const tag = document.createElement('span');
+      tag.className = 'counter-badge';
+      tag.textContent = '+18';
+      btn.appendChild(tag);
     }
 
-    // Clique único: reproduz no mini-player
-    btn.onclick = () => playChannel(ch);
+    // Clique único: toca no player
+    btn.onclick = () => playStream(ch);
 
-    // Duplo clique: abre em tela cheia na hora!
+    // Duplo clique rápido: abre tela cheia imediatamente!
     let lastClick = 0;
     btn.addEventListener('click', () => {
       const now = Date.now();
-      if (now - lastClick < 380) {
-        toggleFullscreen(true);
-      }
+      if (now - lastClick < 380) toggleFullscreen(true);
       lastClick = now;
     });
 
@@ -481,47 +341,37 @@ function renderLiveChannels() {
   }
 
   ul.appendChild(fragment);
+
+  // Auto-play no primeiro canal se nada estiver tocando
+  if (!activeChannel && filteredChannels.length > 0) {
+    playStream(filteredChannels[0]);
+  }
 }
 
-$('inputChannelSearch').addEventListener('input', renderLiveChannels);
+$('inputChannelSearch').addEventListener('input', renderChannelsList);
 
-// BUSCA POR VOZ (WEBSPEECH API)
-$('btnVoiceSearch').onclick = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    alert('Busca por voz não suportada pelo microfone deste navegador.');
-    return;
-  }
-  const recog = new SpeechRecognition();
-  recog.lang = 'pt-BR';
-  $('txtSyncStatus').textContent = '🎙️ Fale o nome do canal agora...';
-  recog.onresult = e => {
-    const text = e.results[0][0].transcript;
-    $('inputChannelSearch').value = text;
-    renderLiveChannels();
-    $('txtSyncStatus').textContent = '🔍 Buscando: ' + text;
-  };
-  recog.onerror = () => {
-    $('txtSyncStatus').textContent = '⚠️ Erro ao ouvir voz.';
-  };
-  recog.start();
-};
+// 8. PLAYER DE VÍDEO & EPG
+function playStream(ch) {
+  activeChannel = ch;
 
-// 9. PLAYER DE VÍDEO & EPG DINÂMICO
-function playChannel(channel) {
-  activeChannel = channel;
-  $('epgCurrentChannel').textContent = '▶ ' + channel.name;
-  $('epgNowShow').textContent = 'Transmissão Ao Vivo: ' + channel.group;
-
-  if (favoriteUrls.has(channel.url)) {
-    $('btnFavChannel').textContent = '★ Favoritado';
-  } else {
-    $('btnFavChannel').textContent = '⭐ Favoritar';
-  }
-
-  // Atualizar classe active na lista
-  const btns = $('listChannels').querySelectorAll('.item-btn');
+  // Atualizar botões
+  const btns = $('listChannels').querySelectorAll('.list-item-btn');
   btns.forEach(b => b.classList.remove('active'));
+
+  $('epgTitle').textContent = '▶ ' + ch.name;
+  $('epgGroup').textContent = 'Categoria: ' + ch.group;
+
+  if (favoriteUrls.has(ch.url)) {
+    $('btnFavorite').textContent = '★ Favoritado';
+  } else {
+    $('btnFavorite').textContent = '⭐ Favoritar';
+  }
+
+  const overlay = $('channelOverlay');
+  overlay.textContent = ch.name;
+  overlay.classList.remove('hidden');
+  clearTimeout(overlay._timer);
+  overlay._timer = setTimeout(() => overlay.classList.add('hidden'), 3500);
 
   const video = $('tvPlayer');
   if (hlsInstance) {
@@ -529,28 +379,27 @@ function playChannel(channel) {
     hlsInstance = null;
   }
 
-  let finalUrl = channel.url;
-  // Ajuste do formato de fluxo se configurado
-  if (streamFormat === 'm3u8' && !finalUrl.includes('.m3u8')) {
-    finalUrl = finalUrl.replace(/\.ts|\/mpegts/g, '.m3u8');
-  }
-
-  const isHls = finalUrl.toLowerCase().includes('.m3u8') || finalUrl.includes('/live/');
+  const isHls = ch.url.toLowerCase().includes('.m3u8') || ch.url.includes('/live/');
 
   if (isHls && window.Hls && Hls.isSupported()) {
     hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true, maxBufferLength: 15 });
-    hlsInstance.loadSource(finalUrl);
+    hlsInstance.loadSource(ch.url);
     hlsInstance.attachMedia(video);
-    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play().catch(() => {});
+      $('btnPlayPause').textContent = '⏸ Pausar';
+    });
     hlsInstance.on(Hls.Events.ERROR, (e, data) => {
       if (data.fatal) {
-        video.src = finalUrl;
+        video.src = ch.url;
         video.play().catch(() => {});
       }
     });
   } else {
-    video.src = finalUrl;
-    video.play().catch(() => {});
+    video.src = ch.url;
+    video.play().then(() => {
+      $('btnPlayPause').textContent = '⏸ Pausar';
+    }).catch(() => {});
   }
 }
 
@@ -566,385 +415,442 @@ function toggleFullscreen(force = false) {
 }
 
 $('videoContainer').ondblclick = () => toggleFullscreen();
-$('btnFullscreenNow').onclick = () => toggleFullscreen();
-$('btnFavChannel').onclick = () => {
-  if (activeChannel) toggleFavorite(activeChannel.url);
+$('btnFullscreen').onclick = () => toggleFullscreen();
+$('btnPlayPause').onclick = () => {
+  const v = $('tvPlayer');
+  if (v.paused) {
+    v.play();
+    $('btnPlayPause').textContent = '⏸ Pausar';
+  } else {
+    v.pause();
+    $('btnPlayPause').textContent = '▶ Reproduzir';
+  }
+};
+$('btnFavorite').onclick = () => {
+  if (activeChannel) toggleFav(activeChannel.url);
 };
 
-// 10. CARDS DO INÍCIO
-$('cardTvAoVivo').onclick = () => switchView('channels');
-$('cardFilmes').onclick = () => switchView('movies');
-$('cardSeries').onclick = () => switchView('series');
+// 9. NAVEGAÇÃO ENTRE ABAS DO TOPO
+$('tabLiveTv').onclick = () => switchTab('tv');
+$('tabMovies').onclick = () => switchTab('movies');
+$('tabSeries').onclick = () => switchTab('series');
+$('tabFavs').onclick = () => switchTab('favs');
+$('tabSettings').onclick = () => switchTab('settings');
 
-// 11. TELA DE FILMES E SÉRIES (VOD GRID)
-function renderVodGrid() {
-  const grid = $('gridVodItems');
+function switchTab(tab) {
+  currentTab = tab;
+  ['tabLiveTv', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings'].forEach(t => $(t).classList.remove('active'));
+
+  $('sectionTv').classList.add('hidden');
+  $('sectionVod').classList.add('hidden');
+  $('sectionSettings').classList.add('hidden');
+
+  if (tab === 'tv') {
+    $('tabLiveTv').classList.add('active');
+    $('sectionTv').classList.remove('hidden');
+    selectCategory('ALL');
+  } else if (tab === 'favs') {
+    $('tabFavs').classList.add('active');
+    $('sectionTv').classList.remove('hidden');
+    selectCategory('FAVORITES');
+  } else if (tab === 'movies') {
+    $('tabMovies').classList.add('active');
+    $('sectionVod').classList.remove('hidden');
+    renderVod(movieItems, '🎬 Filmes Sob Demanda (VOD)');
+  } else if (tab === 'series') {
+    $('tabSeries').classList.add('active');
+    $('sectionVod').classList.remove('hidden');
+    renderVod(seriesItems, '🍿 Séries & Temporadas');
+  } else if (tab === 'settings') {
+    $('tabSettings').classList.add('active');
+    $('sectionSettings').classList.remove('hidden');
+    renderSettings('info');
+  }
+}
+
+function renderVod(items, title) {
+  $('txtVodTitle').textContent = title;
+  const grid = $('gridVod');
   grid.innerHTML = '';
-  const isMovies = vodMode === 'movies';
-  $('titleVodScreen').textContent = isMovies ? '🎬 Catálogo de Filmes (VOD)' : '🍿 Catálogo de Séries';
-
-  const list = isMovies ? movieItems : seriesItems;
-  const filtered = list.filter(item => isAdultUnlocked || !item.isAdult);
-
+  const filtered = items.filter(i => isAdultUnlocked || !i.isAdult);
   const fragment = document.createDocumentFragment();
   const limit = Math.min(filtered.length, 50);
 
   for (let i = 0; i < limit; i++) {
     const item = filtered[i];
     const card = document.createElement('div');
-    card.className = 'dash-card';
-    card.style.height = '200px';
+    card.className = 'vod-item-card';
     card.setAttribute('tabindex', '0');
 
     card.innerHTML = `
-      <div class="dash-card-icon">${isMovies ? '🎬' : '🍿'}</div>
-      <div>
-        <h4 style="margin:0; font-size:18px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</h4>
-        <p style="margin:4px 0 0 0; font-size:14px; color:#888;">${item.group}</p>
-      </div>
+      <div class="vod-poster-thumb">${title.includes('Filmes') ? '🎬' : '🍿'}</div>
+      <h4 class="vod-card-title">${item.name}</h4>
+      <p class="vod-card-group">${item.group}</p>
     `;
 
     card.onclick = () => {
-      switchView('channels');
-      playChannel(item);
+      switchTab('tv');
+      playStream(item);
       toggleFullscreen(true);
     };
 
     fragment.appendChild(card);
   }
-
   grid.appendChild(fragment);
 }
 
-// 12. TELA DE LISTAS & SERVIDORES
-function renderServersList() {
-  const container = $('serversCardsList');
-  container.innerHTML = '';
+// 10. TELA DE CONFIGURAÇÕES (CLONE VIZZION PLAY)
+const CFG_BUTTONS = ['cfgBtnInfo', 'cfgBtnIdioma', 'cfgBtnFluxo', 'cfgBtnPin', 'cfgBtnCategorias', 'cfgBtnLimpar', 'cfgBtnTempo'];
 
-  SERVERS.forEach((s, idx) => {
-    const card = document.createElement('button');
-    card.className = 'server-card-btn' + (idx === currentServerIndex ? ' active-server' : '');
-    card.setAttribute('tabindex', '0');
-
-    card.innerHTML = `
-      <span class="server-tag">${idx === currentServerIndex ? 'ATIVO NO MOMENTO' : 'DISPONÍVEL'}</span>
-      <span>${s.name}</span>
-      <span style="font-size:13px; color:#888; word-break:break-all;">${s.url.slice(0, 45)}...</span>
-    `;
-
-    card.onclick = () => {
-      currentServerIndex = idx;
-      try { localStorage.setItem('mk21_last_server', idx); } catch (e) {}
-      loadServerData();
-      renderServersList();
-    };
-
-    container.appendChild(card);
-  });
-}
-
-$('btnLoadManualList').onclick = () => {
-  const u = $('inputManualUrl').value.trim();
-  if (!u.startsWith('http')) {
-    alert('Por favor, informe uma URL válida começando com http://');
-    return;
-  }
-  SERVERS.push({ id: 'manual_' + Date.now(), name: '⭐ LISTA PERSONALIZADA', url: u });
-  currentServerIndex = SERVERS.length - 1;
-  loadServerData();
-  renderServersList();
-  alert('Lista manual conectada com sucesso!');
-};
-
-// 13. TELA DE CONFIGURAÇÕES (CLONE VIZZION PLAY FOTOS)
-const SETTING_OPTS = ['optInfoGeral', 'optMudarIdioma', 'optFormatoFluxo', 'optAlterarPin', 'optGerenciarCat', 'optLimparStorage', 'optConfigTempo'];
-
-SETTING_OPTS.forEach(optId => {
-  const btn = $(optId);
-  if (btn) {
-    btn.onclick = () => {
-      SETTING_OPTS.forEach(id => $(id).classList.remove('active'));
-      btn.classList.add('active');
-      renderSettingsDetail(optId.replace('opt', '').toLowerCase());
+CFG_BUTTONS.forEach(bId => {
+  const b = $(bId);
+  if (b) {
+    b.onclick = () => {
+      CFG_BUTTONS.forEach(id => $(id).classList.remove('active'));
+      b.classList.add('active');
+      renderSettings(bId.replace('cfgBtn', '').toLowerCase());
     };
   }
 });
 
-function renderSettingsDetail(section) {
-  const panel = $('settingsDetailPanel');
-
-  if (section === 'infogeral' || section === 'info') {
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Informações da Conta</h3>
-      <div class="info-grid">
-        <div class="info-item"><div class="info-label">Status</div><div class="info-val" style="color:#4caf50;">Ativo (Plano Anual)</div></div>
-        <div class="info-item"><div class="info-label">Data de registro</div><div class="info-val">07.12.2025</div></div>
-        <div class="info-item"><div class="info-label">Vencimento</div><div class="info-val">15.03.2027</div></div>
-        <div class="info-item"><div class="info-label">Conexões permitidas</div><div class="info-val">2 Telas Simultâneas</div></div>
+function renderSettings(sec) {
+  const box = $('settingsDetailBox');
+  if (sec === 'info') {
+    box.innerHTML = `
+      <h3 style="margin:0 0 16px 0; font-size:24px; border-bottom:1px solid #333; padding-bottom:8px;">Informações da Conta</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
+        <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <div style="font-size:14px; color:#888;">Status</div>
+          <div style="font-size:18px; font-weight:700; color:#4caf50;">Ativo (Plano Anual)</div>
+        </div>
+        <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <div style="font-size:14px; color:#888;">Vencimento</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">15.03.2027</div>
+        </div>
       </div>
-
-      <h3 class="settings-section-title">Informação do dispositivo</h3>
-      <div class="info-grid">
-        <div class="info-item"><div class="info-label">Endereço Mac</div><div class="info-val">F0:86:20:F1:5E:E4</div></div>
-        <div class="info-item"><div class="info-label">Versão do aplicativo</div><div class="info-val">2.2.0 (webOS 1080p)</div></div>
-        <div class="info-item"><div class="info-label">Chave do dispositivo</div><div class="info-val">419858</div></div>
-        <div class="info-item"><div class="info-label">Sistema Operacional</div><div class="info-val">LG webOS Smart TV</div></div>
+      <h3 style="margin:0 0 16px 0; font-size:24px; border-bottom:1px solid #333; padding-bottom:8px;">Informação do Dispositivo</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <div style="font-size:14px; color:#888;">Endereço MAC</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">F0:86:20:F1:5E:E4</div>
+        </div>
+        <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <div style="font-size:14px; color:#888;">Versão do Aplicativo</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">3.0.0 (webOS 1080p)</div>
+        </div>
       </div>
     `;
-  } else if (section === 'mudaridioma') {
-    const langs = [
-      { name: 'English', flag: '🇺🇸', code: 'en' },
-      { name: 'Հայերեն', flag: '🇦🇲', code: 'hy' },
-      { name: 'العربية', flag: '🇸🇦', code: 'ar' },
-      { name: 'Deutsch', flag: '🇩🇪', code: 'de' },
-      { name: 'Français', flag: '🇫🇷', code: 'fr' },
-      { name: 'Português - Brasil', flag: '🇧🇷', code: 'pt-BR' },
-      { name: 'Español', flag: '🇪🇸', code: 'es' },
-      { name: 'Türkçe', flag: '🇹🇷', code: 'tr' }
-    ];
-    let html = '<h3 class="settings-section-title">Mudar idioma</h3><div style="display:flex; flex-direction:column; gap:8px;">';
-    langs.forEach(l => {
-      const active = l.code === currentLanguage ? 'border-color: #e50914; background: rgba(229,9,20,0.25);' : '';
-      html += `<button class="item-btn" style="${active}" onclick="setLanguage('${l.code}')" tabindex="0"><span>${l.flag} ${l.name}</span> <span>${l.code === currentLanguage ? '✓ Selecionado' : ''}</span></button>`;
-    });
-    html += '</div>';
-    panel.innerHTML = html;
-  } else if (section === 'formatofluxo') {
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Alterar formato de fluxo</h3>
+  } else if (sec === 'limpar') {
+    box.innerHTML = `
+      <h3 style="margin:0 0 16px 0; font-size:24px;">Limpar Armazenamento</h3>
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <button class="item-btn ${streamFormat === 'default' ? 'active' : ''}" onclick="setStreamFormat('default')" tabindex="0">Default (Automático)</button>
-        <button class="item-btn ${streamFormat === 'm3u8' ? 'active' : ''}" onclick="setStreamFormat('m3u8')" tabindex="0">m3u8 (HLS Nativo)</button>
-        <button class="item-btn ${streamFormat === 'ts' ? 'active' : ''}" onclick="setStreamFormat('ts')" tabindex="0">ts (MPEG-TS)</button>
-      </div>
-    `;
-  } else if (section === 'alterarpin') {
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Alterar Código PIN Parental</h3>
-      <p style="color:#aaa;">O PIN atual é: <strong>${currentPin}</strong></p>
-      <input id="inputNewPin" type="password" maxlength="4" placeholder="Digite novo PIN de 4 dígitos" style="width:260px; padding:12px; font-size:20px; text-align:center; background:#10131d; border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:#fff;" tabindex="0">
-      <br><br>
-      <button class="hero-btn" onclick="saveNewPin()" tabindex="0">Salvar Novo PIN</button>
-    `;
-  } else if (section === 'limparstorage') {
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Limpar Armazenamento</h3>
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#191d2c; padding:12px 18px; border-radius:8px;">
-          <span>Canais favoritos</span>
-          <button class="server-quick-btn" onclick="clearFavs()" tabindex="0">Limpar</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <span>Canais Favoritos</span>
+          <button class="ctrl-btn" style="padding:8px 16px;" onclick="clearFavorites()" tabindex="0">Limpar</button>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#191d2c; padding:12px 18px; border-radius:8px;">
-          <span>Filmes favoritos</span>
-          <button class="server-quick-btn" onclick="alert('Filmes favoritos limpos.')" tabindex="0">Limpar</button>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#191d2c; padding:12px 18px; border-radius:8px;">
-          <span>Séries favoritas</span>
-          <button class="server-quick-btn" onclick="alert('Séries favoritas limpas.')" tabindex="0">Limpar</button>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#191d2c; padding:12px 18px; border-radius:8px;">
-          <span>Histórico assistido</span>
-          <button class="server-quick-btn" onclick="alert('Histórico limpo.')" tabindex="0">Limpar</button>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#191d2c; padding:12px 18px; border-radius:8px;">
-          <span style="color:#ff5252; font-weight:bold;">Limpar tudo (Cache da TV)</span>
-          <button class="hero-btn" style="background:#d32f2f;" onclick="clearAllData()" tabindex="0">Limpar</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#1a1e2d; padding:12px 16px; border-radius:8px;">
+          <span style="color:#ff5252; font-weight:700;">Limpar Todo o Cache da TV</span>
+          <button class="ctrl-btn primary" style="padding:8px 16px;" onclick="clearAllCache()" tabindex="0">Limpar Tudo</button>
         </div>
       </div>
     `;
-  } else if (section === 'configtempo') {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Configurações de Tempo</h3>
-      <div class="time-clock-box">
-        <div id="flipHours" class="flip-digit">${h}</div>
-        <div class="flip-dots">:</div>
-        <div id="flipMinutes" class="flip-digit">${m}</div>
-      </div>
-      <p style="text-align:center; color:#aaa;">Sincronizado automaticamente com o relógio da Smart TV LG.</p>
+  } else if (sec === 'idioma') {
+    box.innerHTML = `
+      <h3 style="margin:0 0 16px 0; font-size:24px;">Mudar Idioma</h3>
+      <button class="list-item-btn active" style="margin-bottom:8px;" tabindex="0">🇧🇷 Português - Brasil (Ativo)</button>
+      <button class="list-item-btn" style="margin-bottom:8px;" tabindex="0">🇺🇸 English</button>
+      <button class="list-item-btn" tabindex="0">🇪🇸 Español</button>
     `;
-  } else if (section === 'gerenciarcat') {
-    panel.innerHTML = `
-      <h3 class="settings-section-title">Gerenciar Categorias</h3>
-      <p style="color:#aaa;">Ative ou oculte as categorias exibidas na TV:</p>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <label style="display:flex; gap:12px; align-items:center;"><input type="checkbox" checked style="width:20px; height:20px;"> Canais Abertos</label>
-        <label style="display:flex; gap:12px; align-items:center;"><input type="checkbox" checked style="width:20px; height:20px;"> Esportes & Premiere</label>
-        <label style="display:flex; gap:12px; align-items:center;"><input type="checkbox" checked style="width:20px; height:20px;"> Filmes & Séries</label>
-        <label style="display:flex; gap:12px; align-items:center;"><input type="checkbox" checked style="width:20px; height:20px;"> Notícias & Documentários</label>
-        <label style="display:flex; gap:12px; align-items:center;"><input type="checkbox" checked style="width:20px; height:20px;"> Infantil & Desenhos</label>
-      </div>
+  } else if (sec === 'fluxo') {
+    box.innerHTML = `
+      <h3 style="margin:0 0 16px 0; font-size:24px;">Formato de Fluxo</h3>
+      <button class="list-item-btn active" style="margin-bottom:8px;" tabindex="0">Default (Automático)</button>
+      <button class="list-item-btn" style="margin-bottom:8px;" tabindex="0">m3u8 (HLS)</button>
+      <button class="list-item-btn" tabindex="0">ts (MPEG-TS)</button>
     `;
   }
 }
 
-window.setLanguage = l => {
-  currentLanguage = l;
-  renderSettingsDetail('mudaridioma');
-  alert('Idioma alterado com sucesso!');
-};
-
-window.setStreamFormat = fmt => {
-  streamFormat = fmt;
-  renderSettingsDetail('formatofluxo');
-  alert('Formato de fluxo alterado para: ' + fmt);
-};
-
-window.saveNewPin = () => {
-  const p = $('inputNewPin').value.trim();
-  if (p.length === 4) {
-    currentPin = p;
-    alert('PIN alterado com sucesso para: ' + p);
-  } else {
-    alert('Digite exatamente 4 dígitos numéricos.');
-  }
-};
-
-window.clearFavs = () => {
+window.clearFavorites = () => {
   favoriteUrls.clear();
   try { localStorage.removeItem('mk21_favs'); } catch (e) {}
-  alert('Canais favoritos removidos com sucesso.');
+  alert('Favoritos limpos com sucesso.');
 };
 
-window.clearAllData = async () => {
+window.clearAllCache = () => {
   try {
     indexedDB.deleteDatabase(DB_NAME);
     localStorage.clear();
-    alert('Memória limpa com sucesso. O app irá recarregar.');
+    alert('Cache limpo com sucesso! Recarregando.');
     location.reload();
   } catch (e) {}
 };
 
-// 14. BLOQUEIO ADULTO (+18)
-$('btnTopLock').onclick = () => {
+// 11. SISTEMA INFALÍVEL DE NAVEGAÇÃO D-PAD DO CONTROLE REMOTO LG
+document.addEventListener('keydown', e => {
+  const k = e.keyCode;
+
+  // 1. TECLAS COLORIDAS DO CONTROLE LG
+  if (k === 403 || e.key === 'Red') { // Botão Vermelho -> Trocar Servidor
+    e.preventDefault();
+    openServerPicker();
+    return;
+  }
+  if (k === 404 || e.key === 'Green') { // Botão Verde -> Atualizar Lista
+    e.preventDefault();
+    loadServer(true);
+    return;
+  }
+  if (k === 405 || e.key === 'Yellow') { // Botão Amarelo -> Favoritar Canal
+    e.preventDefault();
+    if (activeChannel) toggleFav(activeChannel.url);
+    return;
+  }
+  if (k === 406 || e.key === 'Blue') { // Botão Azul -> Bloqueio Adulto
+    e.preventDefault();
+    openPinModal();
+    return;
+  }
+
+  // 2. TECLA VOLTAR (461 / 27 / 8) - NUNCA FECHA O APP INDEVIDAMENTE
+  if (k === 461 || k === 27 || k === 8 || e.key === 'GoBack') {
+    e.preventDefault();
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      toggleFullscreen();
+      return;
+    }
+    if (!$('modalServerPicker').classList.contains('hidden')) {
+      $('modalServerPicker').classList.add('hidden');
+      return;
+    }
+    if (!$('modalPin').classList.contains('hidden')) {
+      $('modalPin').classList.add('hidden');
+      return;
+    }
+    if (!$('modalExitConfirm').classList.contains('hidden')) {
+      $('modalExitConfirm').classList.add('hidden');
+      return;
+    }
+
+    if (currentTab !== 'tv') {
+      switchTab('tv');
+      return;
+    }
+
+    if (activeColumn === 'channels') {
+      activeColumn = 'categories';
+      focusCurrentElement();
+      return;
+    }
+
+    // Se estiver nas categorias de TV -> confirmação de saída segura
+    $('modalExitConfirm').classList.remove('hidden');
+    $('btnExitCancel').focus();
+    return;
+  }
+
+  // 3. SETA PARA BAIXO (40)
+  if (k === 40) {
+    e.preventDefault();
+    if (activeColumn === 'categories') {
+      const items = $('listCategories').querySelectorAll('.cat-item-btn');
+      if (focusedCatIdx < items.length - 1) focusedCatIdx++;
+      focusCurrentElement();
+    } else if (activeColumn === 'channels') {
+      const items = $('listChannels').querySelectorAll('.list-item-btn');
+      if (focusedChIdx < items.length - 1) focusedChIdx++;
+      focusCurrentElement();
+    }
+    return;
+  }
+
+  // 4. SETA PARA CIMA (38)
+  if (k === 38) {
+    e.preventDefault();
+    if (activeColumn === 'categories') {
+      if (focusedCatIdx > 0) {
+        focusedCatIdx--;
+        focusCurrentElement();
+      } else {
+        $('tabLiveTv').focus();
+      }
+    } else if (activeColumn === 'channels') {
+      if (focusedChIdx > 0) {
+        focusedChIdx--;
+        focusCurrentElement();
+      } else {
+        $('inputChannelSearch').focus();
+      }
+    }
+    return;
+  }
+
+  // 5. SETA PARA DIREITA (39)
+  if (k === 39) {
+    e.preventDefault();
+    if (activeColumn === 'categories') {
+      activeColumn = 'channels';
+      focusCurrentElement();
+    } else if (activeColumn === 'channels') {
+      activeColumn = 'player';
+      $('btnFullscreen').focus();
+    }
+    return;
+  }
+
+  // 6. SETA PARA ESQUERDA (37)
+  if (k === 37) {
+    e.preventDefault();
+    if (activeColumn === 'player') {
+      activeColumn = 'channels';
+      focusCurrentElement();
+    } else if (activeColumn === 'channels') {
+      activeColumn = 'categories';
+      focusCurrentElement();
+    }
+    return;
+  }
+
+  // 7. TECLA OK / ENTER (13)
+  if (k === 13) {
+    if (activeColumn === 'categories') {
+      const items = $('listCategories').querySelectorAll('.cat-item-btn');
+      if (items[focusedCatIdx]) items[focusedCatIdx].click();
+    } else if (activeColumn === 'channels') {
+      const items = $('listChannels').querySelectorAll('.list-item-btn');
+      const item = items[focusedChIdx];
+      if (item) {
+        // Se já está ativo, expande para tela cheia ao apertar OK!
+        if (item.classList.contains('active')) {
+          toggleFullscreen(true);
+        } else {
+          item.click();
+        }
+      }
+    }
+    return;
+  }
+});
+
+function focusCurrentElement() {
+  if (activeColumn === 'categories') {
+    const items = $('listCategories').querySelectorAll('.cat-item-btn');
+    if (items[focusedCatIdx]) {
+      items[focusedCatIdx].focus();
+      items[focusedCatIdx].scrollIntoView({ block: 'nearest' });
+    }
+  } else if (activeColumn === 'channels') {
+    const items = $('listChannels').querySelectorAll('.list-item-btn');
+    if (items[focusedChIdx]) {
+      items[focusedChIdx].focus();
+      items[focusedChIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+}
+
+// 12. MODAIS E AÇÕES
+$('btnRefreshList').onclick = () => loadServer(true);
+
+$('btnHeaderServer').onclick = openServerPicker;
+
+function openServerPicker() {
+  const grid = $('serverItemsGrid');
+  grid.innerHTML = '';
+  SERVERS.forEach((s, idx) => {
+    const b = document.createElement('button');
+    b.className = 'server-item-btn' + (idx === currentServerIndex ? ' selected' : '');
+    b.setAttribute('tabindex', '0');
+    b.textContent = s.name;
+    b.onclick = () => {
+      currentServerIndex = idx;
+      try { localStorage.setItem('mk21_last_server', idx); } catch (e) {}
+      $('modalServerPicker').classList.add('hidden');
+      loadServer();
+    };
+    grid.appendChild(b);
+  });
+  $('modalServerPicker').classList.remove('hidden');
+  const first = grid.querySelector('.server-item-btn');
+  if (first) first.focus();
+}
+
+$('btnCloseServerPicker').onclick = () => $('modalServerPicker').classList.add('hidden');
+
+// BLOQUEIO ADULTO (+18)
+$('btnHeaderAdult').onclick = openPinModal;
+
+function openPinModal() {
   if (isAdultUnlocked) {
     isAdultUnlocked = false;
     $('txtLockIcon').textContent = '🔒';
-    $('txtLockLabel').textContent = 'Adulto (Bloqueado)';
-    if (currentView === 'channels') {
-      buildLiveCategories();
-      renderLiveCategories();
-      selectLiveCategory('ALL');
-    }
-    alert('Canais adultos bloqueados.');
+    $('txtLockText').textContent = 'Adulto (Bloqueado)';
+    $('btnHeaderAdult').classList.remove('unlocked');
+    buildCategories();
+    renderCategoriesList();
+    selectCategory('ALL');
+    alert('Canais adultos foram bloqueados com sucesso.');
   } else {
     enteredPin = '';
-    $('displayPin').textContent = '----';
-    $('modalPinAdult').classList.remove('hidden');
-    const firstKey = $('modalPinAdult').querySelector('.hero-btn');
-    if (firstKey) firstKey.focus();
+    $('pinScreen').textContent = '----';
+    $('modalPin').classList.remove('hidden');
   }
-};
+}
 
-document.querySelectorAll('#modalPinAdult .hero-btn').forEach(btn => {
-  btn.onclick = () => {
-    const k = btn.getAttribute('data-key');
+document.querySelectorAll('.pin-key').forEach(kBtn => {
+  kBtn.onclick = () => {
+    const k = kBtn.getAttribute('data-k');
     if (k === 'C') {
       enteredPin = '';
-      $('displayPin').textContent = '----';
+      $('pinScreen').textContent = '----';
     } else if (k === 'OK') {
-      checkAdultPin();
-    } else if (k) {
+      verifyPin();
+    } else {
       if (enteredPin.length < 4) {
         enteredPin += k;
         let masked = '';
         for (let i = 0; i < 4; i++) masked += i < enteredPin.length ? '●' : '-';
-        $('displayPin').textContent = masked;
-        if (enteredPin.length === 4) checkAdultPin();
+        $('pinScreen').textContent = masked;
+        if (enteredPin.length === 4) verifyPin();
       }
     }
   };
 });
 
-function checkAdultPin() {
+function verifyPin() {
   if (enteredPin === currentPin || enteredPin === '0000' || enteredPin === '8208') {
     isAdultUnlocked = true;
     $('txtLockIcon').textContent = '🔓';
-    $('txtLockLabel').textContent = 'Adulto (Liberado)';
-    $('modalPinAdult').classList.add('hidden');
-    if (currentView === 'channels') {
-      buildLiveCategories();
-      renderLiveCategories();
-      const adultCat = liveCategoryKeys.find(c => isAdult(c));
-      selectLiveCategory(adultCat || 'ALL');
-    }
+    $('txtLockText').textContent = 'Adulto (Liberado)';
+    $('btnHeaderAdult').classList.add('unlocked');
+    $('modalPin').classList.add('hidden');
+    buildCategories();
+    renderCategoriesList();
+    const adultCat = liveCategoryKeys.find(c => isAdult(c));
+    selectCategory(adultCat || 'ALL');
     alert('Canais adultos liberados com sucesso!');
   } else {
     alert('Senha incorreta! Digite novamente.');
     enteredPin = '';
-    $('displayPin').textContent = '----';
+    $('pinScreen').textContent = '----';
   }
 }
 
-$('btnClosePin').onclick = () => $('modalPinAdult').classList.add('hidden');
+$('btnClosePin').onclick = () => $('modalPin').classList.add('hidden');
 
-// 15. INTERCEPTAÇÃO DA TECLA VOLTAR (BACK / 461) - NUNCA FECHA O APP INDEVIDAMENTE
-document.addEventListener('keydown', e => {
-  const k = e.keyCode;
-
-  // TECLA VOLTAR LG WEBOS (461, Escape 27, Backspace 8)
-  if (k === 461 || k === 27 || k === 8 || e.key === 'GoBack') {
-    e.preventDefault();
-
-    // 1. Se estiver em tela cheia de vídeo -> sai da tela cheia
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-      toggleFullscreen();
-      return;
-    }
-
-    // 2. Se modal de confirmação de saída estiver aberto -> fecha modal
-    if (!$('modalConfirmExit').classList.contains('hidden')) {
-      $('modalConfirmExit').classList.add('hidden');
-      return;
-    }
-
-    // 3. Se modal de PIN estiver aberto -> fecha modal
-    if (!$('modalPinAdult').classList.contains('hidden')) {
-      $('modalPinAdult').classList.add('hidden');
-      return;
-    }
-
-    // 4. Se estiver em qualquer tela secundária (Canais, Filmes, Listas, Configurações) -> VOLTA AO INÍCIO!
-    if (currentView !== 'home') {
-      switchView('home');
-      return;
-    }
-
-    // 5. Se já estiver no Início -> abre diálogo seguro de confirmação (sem fechar na cara do usuário!)
-    $('modalConfirmExit').classList.remove('hidden');
-    $('btnCancelExit').focus();
-    return;
-  }
-
-  // TECLADO NUMÉRICO (0 a 9) DO CONTROLE REMOTO PARA O PIN
-  if (k >= 48 && k <= 57 && !$('modalPinAdult').classList.contains('hidden')) {
-    const digit = (k - 48).toString();
-    const b = $('modalPinAdult').querySelector(`[data-key="${digit}"]`);
-    if (b) b.click();
-    e.preventDefault();
-    return;
-  }
-});
-
-// Ações do Modal de Saída
-$('btnCancelExit').onclick = () => $('modalConfirmExit').classList.add('hidden');
-$('btnConfirmExit').onclick = () => {
-  if (window.webOS && webOS.platformBack) {
-    webOS.platformBack();
-  } else {
-    window.close();
-  }
+// MODAL SAÍDA
+$('btnExitCancel').onclick = () => $('modalExitConfirm').classList.add('hidden');
+$('btnExitConfirm').onclick = () => {
+  if (window.webOS && webOS.platformBack) webOS.platformBack();
+  else window.close();
 };
 
-// 16. INICIALIZAÇÃO
+// 13. INICIALIZAÇÃO
 window.addEventListener('load', () => {
   try {
     const saved = localStorage.getItem('mk21_last_server');
     if (saved !== null && SERVERS[saved]) currentServerIndex = parseInt(saved, 10);
   } catch (e) {}
 
-  loadServerData();
-  switchView('home');
+  loadServer();
 });
