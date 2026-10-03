@@ -1,4 +1,4 @@
-// MK21 TV — Smart TV Engine para LG webOS (Compatibilidade Total & Navegação por Controle Remoto)
+// MK21 TV — Smart TV Engine com Cache Local Instantâneo (IndexedDB) para LG webOS
 const $ = id => document.getElementById(id);
 
 // 1. POLYFILLS DE COMPATIBILIDADE PARA MOTORES CHROMIUM ANTIGOS DO WEBOS
@@ -27,6 +27,61 @@ const SERVERS = [
 const ADULT_KEYWORDS = ['ADULTO', 'ADULTOS', 'XXX', 'PLAYBOY', 'VENUS', 'SEXTREME', 'SEX', 'ERÓTICO', 'EROTICO', 'PRIVE', 'FORBIDDEN', 'HOT', '18+', 'PORNO', 'BABES', 'REDLIGHT'];
 const DEFAULT_PIN = '0000';
 
+// BANCO DE DADOS LOCAL NA TV (IndexedDB)
+const DB_NAME = 'MK21_TV_LOCAL_CACHE';
+const DB_VERSION = 1;
+const STORE_NAME = 'playlists';
+
+function openCacheDB() {
+  return new Promise(resolve => {
+    if (!window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'serverId' });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function getCachedPlaylist(serverId) {
+  try {
+    const db = await openCacheDB();
+    if (!db) return null;
+    return new Promise(resolve => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(serverId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveCachedPlaylist(serverId, channels) {
+  try {
+    const db = await openCacheDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put({
+      serverId: serverId,
+      channels: channels,
+      updatedAt: Date.now()
+    });
+  } catch (e) {
+    console.warn('Erro ao salvar cache:', e);
+  }
+}
+
 // ESTADO GLOBAL
 let currentServerIndex = 0;
 let rawChannels = [];
@@ -38,9 +93,7 @@ let activeChannel = null;
 let isAdultUnlocked = false;
 let enteredPin = '';
 let hlsInstance = null;
-
-// GESTÃO DO CONTROLE REMOTO & FOCO ESPACIAL
-let currentZone = 'channels'; // 'categories', 'channels', 'player', 'header', 'modal'
+let currentZone = 'channels';
 
 function isAdult(text) {
   if (!text) return false;
@@ -94,7 +147,6 @@ function buildCategories(channels) {
 
   for (let i = 0; i < channels.length; i++) {
     const ch = channels[i];
-    // Se adulto estiver bloqueado, ignora totalmente
     if (!isAdultUnlocked && ch.isAdult) {
       continue;
     }
@@ -149,7 +201,6 @@ function renderCategories() {
 
 function selectCategory(catKey) {
   selectedCategory = catKey;
-  // Atualiza classe active nos botões
   const btns = $('categoriesList').querySelectorAll('.cat-btn');
   btns.forEach(b => b.classList.remove('active'));
   const activeBtn = Array.from(btns).find(b => {
@@ -187,7 +238,6 @@ function filterAndRenderChannels() {
   }
 
   const fragment = document.createDocumentFragment();
-  // Limite inteligente para performance fluida na TV
   const limit = Math.min(currentChannelList.length, 1200);
 
   for (let i = 0; i < limit; i++) {
@@ -235,11 +285,10 @@ function filterAndRenderChannels() {
   ul.appendChild(fragment);
 }
 
-// 7. PLAYER DE VÍDEO (HLS & MPEG-TS COM RECUPERAÇÃO AUTOMÁTICA)
+// 7. PLAYER DE VÍDEO (HLS & MPEG-TS)
 function playChannel(channel) {
   activeChannel = channel;
 
-  // Atualizar seleção visual
   const allChBtns = $('channelsList').querySelectorAll('.ch-btn');
   allChBtns.forEach(b => b.classList.remove('active-channel'));
   const currentBtn = $('channelsList').querySelector(`[data-index="${currentChannelList.indexOf(channel)}"]`);
@@ -292,11 +341,37 @@ function playChannel(channel) {
   }
 }
 
-// 8. CARREGAMENTO DO SERVIDOR
-async function loadCurrentServer() {
+// 8. SISTEMA DE CARREGAMENTO INTELIGENTE (CACHE-FIRST COM INDEXEDDB)
+async function loadCurrentServer(forceRefresh = false) {
   const srv = SERVERS[currentServerIndex];
   $('currentServerName').textContent = srv.name;
-  $('statusBadge').textContent = 'Conectando ao ' + srv.name + '...';
+
+  // 1. TENTA CARREGAR DO CACHE LOCAL DA TV INSTANTANEAMENTE (0.2s)
+  if (!forceRefresh) {
+    const cached = await getCachedPlaylist(srv.id);
+    if (cached && cached.channels && cached.channels.length > 0) {
+      rawChannels = cached.channels;
+      buildCategories(rawChannels);
+      renderCategories();
+      selectCategory('ALL');
+      $('statusBadge').textContent = '⚡ ' + rawChannels.length + ' canais (Acesso Instantâneo)';
+
+      setTimeout(() => {
+        const firstCh = $('channelsList').querySelector('.ch-btn');
+        if (firstCh) {
+          firstCh.focus();
+          currentZone = 'channels';
+        }
+      }, 300);
+
+      // Revalida em segundo plano sem travar a interface da TV
+      refreshServerInBackground(srv);
+      return;
+    }
+  }
+
+  // 2. CASO SEJA A PRIMEIRA VEZ OU CLIQUE EM ATUALIZAR
+  $('statusBadge').textContent = 'Baixando ' + srv.name + '...';
 
   try {
     const res = await fetch(srv.url);
@@ -304,13 +379,15 @@ async function loadCurrentServer() {
     const text = await res.text();
 
     rawChannels = parseM3U(text);
+    // Salva no banco de dados da Smart TV
+    saveCachedPlaylist(srv.id, rawChannels);
+
     buildCategories(rawChannels);
     renderCategories();
     selectCategory('ALL');
 
-    $('statusBadge').textContent = '✅ ' + rawChannels.length + ' canais prontos';
+    $('statusBadge').textContent = '✅ ' + rawChannels.length + ' canais salvos na TV';
 
-    // Focar no primeiro canal após carregar
     setTimeout(() => {
       const firstCh = $('channelsList').querySelector('.ch-btn');
       if (firstCh) {
@@ -325,6 +402,28 @@ async function loadCurrentServer() {
     alert('Erro ao carregar lista de ' + srv.name + ': ' + err.message);
   }
 }
+
+// Atualização silenciosa em segundo plano
+async function refreshServerInBackground(srv) {
+  try {
+    const res = await fetch(srv.url);
+    if (res.ok) {
+      const text = await res.text();
+      const updatedChannels = parseM3U(text);
+      if (updatedChannels.length > 0) {
+        saveCachedPlaylist(srv.id, updatedChannels);
+      }
+    }
+  } catch (e) {
+    console.log('Background sync error (normal offline):', e);
+  }
+}
+
+// Botão de Atualizar Manualmente
+$('btnRefreshList').onclick = () => {
+  $('statusBadge').textContent = '🔄 Atualizando canais...';
+  loadCurrentServer(true);
+};
 
 // 9. CONTROLE DE BLOQUEIO ADULTO (PIN 0000)
 function updateAdultButtonState() {
@@ -341,7 +440,6 @@ function updateAdultButtonState() {
 
 $('btnAdultLock').onclick = () => {
   if (isAdultUnlocked) {
-    // Bloquear novamente
     isAdultUnlocked = false;
     updateAdultButtonState();
     buildCategories(rawChannels);
@@ -349,7 +447,6 @@ $('btnAdultLock').onclick = () => {
     selectCategory('ALL');
     alert('Canais adultos foram bloqueados com sucesso.');
   } else {
-    // Abrir modal de PIN
     enteredPin = '';
     $('pinDisplay').textContent = '----';
     $('pinError').textContent = '';
@@ -360,7 +457,6 @@ $('btnAdultLock').onclick = () => {
   }
 };
 
-// Teclado PIN
 document.querySelectorAll('.key-btn').forEach(btn => {
   btn.onclick = () => {
     const k = btn.getAttribute('data-key');
@@ -394,7 +490,6 @@ function validatePin() {
     currentZone = 'channels';
     buildCategories(rawChannels);
     renderCategories();
-    // Seleciona a categoria adulta se encontrada
     const adultCat = categoryList.find(c => isAdult(c));
     selectCategory(adultCat || 'ALL');
     alert('Canais adultos liberados com sucesso!');
@@ -476,7 +571,7 @@ $('btnReloadStream').onclick = () => {
   if (activeChannel) playChannel(activeChannel);
 };
 
-// 12. SISTEMA AVANÇADO DE NAVEGAÇÃO POR CONTROLE REMOTO (D-PAD & KEYCODES LG WEBOS)
+// 12. NAVEGAÇÃO ESPACIAL POR CONTROLE REMOTO (D-PAD LG WEBOS)
 document.addEventListener('keydown', e => {
   const key = e.keyCode;
 
@@ -522,7 +617,7 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // TECLADO NUMÉRICO DO CONTROLE REMOTO (0-9) para digitar o PIN
+  // TECLADO NUMÉRICO (0-9) para PIN
   if (key >= 48 && key <= 57 && !$('pinModal').classList.contains('hidden')) {
     const digit = (key - 48).toString();
     const btn = $('pinModal').querySelector(`[data-key="${digit}"]`);
@@ -531,14 +626,13 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // NAVEGAÇÃO ESPACIAL D-PAD (ArrowLeft 37, ArrowUp 38, ArrowRight 39, ArrowDown 40)
   const activeEl = document.activeElement;
 
   // SE ESTIVER NA LISTA DE CATEGORIAS
   if (activeEl && activeEl.classList.contains('cat-btn')) {
     currentZone = 'categories';
 
-    if (key === 39) { // Direita -> vai para a lista de Canais
+    if (key === 39) { // Direita -> vai para Canais
       e.preventDefault();
       const firstCh = $('channelsList').querySelector('.ch-btn');
       if (firstCh) {
@@ -559,7 +653,6 @@ document.addEventListener('keydown', e => {
           b.scrollIntoView({ block: 'nearest' });
         }
       } else {
-        // Topo da lista -> vai para a barra superior
         e.preventDefault();
         $('btnOpenServers').focus();
         currentZone = 'header';
@@ -596,7 +689,7 @@ document.addEventListener('keydown', e => {
       return;
     }
 
-    if (key === 39) { // Direita -> vai para os controles do Player
+    if (key === 39) { // Direita -> vai para Player
       e.preventDefault();
       $('btnFullscreen').focus();
       currentZone = 'player';
@@ -613,7 +706,6 @@ document.addEventListener('keydown', e => {
           b.scrollIntoView({ block: 'nearest' });
         }
       } else {
-        // Topo dos canais -> campo de busca
         e.preventDefault();
         $('searchInput').focus();
       }

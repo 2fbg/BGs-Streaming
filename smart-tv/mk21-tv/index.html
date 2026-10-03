@@ -17,10 +17,13 @@
     </div>
 
     <div class="header-center">
-      <span class="server-label">Servidor Ativo:</span>
+      <span class="server-label">Servidor:</span>
       <button id="btnOpenServers" class="server-select-btn" tabindex="0">
         <span id="currentServerName">🟢 VLOG</span>
         <span style="font-size: 14px; opacity: 0.7;">▼ (Trocar)</span>
+      </button>
+      <button id="btnRefreshList" class="act-btn" style="padding: 10px 16px; font-size: 17px;" title="Atualizar canais agora" tabindex="0">
+        🔄 Atualizar
       </button>
     </div>
 
@@ -77,7 +80,7 @@
         <div class="player-actions">
           <button id="btnFullscreen" class="act-btn primary" tabindex="0">⛶ Tela Cheia</button>
           <button id="btnPlayPause" class="act-btn" tabindex="0">⏯ Pausar</button>
-          <button id="btnReloadStream" class="act-btn" tabindex="0">🔄 Recarregar</button>
+          <button id="btnReloadStream" class="act-btn" tabindex="0">🔄 Recarregar Canal</button>
         </div>
       </div>
     </section>
@@ -94,7 +97,7 @@
       <div id="serverGrid" class="server-grid">
         <!-- Servidores renderizados via JS -->
       </div>
-      <p style="font-size: 16px; color: #888; margin: 0;">Dica: Selecione com o controle remoto e aperte OK para conectar.</p>
+      <p style="font-size: 16px; color: #888; margin: 0;">Dica: Cada servidor possui seu próprio cache ultra-rápido salvo na Smart TV.</p>
     </div>
   </div>
 
