@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MK21 TV</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- HLS.js para compatibilidade total com transmissões IPTV .m3u8 no LG webOS -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <main>
+    <h1>MK21 TV</h1>
+    <label for="url">URL da playlist M3U</label>
+    <div class="row">
+      <input id="url" type="url" placeholder="https://servidor/playlist.m3u">
+      <button id="load">Carregar</button>
+    </div>
+    <p id="status">Informe uma URL M3U autorizada. (Salva automaticamente na TV)</p>
+    <div class="layout">
+      <ul id="channels"></ul>
+      <section>
+        <video id="player" controls playsinline></video>
+        <p id="playing">Selecione um canal.</p>
+      </section>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

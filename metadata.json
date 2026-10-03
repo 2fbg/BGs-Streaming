@@ -1,6 +1,0 @@
-{
-  "name": "MK21 Player",
-  "description": "Player IPTV multi-servidor com suporte a login único, lista dinâmica e player duplo.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
