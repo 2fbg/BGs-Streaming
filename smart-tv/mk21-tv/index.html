@@ -2,29 +2,47 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=1920, user-scalable=no">
   <title>MK21 TV</title>
   <link rel="stylesheet" href="styles.css">
-  <!-- HLS.js para compatibilidade total com transmissões IPTV .m3u8 no LG webOS -->
+  <!-- HLS.js para reprodução garantida de transmissões .m3u8 no LG webOS -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
-  <main>
-    <h1>MK21 TV</h1>
-    <label for="url">URL da playlist M3U</label>
-    <div class="row">
-      <input id="url" type="url" placeholder="https://servidor/playlist.m3u">
-      <button id="load">Carregar</button>
+  <header>
+    <div>
+      <h1>MK21 TV <span class="badge">webOS</span></h1>
     </div>
-    <p id="status">Informe uma URL M3U autorizada. (Salva automaticamente na TV)</p>
-    <div class="layout">
-      <ul id="channels"></ul>
-      <section>
+  </header>
+
+  <div class="row">
+    <input id="url" type="url" placeholder="Informe a URL da Playlist M3U">
+    <button id="load">Carregar Canais</button>
+  </div>
+  
+  <p id="status">Carregando canais...</p>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="search-box">
+        <input id="filter" type="text" placeholder="🔍 Filtrar canal ou categoria...">
+      </div>
+      <ul id="channels">
+        <li><button disabled>Nenhum canal carregado. Clique em "Carregar Canais".</button></li>
+      </ul>
+    </div>
+
+    <div class="panel player-panel">
+      <div class="video-container" id="videoWrapper">
         <video id="player" controls playsinline></video>
-        <p id="playing">Selecione um canal.</p>
-      </section>
+      </div>
+      <div class="player-info">
+        <p id="playing">Selecione um canal para assistir.</p>
+        <button id="btnFullscreen" class="fullscreen-btn">⛶ Tela Cheia</button>
+      </div>
     </div>
-  </main>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

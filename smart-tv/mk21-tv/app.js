@@ -1,27 +1,44 @@
+// MK21 TV — Smart TV Engine para LG webOS
 const $ = id => document.getElementById(id);
 
-let hlsInstance = null;
+// Polyfill universal para compatibilidade com navegadores Chromium antigos da LG (webOS 3.0 até 24)
+if (!Element.prototype.replaceChildren) {
+  Element.prototype.replaceChildren = function() {
+    while (this.firstChild) {
+      this.removeChild(this.firstChild);
+    }
+    for (var i = 0; i < arguments.length; i++) {
+      this.appendChild(arguments[i]);
+    }
+  };
+}
 
-// Carregar última URL salva no LocalStorage da Smart TV
+let hlsInstance = null;
+let allChannels = [];
+let currentCategory = 'all';
+
+// URL padrão capturada ou recuperada do LocalStorage da TV
+const DEFAULT_URL = 'http://myopbx.beer/get.php?username=601334065&password=820866576&tpe=m3u_plus&output=mpegts';
+
 try {
-  const savedUrl = localStorage.getItem('mk21_m3u_url');
-  if (savedUrl) {
-    $('url').value = savedUrl;
-  }
+  const saved = localStorage.getItem('mk21_m3u_url');
+  $('url').value = saved ? saved : DEFAULT_URL;
 } catch (e) {
-  console.warn('LocalStorage error:', e);
+  $('url').value = DEFAULT_URL;
 }
 
 function parseM3U(s) {
   let name = 'Canal sem nome', group = 'Geral', out = [];
-  for (const raw of s.split(/\r?\n/)) {
-    const l = raw.trim();
+  const lines = s.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim();
     if (l.startsWith('#EXTINF:')) {
-      let i = l.lastIndexOf(',');
-      name = i >= 0 ? l.slice(i + 1).trim() : 'Canal sem nome';
-      group = (l.match(/group-title="([^"]*)"/i) || [])[1] || 'Geral';
+      const idx = l.lastIndexOf(',');
+      name = idx >= 0 ? l.slice(idx + 1).trim() : 'Canal sem nome';
+      const match = l.match(/group-title="([^"]*)"/i);
+      group = match && match[1] ? match[1].trim() : 'Geral';
     } else if (/^https?:\/\//i.test(l)) {
-      out.push({ name, group, url: l });
+      out.push({ name: name, group: group, url: l });
       name = 'Canal sem nome';
       group = 'Geral';
     }
@@ -33,7 +50,6 @@ function playStream(url, name) {
   const video = $('player');
   $('playing').textContent = 'Conectando: ' + name + '...';
 
-  // Destruir instância anterior de HLS se existir
   if (hlsInstance) {
     hlsInstance.destroy();
     hlsInstance = null;
@@ -45,39 +61,102 @@ function playStream(url, name) {
     hlsInstance = new Hls({
       enableWorker: true,
       lowLatencyMode: true,
-      maxBufferLength: 10
+      maxBufferLength: 15
     });
     hlsInstance.loadSource(url);
     hlsInstance.attachMedia(video);
-    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play().catch(err => {
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+      video.play().catch(function(err) {
         console.warn('AutoPlay blocked:', err);
-        $('status').textContent = 'Pressione play no reprodutor.';
+        $('status').textContent = 'Pressione Reproduzir no player.';
       });
-      $('playing').textContent = '▶ Reproduzindo: ' + name;
+      $('playing').textContent = '▶ ' + name;
     });
-    hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
       if (data.fatal) {
-        console.error('HLS fatal error:', data);
-        $('status').textContent = 'Falha no stream HLS (' + data.type + '). Tentando direto...';
+        console.error('HLS error:', data);
+        $('status').textContent = 'Tentando reprodução direta...';
         video.src = url;
-        video.play().catch(() => {});
+        video.play().catch(function() {});
       }
     });
   } else {
-    // Fallback nativo
     video.src = url;
-    video.play().then(() => {
-      $('playing').textContent = '▶ Reproduzindo: ' + name;
-    }).catch(err => {
+    video.play().then(function() {
+      $('playing').textContent = '▶ ' + name;
+    }).catch(function(err) {
       console.warn('Playback error:', err);
-      $('status').textContent = 'Falha ao iniciar o fluxo na TV (Verifique codec/CORS).';
+      $('status').textContent = 'Falha ao iniciar canal. Verifique conexão/codec da TV.';
     });
   }
 }
 
-$('load').onclick = async () => {
-  let u = $('url').value.trim();
+function renderChannels(list) {
+  const ul = $('channels');
+  // Limpeza 100% segura para qualquer versão do webOS
+  while (ul.firstChild) {
+    ul.removeChild(ul.firstChild);
+  }
+
+  if (list.length === 0) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.textContent = 'Nenhum canal encontrado com esse filtro.';
+    b.disabled = true;
+    li.appendChild(b);
+    ul.appendChild(li);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const displayLimit = Math.min(list.length, 1200);
+
+  for (let i = 0; i < displayLimit; i++) {
+    const c = list[i];
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.setAttribute('tabindex', '0');
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = c.name;
+    b.appendChild(titleSpan);
+
+    if (c.group && c.group !== 'Geral') {
+      const tag = document.createElement('span');
+      tag.className = 'cat-tag';
+      tag.textContent = c.group;
+      b.appendChild(tag);
+    }
+
+    b.onclick = (function(channel) {
+      return function() {
+        playStream(channel.url, channel.name);
+      };
+    })(c);
+
+    li.appendChild(b);
+    fragment.appendChild(li);
+  }
+
+  ul.appendChild(fragment);
+}
+
+// Filtro rápido
+$('filter').addEventListener('input', function(e) {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) {
+    renderChannels(allChannels);
+    return;
+  }
+  const filtered = allChannels.filter(function(c) {
+    return c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q);
+  });
+  renderChannels(filtered);
+});
+
+// Ação de Carregar
+$('load').onclick = async function() {
+  const u = $('url').value.trim();
   if (!/^https?:\/\//i.test(u)) {
     $('status').textContent = 'Informe uma URL HTTP/HTTPS válida.';
     return;
@@ -87,49 +166,69 @@ $('load').onclick = async () => {
     localStorage.setItem('mk21_m3u_url', u);
   } catch (e) {}
 
-  $('status').textContent = 'Carregando playlist…';
+  $('status').textContent = 'Baixando e processando canais da playlist...';
 
   try {
-    let r = await fetch(u);
-    if (!r.ok) throw Error('HTTP ' + r.status);
-    let a = parseM3U(await r.text());
+    const response = await fetch(u);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const text = await response.text();
+    allChannels = parseM3U(text);
 
-    if (a.length === 0) {
-      $('status').textContent = 'Nenhum canal encontrado na playlist informada.';
+    if (allChannels.length === 0) {
+      $('status').textContent = 'Nenhum canal válido encontrado na playlist.';
       return;
     }
 
-    // Renderização otimizada com Fragment para não travar a TV com listas grandes
-    const fragment = document.createDocumentFragment();
-    const displayLimit = Math.min(a.length, 1000); // Exibe até 1000 primeiros canais na TV
+    renderChannels(allChannels);
+    $('status').textContent = '✅ ' + allChannels.length + ' canais carregados com sucesso!';
+    
+    // Auto-foco no primeiro canal após carregar
+    setTimeout(function() {
+      const firstBtn = $('channels').querySelector('button');
+      if (firstBtn) firstBtn.focus();
+    }, 200);
 
-    for (let i = 0; i < displayLimit; i++) {
-      const c = a[i];
-      const li = document.createElement('li');
-      const b = document.createElement('button');
-      b.textContent = c.name + ' · ' + c.group;
-      b.onclick = () => playStream(c.url, c.name);
-      li.appendChild(b);
-      fragment.appendChild(li);
-    }
-
-    $('channels').replaceChildren(fragment);
-    $('status').textContent = a.length + ' canais carregados com sucesso' + (a.length > displayLimit ? ' (exibindo primeiros 1000).' : '.');
-  } catch (e) {
-    $('status').textContent = 'Falha: ' + e.message + ' (CORS/rede/servidor podem bloquear o acesso).';
+  } catch (err) {
+    console.error('Fetch error:', err);
+    $('status').textContent = 'Falha ao carregar: ' + err.message + ' (Verifique conexão com a internet).';
   }
 };
 
-// Suporte a teclas do controle remoto LG Smart TV (webOS)
-document.addEventListener('keydown', e => {
-  // 461 = Tecla Back/Voltar do Magic Remote LG webOS
+// Tela Cheia
+$('btnFullscreen').onclick = function() {
+  const video = $('player');
+  if (video.requestFullscreen) {
+    video.requestFullscreen();
+  } else if (video.webkitRequestFullscreen) {
+    video.webkitRequestFullscreen();
+  }
+};
+
+// Teclas do Controle Remoto LG Smart TV
+document.addEventListener('keydown', function(e) {
+  // 461 = Tecla Voltar/Back oficial da LG (Magic Remote)
   // 27 = Escape, 8 = Backspace
   if (e.keyCode === 461 || e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      e.preventDefault();
+      return;
+    }
     const video = $('player');
     if (!video.paused) {
       video.pause();
       $('playing').textContent = 'Pausado.';
       e.preventDefault();
     }
+  }
+});
+
+// Auto-carregar se já houver URL válida configurada
+window.addEventListener('load', function() {
+  if ($('url').value.startsWith('http')) {
+    setTimeout(function() {
+      $('load').click();
+    }, 500);
   }
 });
