@@ -1,4 +1,4 @@
-/* MK21 PLAY — Interface Direta de Streaming sem Tela Home (LG webOS 1080p/4K) */
+/* MK21 PLAY — Interface Direta Unificada 3 Colunas com Navegação D-Pad LG webOS */
 :root {
   --primary-red: #e50914;
   --primary-hover: #ff1f2d;
@@ -32,7 +32,7 @@ body {
   flex-direction: column;
 }
 
-/* ================= 1. HEADER SUPERIOR ================= */
+/* ================= 1. CABEÇALHO SUPERIOR ================= */
 .app-header {
   height: 80px;
   background: var(--header-bg);
@@ -40,21 +40,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 35px;
+  padding: 0 30px;
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 25px;
 }
 
 .logo-box {
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
 }
 
 .logo-badge {
@@ -79,7 +80,7 @@ body {
 
 .main-tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tab-btn {
@@ -103,7 +104,7 @@ body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .action-btn {
@@ -133,7 +134,7 @@ body {
   font-size: 22px;
   font-weight: 800;
   color: #ffd54f;
-  min-width: 110px;
+  min-width: 105px;
   text-align: right;
   letter-spacing: 1px;
 }
@@ -153,8 +154,8 @@ body {
   width: 100%;
 }
 
-/* ================= 3. SEÇÃO TV AO VIVO (3 COLUNAS) ================= */
-#sectionTv {
+/* ================= 3. SEÇÃO UNIFICADA 3 COLUNAS (TV, FILMES, SÉRIES) ================= */
+#sectionUnified {
   display: grid;
   grid-template-columns: 24% 36% 40%;
   gap: 16px;
@@ -384,80 +385,7 @@ video {
   border-color: var(--primary-red);
 }
 
-/* ================= 4. SEÇÃO FILMES & SÉRIES (VOD GRID) ================= */
-#sectionVod {
-  flex-direction: column;
-  padding: 20px 35px;
-  overflow-y: auto;
-}
-
-.vod-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.vod-topbar h2 {
-  margin: 0;
-  font-size: 30px;
-  font-weight: 800;
-}
-
-.vod-search {
-  padding: 10px 16px;
-  background: #1a1e2c;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 18px;
-  width: 320px;
-}
-
-.vod-grid-scroll {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 18px;
-}
-
-.vod-item-card {
-  background: #181b28;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vod-poster-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-}
-
-.vod-card-title {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vod-card-group {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-/* ================= 5. SEÇÃO CONFIGURAÇÕES ================= */
+/* ================= 4. SEÇÃO CONFIGURAÇÕES ================= */
 #sectionSettings {
   display: grid;
   grid-template-columns: 32% 68%;
@@ -516,7 +444,7 @@ video {
   overflow-y: auto;
 }
 
-/* ================= 6. BARRA DO CONTROLE REMOTO LG ================= */
+/* ================= 5. BARRA DO CONTROLE REMOTO LG ================= */
 .remote-bar {
   height: 48px;
   background: rgba(10, 12, 18, 0.95);
@@ -548,17 +476,23 @@ video {
 .color-dot.yellow { background: #ffeb3b; }
 .color-dot.blue { background: #2196f3; }
 
-/* ================= 7. FOCO DO CONTROLE REMOTO D-PAD ================= */
+/* ================= 6. FOCO DO CONTROLE REMOTO D-PAD (BRILHANTE E NÍTIDO) ================= */
 :focus,
-.tv-focused {
+.tab-btn:focus,
+.action-btn:focus,
+.list-item-btn:focus,
+.ctrl-btn:focus,
+.cfg-menu-item:focus,
+.pin-key:focus,
+.header-focusable:focus {
   outline: 4px solid var(--focus-ring) !important;
   outline-offset: 1px;
-  box-shadow: 0 0 25px rgba(255, 213, 79, 0.9) !important;
+  box-shadow: 0 0 25px rgba(255, 213, 79, 0.95) !important;
   transform: scale(1.02);
-  z-index: 10;
+  z-index: 30;
 }
 
-/* ================= 8. MODAIS ================= */
+/* ================= 7. MODAIS ================= */
 .app-modal {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

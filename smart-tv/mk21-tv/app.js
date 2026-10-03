@@ -1,4 +1,4 @@
-// MK21 PLAY v3.0.0 — Motor Estável sem Tela Home & com Separação Estrita de Canais/Filmes
+// MK21 PLAY v3.1.0 — Motor Unificado com Classificação Oficial do APK Android
 const $ = id => document.getElementById(id);
 
 // 1. CONFIGURAÇÃO DOS 7 SERVIDORES MK21
@@ -15,7 +15,7 @@ const SERVERS = [
 const ADULT_KEYWORDS = ['ADULTO', 'ADULTOS', 'XXX', 'PLAYBOY', 'VENUS', 'SEXTREME', 'SEX', 'ERÓTICO', 'EROTICO', 'PRIVE', 'FORBIDDEN', 'HOT', '18+', 'PORNO', 'BABES', 'REDLIGHT'];
 
 // 2. BANCO DE DADOS LOCAL (IndexedDB)
-const DB_NAME = 'MK21_PLAY_V3_DB';
+const DB_NAME = 'MK21_PLAY_V31_DB';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalog';
 
@@ -58,27 +58,32 @@ async function saveStoredData(id, payload) {
 
 // 3. ESTADO GLOBAL
 let currentServerIndex = 0;
-let currentTab = 'tv'; // 'tv', 'movies', 'series', 'favs', 'settings'
-let liveChannels = [];
-let movieItems = [];
-let seriesItems = [];
+let currentContentType = 'LIVE'; // 'LIVE', 'MOVIE', 'SERIES', 'FAVORITES', 'SETTINGS'
+let allCatalog = { LIVE: [], MOVIE: [], SERIES: [] };
 let favoriteUrls = new Set();
 let isAdultUnlocked = false;
 let currentPin = '0000';
 let enteredPin = '';
-let activeChannel = null;
+let activeItem = null;
 let hlsInstance = null;
 
-// Categorias da TV ao Vivo
-let liveCategoriesMap = {};
-let liveCategoryKeys = [];
+// Categorias e Itens da Aba Atual
+let currentCategoriesMap = {};
+let currentCategoryKeys = [];
 let activeCategoryKey = 'ALL';
-let filteredChannels = [];
+let currentFilteredItems = [];
 
-// Gerenciador de Foco Espacial do Controle Remoto (D-Pad)
-let activeColumn = 'channels'; // 'categories', 'channels', 'player', 'tabs'
+// Gerenciador de Navegação do Controle Remoto LG
+let activeZone = 'channels'; // 'header', 'categories', 'channels', 'player', 'settings', 'modal'
+let focusedHeaderIdx = 0;
 let focusedCatIdx = 0;
-let focusedChIdx = 0;
+let focusedItemIdx = 0;
+
+// Lista de elementos focáveis do cabeçalho
+const headerElements = [
+  'tabLive', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings',
+  'btnHeaderServer', 'btnRefreshList', 'btnHeaderAdult'
+];
 
 // RELÓGIO
 function tickClock() {
@@ -106,7 +111,7 @@ function toggleFav(url) {
     if ($('btnFavorite')) $('btnFavorite').textContent = '★ Favoritado';
   }
   try { localStorage.setItem('mk21_favs', JSON.stringify(Array.from(favoriteUrls))); } catch (e) {}
-  if (activeCategoryKey === 'FAVORITES') renderChannelsList();
+  if (currentContentType === 'FAVORITES') renderItemsList();
 }
 
 function isAdult(text) {
@@ -118,8 +123,60 @@ function isAdult(text) {
   return false;
 }
 
-// 4. PARSER OTIMIZADO COM SEPARAÇÃO ESTRITA E PROTEÇÃO CONTRA ESTOURO DE MEMÓRIA (ANTI-CRASH)
-function parseM3USafely(content) {
+// 4. LÓGICA EXATA DO APK ANDROID (determineType do M3UParser.kt)
+function determineType(name, category, url) {
+  const uppercaseName = name.toUpperCase();
+  const uppercaseCategory = category.toUpperCase();
+  const uppercaseUrl = url.toUpperCase();
+
+  // Verificação explícita pela URL (padrão Xtream Codes)
+  if (uppercaseUrl.includes("/SERIES/")) return "SERIES";
+  if (uppercaseUrl.includes("/MOVIE/")) return "MOVIE";
+  if (uppercaseUrl.includes("/LIVE/")) return "LIVE";
+
+  // Palavras-chave explícitas de séries
+  const seriesCategories = [
+    "SERIES", "SÉRIES", "SERIADOS", "SEASON", "TEMPORADA", "EPISODIOS", "EPISÓDIOS",
+    "ANIME", "ANIMES", "NOVELAS", "NOVELA"
+  ];
+
+  // Palavras-chave explícitas de filmes
+  const movieCategories = [
+    "FILMES", "MOVIES", "VOD", "CINEMA", "BLOCKBUSTER", "LANCAMENTOS", "LANÇAMENTOS",
+    "PREMIUM FILMES", "CINE", "ACTION", "COMEDY", "DRAMA", "HORROR", "TERROR"
+  ];
+
+  // Padrões de séries no nome da categoria ou título do stream
+  if (seriesCategories.some(k => uppercaseCategory.includes(k)) ||
+      uppercaseName.includes("S0") || uppercaseName.includes("E0") ||
+      uppercaseName.includes("TEMPORADA") || uppercaseName.includes("CAPITULO") || uppercaseName.includes("EPISODIO")) {
+    return "SERIES";
+  }
+
+  // Padrões de filmes na categoria
+  if (movieCategories.some(k => uppercaseCategory.includes(k))) {
+    return "MOVIE";
+  }
+
+  // Fallbacks baseados na extensão da URL
+  if (uppercaseUrl.endsWith(".MP4") || uppercaseUrl.endsWith(".MKV") || uppercaseUrl.endsWith(".AVI")) {
+    if (uppercaseUrl.includes("/SERIES/") || uppercaseUrl.includes("/EPISODES/") || uppercaseName.includes("S0") || uppercaseName.includes("E0")) {
+      return "SERIES";
+    } else {
+      return "MOVIE";
+    }
+  }
+
+  // Padrões de canais ao vivo (geralmente .m3u8, .ts ou /live/)
+  if (uppercaseUrl.includes("/LIVE/") || uppercaseUrl.endsWith(".M3U8") || uppercaseUrl.endsWith(".TS") || uppercaseUrl.includes(".TS?")) {
+    return "LIVE";
+  }
+
+  return "LIVE"; // Padrão é Ao Vivo
+}
+
+// 5. PARSER OTIMIZADO COM LÓGICA DO APK E PROTEÇÃO DE MEMÓRIA (ANTI-CRASH)
+function parseM3UWithApkLogic(content) {
   const lines = content.split(/\r?\n/);
   const live = [];
   const movies = [];
@@ -129,41 +186,39 @@ function parseM3USafely(content) {
   let group = 'Geral';
   let logo = '';
 
-  // Limites máximos para evitar que a Smart TV reinicie por falta de memória (RAM)
-  const MAX_MOVIES = 1200;
+  // Limites seguros de títulos VOD em memória para evitar que o webOS feche o app
+  const MAX_MOVIES = 1500;
   const MAX_SERIES = 600;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('#EXTINF:')) {
-      const cIdx = line.lastIndexOf(',');
-      name = cIdx >= 0 ? line.slice(cIdx + 1).trim() : 'Canal';
-      const gM = line.match(/group-title="([^"]*)"/i);
-      group = gM && gM[1] && gM[1].trim() ? gM[1].trim() : 'Geral';
-      const lM = line.match(/tvg-logo="([^"]*)"/i);
-      logo = lM && lM[1] ? lM[1].trim() : '';
+      const commaIndex = line.lastIndexOf(',');
+      name = commaIndex >= 0 ? line.slice(commaIndex + 1).trim() : 'Canal';
+
+      const gMatch = line.match(/group-title="([^"]*)"/i);
+      group = gMatch && gMatch[1] && gMatch[1].trim() ? gMatch[1].trim() : 'Geral';
+
+      const lMatch = line.match(/tvg-logo="([^"]*)"/i);
+      logo = lMatch && lMatch[1] ? lMatch[1].trim() : '';
     } else if (/^https?:\/\//i.test(line)) {
-      const upGroup = group.toUpperCase();
-      const upName = name.toUpperCase();
-      const urlLower = line.toLowerCase();
-      const isAdultContent = isAdult(upGroup) || isAdult(upName);
+      const isAdultContent = isAdult(name) || isAdult(group);
+      const contentType = determineType(name, group, line);
 
-      const item = { name, group, logo, url: line, isAdult: isAdultContent };
+      const item = {
+        name,
+        group,
+        logo,
+        url: line,
+        contentType,
+        isAdult: isAdultContent
+      };
 
-      // SEPARAÇÃO ESTRITA:
-      // Filmes e Séries NÃO entram na TV Ao Vivo em hipótese alguma!
-      const isMovie = urlLower.includes('/movie/') || urlLower.endsWith('.mp4') || urlLower.endsWith('.mkv') ||
-                      upGroup.includes('FILME') || upGroup.includes('MOVIE') || upGroup.includes('VOD') || upGroup.includes('CINE') || upGroup.includes('4K FILMES');
-
-      const isSeries = urlLower.includes('/series/') || upGroup.includes('SERIE') || upGroup.includes('SÉRIE') ||
-                       upName.includes('S01') || upName.includes('S02') || upName.includes('TEMPORADA') || upName.includes('EPISODIO');
-
-      if (isSeries) {
+      if (contentType === 'SERIES') {
         if (series.length < MAX_SERIES) series.push(item);
-      } else if (isMovie) {
+      } else if (contentType === 'MOVIE') {
         if (movies.length < MAX_MOVIES) movies.push(item);
       } else {
-        // É canal de TV ao vivo legítimo!
         live.push(item);
       }
 
@@ -173,19 +228,21 @@ function parseM3USafely(content) {
     }
   }
 
-  return { live, movies, series };
+  return { LIVE: live, MOVIE: movies, SERIES: series };
 }
 
-// 5. CARREGAMENTO DOS CANAIS DO SERVIDOR
+// 6. CARREGAMENTO DOS SERVIDORES
 async function loadServer(forceRefresh = false) {
   const srv = SERVERS[currentServerIndex];
   $('txtActiveServer').textContent = srv.name;
 
-  // 1. TENTA CARREGAR DO BANCO DE DADOS LOCAL INSTANTÂNEO
   if (!forceRefresh) {
     const cached = await getStoredData(srv.id);
-    if (cached && cached.live && cached.live.length > 0) {
-      applyCatalog(cached);
+    if (cached && cached.LIVE && cached.LIVE.length > 0) {
+      allCatalog = cached;
+      buildCurrentCategories();
+      renderCategoriesList();
+      selectCategory('ALL');
       return;
     }
   }
@@ -196,42 +253,41 @@ async function loadServer(forceRefresh = false) {
     const res = await fetch(srv.url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
-    const catalog = parseM3USafely(text);
+    allCatalog = parseM3UWithApkLogic(text);
 
-    saveStoredData(srv.id, catalog);
-    applyCatalog(catalog);
+    saveStoredData(srv.id, allCatalog);
+    buildCurrentCategories();
+    renderCategoriesList();
+    selectCategory('ALL');
   } catch (err) {
     console.error('Server error:', err);
     alert('Erro ao carregar ' + srv.name + ': ' + err.message);
   }
 }
 
-function applyCatalog(catalog) {
-  liveChannels = catalog.live || [];
-  movieItems = catalog.movies || [];
-  seriesItems = catalog.series || [];
+// 7. AGRUPAMENTO DE CATEGORIAS DA ABA ATIVA (LIVE, MOVIE OU SERIES)
+function buildCurrentCategories() {
+  currentCategoriesMap = { 'ALL': [] };
+  currentCategoryKeys = ['ALL'];
 
-  buildCategories();
-  renderCategoriesList();
-  selectCategory('ALL');
-}
+  let sourceItems = [];
+  if (currentContentType === 'FAVORITES') {
+    sourceItems = [...allCatalog.LIVE, ...allCatalog.MOVIE, ...allCatalog.SERIES].filter(i => favoriteUrls.has(i.url));
+  } else {
+    sourceItems = allCatalog[currentContentType] || [];
+  }
 
-// 6. AGRUPAMENTO DAS CATEGORIAS DE TV AO VIVO (100% LIMPO DE FILMES)
-function buildCategories() {
-  liveCategoriesMap = { 'ALL': [] };
-  liveCategoryKeys = ['ALL'];
+  for (let i = 0; i < sourceItems.length; i++) {
+    const item = sourceItems[i];
+    if (!isAdultUnlocked && item.isAdult) continue;
 
-  for (let i = 0; i < liveChannels.length; i++) {
-    const ch = liveChannels[i];
-    if (!isAdultUnlocked && ch.isAdult) continue;
-
-    liveCategoriesMap['ALL'].push(ch);
-    const grp = ch.group;
-    if (!liveCategoriesMap[grp]) {
-      liveCategoriesMap[grp] = [];
-      liveCategoryKeys.push(grp);
+    currentCategoriesMap['ALL'].push(item);
+    const grp = item.group;
+    if (!currentCategoriesMap[grp]) {
+      currentCategoriesMap[grp] = [];
+      currentCategoryKeys.push(grp);
     }
-    liveCategoriesMap[grp].push(ch);
+    currentCategoriesMap[grp].push(item);
   }
 }
 
@@ -240,9 +296,10 @@ function renderCategoriesList() {
   ul.innerHTML = '';
   const fragment = document.createDocumentFragment();
 
-  $('badgeCatCount').textContent = (liveCategoryKeys.length - 1) + ' grupos';
+  $('badgeCatCount').textContent = (currentCategoryKeys.length - 1) + ' grupos';
+  $('txtCatHeaderTitle').textContent = currentContentType === 'LIVE' ? '📁 Categorias TV' : (currentContentType === 'MOVIE' ? '📁 Gêneros Filmes' : '📁 Gêneros Séries');
 
-  liveCategoryKeys.forEach((k, idx) => {
+  currentCategoryKeys.forEach((k, idx) => {
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.className = 'list-item-btn cat-item-btn' + (k === activeCategoryKey ? ' active' : '');
@@ -250,11 +307,11 @@ function renderCategoriesList() {
     btn.setAttribute('data-idx', idx);
 
     const spanName = document.createElement('span');
-    spanName.textContent = k === 'ALL' ? '🌟 Todos os Canais' : k;
+    spanName.textContent = k === 'ALL' ? (currentContentType === 'LIVE' ? '🌟 Todos os Canais' : (currentContentType === 'MOVIE' ? '🌟 Todos os Filmes' : '🌟 Todas as Séries')) : k;
 
     const spanCount = document.createElement('span');
     spanCount.className = 'counter-badge';
-    spanCount.textContent = liveCategoriesMap[k] ? liveCategoriesMap[k].length : 0;
+    spanCount.textContent = currentCategoriesMap[k] ? currentCategoriesMap[k].length : 0;
 
     btn.appendChild(spanName);
     btn.appendChild(spanCount);
@@ -271,64 +328,57 @@ function renderCategoriesList() {
 function selectCategory(catKey) {
   activeCategoryKey = catKey;
 
-  // Atualizar visual dos botões de categorias
   const btns = $('listCategories').querySelectorAll('.cat-item-btn');
   btns.forEach(b => b.classList.remove('active'));
-  const activeBtn = Array.from(btns).find(b => (catKey === 'ALL' && b.textContent.includes('Todos os Canais')) || b.textContent.startsWith(catKey));
+  const activeBtn = Array.from(btns).find(b => (catKey === 'ALL' && b.textContent.includes('Todos')) || b.textContent.startsWith(catKey));
   if (activeBtn) activeBtn.classList.add('active');
 
-  $('txtCurrentCategoryTitle').textContent = catKey === 'ALL' ? '📺 Todos os Canais' : '📁 ' + catKey;
-  $('inputChannelSearch').value = '';
-  renderChannelsList();
+  $('txtCurrentCategoryTitle').textContent = catKey === 'ALL' ? (currentContentType === 'LIVE' ? '📺 Todos os Canais' : (currentContentType === 'MOVIE' ? '🎬 Todos os Filmes' : '🍿 Todas as Séries')) : '📁 ' + catKey;
+  $('inputSearch').value = '';
+  renderItemsList();
 }
 
-// 7. RENDERIZAÇÃO DA LISTA DE CANAIS
-function renderChannelsList() {
-  const query = $('inputChannelSearch').value.toLowerCase().trim();
-  let base = liveCategoriesMap[activeCategoryKey] || [];
+// 8. RENDERIZAÇÃO DA LISTA DE ITENS
+function renderItemsList() {
+  const query = $('inputSearch').value.toLowerCase().trim();
+  const base = currentCategoriesMap[activeCategoryKey] || [];
 
-  if (activeCategoryKey === 'FAVORITES') {
-    base = liveChannels.filter(c => favoriteUrls.has(c.url));
-  }
+  currentFilteredItems = query ? base.filter(c => c.name.toLowerCase().includes(query)) : base;
+  $('badgeItemsCount').textContent = currentFilteredItems.length;
 
-  filteredChannels = query ? base.filter(c => c.name.toLowerCase().includes(query)) : base;
-  $('badgeChannelsCount').textContent = filteredChannels.length;
-
-  const ul = $('listChannels');
+  const ul = $('listItems');
   ul.innerHTML = '';
 
-  if (filteredChannels.length === 0) {
-    ul.innerHTML = '<li><button class="list-item-btn" disabled>Nenhum canal encontrado.</button></li>';
+  if (currentFilteredItems.length === 0) {
+    ul.innerHTML = '<li><button class="list-item-btn" disabled>Nenhum item nesta categoria.</button></li>';
     return;
   }
 
   const fragment = document.createDocumentFragment();
-  // Limite estrito de 60 itens por renderização para fluidez máxima no controle remoto
-  const limit = Math.min(filteredChannels.length, 60);
+  const limit = Math.min(currentFilteredItems.length, 60);
 
   for (let i = 0; i < limit; i++) {
-    const ch = filteredChannels[i];
+    const item = currentFilteredItems[i];
     const li = document.createElement('li');
     const btn = document.createElement('button');
-    btn.className = 'list-item-btn' + (activeChannel && activeChannel.url === ch.url ? ' active' : '');
+    btn.className = 'list-item-btn' + (activeItem && activeItem.url === item.url ? ' active' : '');
     btn.setAttribute('tabindex', '0');
     btn.setAttribute('data-idx', i);
 
     const spanTitle = document.createElement('span');
-    spanTitle.textContent = (favoriteUrls.has(ch.url) ? '★ ' : '') + ch.name;
+    spanTitle.textContent = (favoriteUrls.has(item.url) ? '★ ' : '') + item.name;
     btn.appendChild(spanTitle);
 
-    if (ch.isAdult) {
+    if (item.isAdult) {
       const tag = document.createElement('span');
       tag.className = 'counter-badge';
       tag.textContent = '+18';
       btn.appendChild(tag);
     }
 
-    // Clique único: toca no player
-    btn.onclick = () => playStream(ch);
+    btn.onclick = () => playStream(item);
 
-    // Duplo clique rápido: abre tela cheia imediatamente!
+    // Duplo clique rápido: tela cheia
     let lastClick = 0;
     btn.addEventListener('click', () => {
       const now = Date.now();
@@ -342,33 +392,32 @@ function renderChannelsList() {
 
   ul.appendChild(fragment);
 
-  // Auto-play no primeiro canal se nada estiver tocando
-  if (!activeChannel && filteredChannels.length > 0) {
-    playStream(filteredChannels[0]);
+  // Auto-play no primeiro canal se for TV e nada estiver tocando
+  if (!activeItem && currentContentType === 'LIVE' && currentFilteredItems.length > 0) {
+    playStream(currentFilteredItems[0]);
   }
 }
 
-$('inputChannelSearch').addEventListener('input', renderChannelsList);
+$('inputSearch').addEventListener('input', renderItemsList);
 
-// 8. PLAYER DE VÍDEO & EPG
-function playStream(ch) {
-  activeChannel = ch;
+// 9. PLAYER DE VÍDEO & EPG
+function playStream(item) {
+  activeItem = item;
 
-  // Atualizar botões
-  const btns = $('listChannels').querySelectorAll('.list-item-btn');
+  const btns = $('listItems').querySelectorAll('.list-item-btn');
   btns.forEach(b => b.classList.remove('active'));
 
-  $('epgTitle').textContent = '▶ ' + ch.name;
-  $('epgGroup').textContent = 'Categoria: ' + ch.group;
+  $('epgTitle').textContent = '▶ ' + item.name;
+  $('epgGroup').textContent = 'Categoria: ' + item.group;
 
-  if (favoriteUrls.has(ch.url)) {
+  if (favoriteUrls.has(item.url)) {
     $('btnFavorite').textContent = '★ Favoritado';
   } else {
     $('btnFavorite').textContent = '⭐ Favoritar';
   }
 
   const overlay = $('channelOverlay');
-  overlay.textContent = ch.name;
+  overlay.textContent = item.name;
   overlay.classList.remove('hidden');
   clearTimeout(overlay._timer);
   overlay._timer = setTimeout(() => overlay.classList.add('hidden'), 3500);
@@ -379,11 +428,11 @@ function playStream(ch) {
     hlsInstance = null;
   }
 
-  const isHls = ch.url.toLowerCase().includes('.m3u8') || ch.url.includes('/live/');
+  const isHls = item.url.toLowerCase().includes('.m3u8') || item.url.includes('/live/');
 
   if (isHls && window.Hls && Hls.isSupported()) {
     hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true, maxBufferLength: 15 });
-    hlsInstance.loadSource(ch.url);
+    hlsInstance.loadSource(item.url);
     hlsInstance.attachMedia(video);
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       video.play().catch(() => {});
@@ -391,12 +440,12 @@ function playStream(ch) {
     });
     hlsInstance.on(Hls.Events.ERROR, (e, data) => {
       if (data.fatal) {
-        video.src = ch.url;
+        video.src = item.url;
         video.play().catch(() => {});
       }
     });
   } else {
-    video.src = ch.url;
+    video.src = item.url;
     video.play().then(() => {
       $('btnPlayPause').textContent = '⏸ Pausar';
     }).catch(() => {});
@@ -427,79 +476,42 @@ $('btnPlayPause').onclick = () => {
   }
 };
 $('btnFavorite').onclick = () => {
-  if (activeChannel) toggleFav(activeChannel.url);
+  if (activeItem) toggleFav(activeItem.url);
 };
 
-// 9. NAVEGAÇÃO ENTRE ABAS DO TOPO
-$('tabLiveTv').onclick = () => switchTab('tv');
-$('tabMovies').onclick = () => switchTab('movies');
-$('tabSeries').onclick = () => switchTab('series');
-$('tabFavs').onclick = () => switchTab('favs');
-$('tabSettings').onclick = () => switchTab('settings');
+// 10. TROCA DE ABAS DO TOPO (LIVE, FILMES, SÉRIES, FAVORITOS, CONFIGURAÇÕES)
+$('tabLive').onclick = () => switchContentType('LIVE');
+$('tabMovies').onclick = () => switchContentType('MOVIE');
+$('tabSeries').onclick = () => switchContentType('SERIES');
+$('tabFavs').onclick = () => switchContentType('FAVORITES');
+$('tabSettings').onclick = () => switchContentType('SETTINGS');
 
-function switchTab(tab) {
-  currentTab = tab;
-  ['tabLiveTv', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings'].forEach(t => $(t).classList.remove('active'));
+function switchContentType(type) {
+  currentContentType = type;
 
-  $('sectionTv').classList.add('hidden');
-  $('sectionVod').classList.add('hidden');
-  $('sectionSettings').classList.add('hidden');
+  // Atualizar botões de abas
+  ['tabLive', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings'].forEach(t => $(t).classList.remove('active'));
+  const activeTabId = type === 'LIVE' ? 'tabLive' : (type === 'MOVIE' ? 'tabMovies' : (type === 'SERIES' ? 'tabSeries' : (type === 'FAVORITES' ? 'tabFavs' : 'tabSettings')));
+  $(activeTabId).classList.add('active');
 
-  if (tab === 'tv') {
-    $('tabLiveTv').classList.add('active');
-    $('sectionTv').classList.remove('hidden');
-    selectCategory('ALL');
-  } else if (tab === 'favs') {
-    $('tabFavs').classList.add('active');
-    $('sectionTv').classList.remove('hidden');
-    selectCategory('FAVORITES');
-  } else if (tab === 'movies') {
-    $('tabMovies').classList.add('active');
-    $('sectionVod').classList.remove('hidden');
-    renderVod(movieItems, '🎬 Filmes Sob Demanda (VOD)');
-  } else if (tab === 'series') {
-    $('tabSeries').classList.add('active');
-    $('sectionVod').classList.remove('hidden');
-    renderVod(seriesItems, '🍿 Séries & Temporadas');
-  } else if (tab === 'settings') {
-    $('tabSettings').classList.add('active');
+  if (type === 'SETTINGS') {
+    $('sectionUnified').classList.add('hidden');
     $('sectionSettings').classList.remove('hidden');
     renderSettings('info');
+    activeZone = 'settings';
+    return;
   }
+
+  $('sectionSettings').classList.add('hidden');
+  $('sectionUnified').classList.remove('hidden');
+
+  buildCurrentCategories();
+  renderCategoriesList();
+  selectCategory('ALL');
+  activeZone = 'channels';
 }
 
-function renderVod(items, title) {
-  $('txtVodTitle').textContent = title;
-  const grid = $('gridVod');
-  grid.innerHTML = '';
-  const filtered = items.filter(i => isAdultUnlocked || !i.isAdult);
-  const fragment = document.createDocumentFragment();
-  const limit = Math.min(filtered.length, 50);
-
-  for (let i = 0; i < limit; i++) {
-    const item = filtered[i];
-    const card = document.createElement('div');
-    card.className = 'vod-item-card';
-    card.setAttribute('tabindex', '0');
-
-    card.innerHTML = `
-      <div class="vod-poster-thumb">${title.includes('Filmes') ? '🎬' : '🍿'}</div>
-      <h4 class="vod-card-title">${item.name}</h4>
-      <p class="vod-card-group">${item.group}</p>
-    `;
-
-    card.onclick = () => {
-      switchTab('tv');
-      playStream(item);
-      toggleFullscreen(true);
-    };
-
-    fragment.appendChild(card);
-  }
-  grid.appendChild(fragment);
-}
-
-// 10. TELA DE CONFIGURAÇÕES (CLONE VIZZION PLAY)
+// 11. TELA DE CONFIGURAÇÕES (CLONE VIZZION PLAY)
 const CFG_BUTTONS = ['cfgBtnInfo', 'cfgBtnIdioma', 'cfgBtnFluxo', 'cfgBtnPin', 'cfgBtnCategorias', 'cfgBtnLimpar', 'cfgBtnTempo'];
 
 CFG_BUTTONS.forEach(bId => {
@@ -536,7 +548,7 @@ function renderSettings(sec) {
         </div>
         <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
           <div style="font-size:14px; color:#888;">Versão do Aplicativo</div>
-          <div style="font-size:18px; font-weight:700; color:#fff;">3.0.0 (webOS 1080p)</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">3.1.0 (webOS 1080p)</div>
         </div>
       </div>
     `;
@@ -586,33 +598,17 @@ window.clearAllCache = () => {
   } catch (e) {}
 };
 
-// 11. SISTEMA INFALÍVEL DE NAVEGAÇÃO D-PAD DO CONTROLE REMOTO LG
+// 12. NAVEGAÇÃO ESPACIAL D-PAD COMPLETA (INCLUINDO CABEÇALHO)
 document.addEventListener('keydown', e => {
   const k = e.keyCode;
 
-  // 1. TECLAS COLORIDAS DO CONTROLE LG
-  if (k === 403 || e.key === 'Red') { // Botão Vermelho -> Trocar Servidor
-    e.preventDefault();
-    openServerPicker();
-    return;
-  }
-  if (k === 404 || e.key === 'Green') { // Botão Verde -> Atualizar Lista
-    e.preventDefault();
-    loadServer(true);
-    return;
-  }
-  if (k === 405 || e.key === 'Yellow') { // Botão Amarelo -> Favoritar Canal
-    e.preventDefault();
-    if (activeChannel) toggleFav(activeChannel.url);
-    return;
-  }
-  if (k === 406 || e.key === 'Blue') { // Botão Azul -> Bloqueio Adulto
-    e.preventDefault();
-    openPinModal();
-    return;
-  }
+  // BOTÕES COLORIDOS DA TV LG
+  if (k === 403 || e.key === 'Red') { e.preventDefault(); openServerPicker(); return; }
+  if (k === 404 || e.key === 'Green') { e.preventDefault(); loadServer(true); return; }
+  if (k === 405 || e.key === 'Yellow') { e.preventDefault(); if (activeItem) toggleFav(activeItem.url); return; }
+  if (k === 406 || e.key === 'Blue') { e.preventDefault(); openPinModal(); return; }
 
-  // 2. TECLA VOLTAR (461 / 27 / 8) - NUNCA FECHA O APP INDEVIDAMENTE
+  // BOTÃO VOLTAR (461 / 27 / 8)
   if (k === 461 || k === 27 || k === 8 || e.key === 'GoBack') {
     e.preventDefault();
 
@@ -633,95 +629,152 @@ document.addEventListener('keydown', e => {
       return;
     }
 
-    if (currentTab !== 'tv') {
-      switchTab('tv');
+    if (currentContentType !== 'LIVE') {
+      switchContentType('LIVE');
       return;
     }
 
-    if (activeColumn === 'channels') {
-      activeColumn = 'categories';
-      focusCurrentElement();
+    if (activeZone === 'player') {
+      activeZone = 'channels';
+      focusActiveElement();
       return;
     }
 
-    // Se estiver nas categorias de TV -> confirmação de saída segura
+    if (activeZone === 'channels') {
+      activeZone = 'categories';
+      focusActiveElement();
+      return;
+    }
+
+    // Se estiver nas categorias do Live TV -> diálogo de saída
     $('modalExitConfirm').classList.remove('hidden');
     $('btnExitCancel').focus();
     return;
   }
 
-  // 3. SETA PARA BAIXO (40)
-  if (k === 40) {
-    e.preventDefault();
-    if (activeColumn === 'categories') {
-      const items = $('listCategories').querySelectorAll('.cat-item-btn');
-      if (focusedCatIdx < items.length - 1) focusedCatIdx++;
-      focusCurrentElement();
-    } else if (activeColumn === 'channels') {
-      const items = $('listChannels').querySelectorAll('.list-item-btn');
-      if (focusedChIdx < items.length - 1) focusedChIdx++;
-      focusCurrentElement();
+  // ================= 1. SE O FOCO ESTIVER NO CABEÇALHO =================
+  if (activeZone === 'header') {
+    if (k === 39) { // Seta Direita no cabeçalho
+      e.preventDefault();
+      if (focusedHeaderIdx < headerElements.length - 1) {
+        focusedHeaderIdx++;
+        $(headerElements[focusedHeaderIdx]).focus();
+      }
+      return;
+    }
+    if (k === 37) { // Seta Esquerda no cabeçalho
+      e.preventDefault();
+      if (focusedHeaderIdx > 0) {
+        focusedHeaderIdx--;
+        $(headerElements[focusedHeaderIdx]).focus();
+      }
+      return;
+    }
+    if (k === 40) { // Seta Baixo no cabeçalho -> desce para as colunas!
+      e.preventDefault();
+      if (currentContentType === 'SETTINGS') {
+        activeZone = 'settings';
+        $('cfgBtnInfo').focus();
+      } else {
+        // Se estava nas primeiras abas, desce para Categorias; senão desce para Canais
+        if (focusedHeaderIdx < 2) {
+          activeZone = 'categories';
+        } else {
+          activeZone = 'channels';
+        }
+        focusActiveElement();
+      }
+      return;
+    }
+    if (k === 13) { // OK no cabeçalho
+      e.preventDefault();
+      $(headerElements[focusedHeaderIdx]).click();
+      return;
     }
     return;
   }
 
-  // 4. SETA PARA CIMA (38)
+  // ================= 2. SETA PARA CIMA (38) =================
   if (k === 38) {
     e.preventDefault();
-    if (activeColumn === 'categories') {
+    if (activeZone === 'categories') {
       if (focusedCatIdx > 0) {
         focusedCatIdx--;
-        focusCurrentElement();
+        focusActiveElement();
       } else {
-        $('tabLiveTv').focus();
+        // Chegou ao topo das categorias: sobe para o CABEÇALHO!
+        activeZone = 'header';
+        focusedHeaderIdx = 0;
+        $(headerElements[0]).focus();
       }
-    } else if (activeColumn === 'channels') {
-      if (focusedChIdx > 0) {
-        focusedChIdx--;
-        focusCurrentElement();
+    } else if (activeZone === 'channels') {
+      if (focusedItemIdx > 0) {
+        focusedItemIdx--;
+        focusActiveElement();
       } else {
-        $('inputChannelSearch').focus();
+        // Chegou ao topo dos canais: sobe para o campo de busca ou cabeçalho!
+        activeZone = 'header';
+        focusedHeaderIdx = 1;
+        $(headerElements[1]).focus();
       }
     }
     return;
   }
 
-  // 5. SETA PARA DIREITA (39)
+  // ================= 3. SETA PARA BAIXO (40) =================
+  if (k === 40) {
+    e.preventDefault();
+    if (activeZone === 'categories') {
+      const items = $('listCategories').querySelectorAll('.cat-item-btn');
+      if (focusedCatIdx < items.length - 1) {
+        focusedCatIdx++;
+        focusActiveElement();
+      }
+    } else if (activeZone === 'channels') {
+      const items = $('listItems').querySelectorAll('.list-item-btn');
+      if (focusedItemIdx < items.length - 1) {
+        focusedItemIdx++;
+        focusActiveElement();
+      }
+    }
+    return;
+  }
+
+  // ================= 4. SETA PARA DIREITA (39) =================
   if (k === 39) {
     e.preventDefault();
-    if (activeColumn === 'categories') {
-      activeColumn = 'channels';
-      focusCurrentElement();
-    } else if (activeColumn === 'channels') {
-      activeColumn = 'player';
+    if (activeZone === 'categories') {
+      activeZone = 'channels';
+      focusActiveElement();
+    } else if (activeZone === 'channels') {
+      activeZone = 'player';
       $('btnFullscreen').focus();
     }
     return;
   }
 
-  // 6. SETA PARA ESQUERDA (37)
+  // ================= 5. SETA PARA ESQUERDA (37) =================
   if (k === 37) {
     e.preventDefault();
-    if (activeColumn === 'player') {
-      activeColumn = 'channels';
-      focusCurrentElement();
-    } else if (activeColumn === 'channels') {
-      activeColumn = 'categories';
-      focusCurrentElement();
+    if (activeZone === 'player') {
+      activeZone = 'channels';
+      focusActiveElement();
+    } else if (activeZone === 'channels') {
+      activeZone = 'categories';
+      focusActiveElement();
     }
     return;
   }
 
-  // 7. TECLA OK / ENTER (13)
+  // ================= 6. TECLA OK / ENTER (13) =================
   if (k === 13) {
-    if (activeColumn === 'categories') {
+    if (activeZone === 'categories') {
       const items = $('listCategories').querySelectorAll('.cat-item-btn');
       if (items[focusedCatIdx]) items[focusedCatIdx].click();
-    } else if (activeColumn === 'channels') {
-      const items = $('listChannels').querySelectorAll('.list-item-btn');
-      const item = items[focusedChIdx];
+    } else if (activeZone === 'channels') {
+      const items = $('listItems').querySelectorAll('.list-item-btn');
+      const item = items[focusedItemIdx];
       if (item) {
-        // Se já está ativo, expande para tela cheia ao apertar OK!
         if (item.classList.contains('active')) {
           toggleFullscreen(true);
         } else {
@@ -733,25 +786,24 @@ document.addEventListener('keydown', e => {
   }
 });
 
-function focusCurrentElement() {
-  if (activeColumn === 'categories') {
+function focusActiveElement() {
+  if (activeZone === 'categories') {
     const items = $('listCategories').querySelectorAll('.cat-item-btn');
     if (items[focusedCatIdx]) {
       items[focusedCatIdx].focus();
       items[focusedCatIdx].scrollIntoView({ block: 'nearest' });
     }
-  } else if (activeColumn === 'channels') {
-    const items = $('listChannels').querySelectorAll('.list-item-btn');
-    if (items[focusedChIdx]) {
-      items[focusedChIdx].focus();
-      items[focusedChIdx].scrollIntoView({ block: 'nearest' });
+  } else if (activeZone === 'channels') {
+    const items = $('listItems').querySelectorAll('.list-item-btn');
+    if (items[focusedItemIdx]) {
+      items[focusedItemIdx].focus();
+      items[focusedItemIdx].scrollIntoView({ block: 'nearest' });
     }
   }
 }
 
-// 12. MODAIS E AÇÕES
+// 13. MODAIS E BOTÕES DO CABEÇALHO
 $('btnRefreshList').onclick = () => loadServer(true);
-
 $('btnHeaderServer').onclick = openServerPicker;
 
 function openServerPicker() {
@@ -786,7 +838,7 @@ function openPinModal() {
     $('txtLockIcon').textContent = '🔒';
     $('txtLockText').textContent = 'Adulto (Bloqueado)';
     $('btnHeaderAdult').classList.remove('unlocked');
-    buildCategories();
+    buildCurrentCategories();
     renderCategoriesList();
     selectCategory('ALL');
     alert('Canais adultos foram bloqueados com sucesso.');
@@ -824,9 +876,9 @@ function verifyPin() {
     $('txtLockText').textContent = 'Adulto (Liberado)';
     $('btnHeaderAdult').classList.add('unlocked');
     $('modalPin').classList.add('hidden');
-    buildCategories();
+    buildCurrentCategories();
     renderCategoriesList();
-    const adultCat = liveCategoryKeys.find(c => isAdult(c));
+    const adultCat = currentCategoryKeys.find(c => isAdult(c));
     selectCategory(adultCat || 'ALL');
     alert('Canais adultos liberados com sucesso!');
   } else {
@@ -845,7 +897,7 @@ $('btnExitConfirm').onclick = () => {
   else window.close();
 };
 
-// 13. INICIALIZAÇÃO
+// 14. INICIALIZAÇÃO AUTOMÁTICA
 window.addEventListener('load', () => {
   try {
     const saved = localStorage.getItem('mk21_last_server');

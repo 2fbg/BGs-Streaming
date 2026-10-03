@@ -9,34 +9,34 @@
 </head>
 <body>
 
-  <!-- ================= TOP BAR (HEADER) ================= -->
+  <!-- ================= 1. CABEÇALHO SUPERIOR COM ABAS ================= -->
   <header class="app-header">
     <div class="header-left">
-      <div class="logo-box">
+      <div id="btnLogo" class="logo-box" tabindex="0">
         <span class="logo-badge">MK21</span>
         <span class="logo-title">PLAY <span>OTT</span></span>
       </div>
 
-      <!-- ABAS PRINCIPAIS DE NAVEGAÇÃO -->
-      <nav class="main-tabs">
-        <button id="tabLiveTv" class="tab-btn active" tabindex="0">📺 TV AO VIVO</button>
-        <button id="tabMovies" class="tab-btn" tabindex="0">🎬 FILMES</button>
-        <button id="tabSeries" class="tab-btn" tabindex="0">🍿 SÉRIES</button>
-        <button id="tabFavs" class="tab-btn" tabindex="0">⭐ FAVORITOS</button>
-        <button id="tabSettings" class="tab-btn" tabindex="0">⚙️ CONFIGURAÇÕES</button>
+      <!-- ABAS DE CONTEÚDO (IDÊNTICAS AO APK) -->
+      <nav class="main-tabs" id="headerTabsNav">
+        <button id="tabLive" class="tab-btn active header-focusable" tabindex="0">📺 TV AO VIVO</button>
+        <button id="tabMovies" class="tab-btn header-focusable" tabindex="0">🎬 FILMES</button>
+        <button id="tabSeries" class="tab-btn header-focusable" tabindex="0">🍿 SÉRIES</button>
+        <button id="tabFavs" class="tab-btn header-focusable" tabindex="0">⭐ FAVORITOS</button>
+        <button id="tabSettings" class="tab-btn header-focusable" tabindex="0">⚙️ CONFIGURAÇÕES</button>
       </nav>
     </div>
 
-    <div class="header-right">
-      <button id="btnHeaderServer" class="action-btn server-pill" tabindex="0">
+    <div class="header-right" id="headerActionsNav">
+      <button id="btnHeaderServer" class="action-btn server-pill header-focusable" tabindex="0">
         <span id="txtActiveServer">🔵 CB6000</span> <span style="font-size: 12px; opacity:0.7;">▼</span>
       </button>
 
-      <button id="btnRefreshList" class="action-btn" title="Atualizar lista agora" tabindex="0">
+      <button id="btnRefreshList" class="action-btn header-focusable" title="Atualizar lista agora" tabindex="0">
         🔄 Atualizar
       </button>
 
-      <button id="btnHeaderAdult" class="action-btn lock-pill" tabindex="0">
+      <button id="btnHeaderAdult" class="action-btn lock-pill header-focusable" tabindex="0">
         <span id="txtLockIcon">🔒</span> <span id="txtLockText">Adulto (Bloqueado)</span>
       </button>
 
@@ -44,42 +44,42 @@
     </div>
   </header>
 
-  <!-- ================= CORPO PRINCIPAL (DIRETO PARA O APP, SEM HOME) ================= -->
+  <!-- ================= 2. CORPO PRINCIPAL ================= -->
   <main class="app-body">
 
-    <!-- ================= PAINEL 1: TV AO VIVO (3 COLUNAS) ================= -->
-    <section id="sectionTv" class="content-section">
+    <!-- SEÇÃO PRINCIPAL UNIFICADA (3 COLUNAS PARA TV, FILMES, SÉRIES E FAVORITOS) -->
+    <section id="sectionUnified" class="content-section">
       
       <!-- COLUNA 1: CATEGORIAS (24%) -->
       <div class="col-pane col-categories">
         <div class="pane-header">
-          <span>📁 Categorias</span>
+          <span id="txtCatHeaderTitle">📁 Categorias</span>
           <span id="badgeCatCount" class="counter-badge">0</span>
         </div>
         <ul id="listCategories" class="pane-scroll"></ul>
       </div>
 
-      <!-- COLUNA 2: CANAIS (36%) -->
+      <!-- COLUNA 2: ITENS / CANAIS / FILMES (36%) -->
       <div class="col-pane col-channels">
         <div class="pane-header">
           <span id="txtCurrentCategoryTitle">📺 Todos os Canais</span>
-          <span id="badgeChannelsCount" class="counter-badge">0</span>
+          <span id="badgeItemsCount" class="counter-badge">0</span>
         </div>
         <div class="search-box">
-          <input id="inputChannelSearch" type="text" placeholder="🔍 Buscar canal..." tabindex="0">
+          <input id="inputSearch" type="text" placeholder="🔍 Buscar canal, filme ou série..." tabindex="0">
           <button id="btnVoiceSearch" class="voice-btn" tabindex="0">🎙️</button>
         </div>
-        <ul id="listChannels" class="pane-scroll"></ul>
+        <ul id="listItems" class="pane-scroll"></ul>
       </div>
 
-      <!-- COLUNA 3: PLAYER DE VÍDEO & EPG (40%) -->
+      <!-- COLUNA 3: PLAYER DE VÍDEO & INFORMAÇÕES (40%) -->
       <div class="col-pane col-player">
         <div id="videoContainer" class="video-box" tabindex="0">
           <video id="tvPlayer" playsinline></video>
           <div id="channelOverlay" class="channel-overlay hidden">Animal Planet FHD</div>
         </div>
 
-        <!-- GUIA DE PROGRAMAÇÃO (EPG) -->
+        <!-- EPG / INFORMAÇÕES DO STREAM -->
         <div class="epg-card">
           <h2 id="epgTitle" class="epg-name">Selecione um canal</h2>
           <p id="epgGroup" class="epg-sub">Categoria: Geral</p>
@@ -100,16 +100,7 @@
 
     </section>
 
-    <!-- ================= PAINEL 2: FILMES & SÉRIES (VOD GRID) ================= -->
-    <section id="sectionVod" class="content-section hidden">
-      <div class="vod-topbar">
-        <h2 id="txtVodTitle">🎬 Catálogo de Filmes</h2>
-        <input id="inputVodSearch" type="text" placeholder="🔍 Buscar título..." class="vod-search" tabindex="0">
-      </div>
-      <div id="gridVod" class="vod-grid-scroll"></div>
-    </section>
-
-    <!-- ================= PAINEL 3: CONFIGURAÇÕES (CLONE VIZZION PLAY FOTOS) ================= -->
+    <!-- SEÇÃO CONFIGURAÇÕES (CLONE VIZZION PLAY DAS FOTOS) -->
     <section id="sectionSettings" class="content-section hidden">
       <div class="settings-left-menu">
         <button id="cfgBtnInfo" class="cfg-menu-item active" tabindex="0">⚙️ Informação geral</button>
@@ -130,16 +121,17 @@
 
   </main>
 
-  <!-- ================= BARRA DE AJUDA DO CONTROLE LG ================= -->
+  <!-- ================= 3. BARRA DE AJUDA DO CONTROLE LG ================= -->
   <footer class="remote-bar">
     <div class="remote-key"><span class="color-dot red"></span> <span>Trocar Servidor</span></div>
     <div class="remote-key"><span class="color-dot green"></span> <span>Atualizar Lista</span></div>
     <div class="remote-key"><span class="color-dot yellow"></span> <span>Favoritar</span></div>
     <div class="remote-key"><span class="color-dot blue"></span> <span>Bloqueio 18+</span></div>
-    <div class="remote-key"><span>⮌ <strong>Voltar:</strong> Sair / Menu</span></div>
+    <div class="remote-key"><span>⮌ <strong>Voltar:</strong> Anterior / Sair</span></div>
   </footer>
 
-  <!-- ================= MODAL SELETOR DE SERVIDORES ================= -->
+  <!-- ================= MODAIS ================= -->
+  <!-- Modal Servidores -->
   <div id="modalServerPicker" class="app-modal hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -150,7 +142,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL PIN ADULTO ================= -->
+  <!-- Modal PIN Adulto -->
   <div id="modalPin" class="app-modal hidden">
     <div class="modal-content" style="width: 440px; text-align: center;">
       <div class="modal-header">
@@ -176,7 +168,7 @@
     </div>
   </div>
 
-  <!-- ================= MODAL CONFIRMAÇÃO DE SAÍDA ================= -->
+  <!-- Modal Confirmação de Saída -->
   <div id="modalExitConfirm" class="app-modal hidden">
     <div class="modal-content" style="width: 480px; text-align: center;">
       <h2 style="margin: 0 0 12px 0;">Sair do MK21 Play?</h2>
