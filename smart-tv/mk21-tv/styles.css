@@ -1,14 +1,23 @@
-/* MK21 PLAY — Smart TV OTT/IPTV UI (Clone Premium Vizzion Play para LG webOS 1080p/4K) */
+/* ============================================================
+   MK21 PLAY — Clone Completo Vizzion Play para Smart TVs LG webOS
+   Interface 10-Foot UI (1920x1080 / 4K) com Sidebar e Navegação D-Pad
+   ============================================================ */
+
 :root {
   --primary-red: #e50914;
-  --primary-glow: rgba(229, 9, 20, 0.6);
-  --bg-main: radial-gradient(circle at 50% 10%, #151824 0%, #090a0f 80%);
-  --panel-bg: rgba(20, 24, 35, 0.95);
-  --card-bg: #141824;
-  --card-border: rgba(255, 255, 255, 0.08);
+  --primary-hover: #ff1f2d;
+  --bg-dark: #0a0c13;
+  --sidebar-bg: #0f121d;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --panel-bg: #141724;
+  --panel-card: #1a1e2e;
+  --card-border: rgba(255, 255, 255, 0.09);
   --focus-ring: #ffd54f;
+  --focus-bg: #272d42;
   --text-main: #ffffff;
-  --text-muted: #959bb0;
+  --text-muted: #94a3b8;
+  --accent-blue: #0288d1;
+  --accent-purple: #7b1fa2;
 }
 
 * {
@@ -20,7 +29,7 @@
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg-main);
+  background: var(--bg-dark);
   color: var(--text-main);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 20px;
@@ -28,293 +37,371 @@ body {
   height: 100vh;
   width: 100vw;
   display: flex;
-  flex-direction: column;
 }
 
-/* ================= HEADER SUPERIOR ================= */
-header {
-  height: 90px;
-  background: rgba(10, 11, 16, 0.85);
-  backdrop-filter: blur(10px);
-  border-bottom: 2px solid rgba(229, 9, 20, 0.3);
+/* ================= 1. SIDEBAR LATERAL ESQUERDA (ESTILO VIZZION PLAY) ================= */
+.sidebar {
+  width: 280px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 0 40px;
+  padding: 24px 16px;
   flex-shrink: 0;
   z-index: 20;
 }
 
-.brand-container {
+.sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  padding: 0 10px 24px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--sidebar-border);
+  margin-bottom: 14px;
 }
 
 .logo-badge {
   background: linear-gradient(135deg, #e50914, #990000);
-  color: #ffffff;
-  font-size: 26px;
+  color: #fff;
+  font-size: 24px;
   font-weight: 900;
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 8px;
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 16px rgba(229, 9, 20, 0.6);
   letter-spacing: 1px;
 }
 
-.brand-text {
-  font-size: 30px;
-  font-weight: 900;
+.logo-text {
+  font-size: 24px;
+  font-weight: 800;
   letter-spacing: 0.5px;
 }
 
-.brand-text span {
+.logo-text span {
   color: var(--primary-red);
 }
 
-.header-center-info {
+.sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
-.info-pill {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 16px;
-  color: #cbd5e1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.info-pill strong {
-  color: #ffffff;
-}
-
-.server-btn {
-  background: #1c2130;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  padding: 8px 20px;
-  font-size: 17px;
-  font-weight: 700;
+.nav-item-btn {
+  width: 100%;
+  padding: 13px 16px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 19px;
+  font-weight: 600;
+  text-align: left;
   cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 14px;
+  transition: all 0.15s ease-in-out;
+}
+
+.nav-item-btn .nav-icon {
+  font-size: 22px;
+  width: 26px;
+  text-align: center;
+}
+
+.nav-item-btn.active {
+  background: rgba(229, 9, 20, 0.2);
+  color: #ffffff;
+  border-color: rgba(229, 9, 20, 0.5);
+  font-weight: 700;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.header-actions {
+.account-badge-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #a0aec0;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-badge-btn strong {
+  display: block;
+  font-size: 14px;
+  color: #4caf50;
+  margin-bottom: 2px;
+}
+
+/* ================= 2. ÁREA DE CONTEÚDO PRINCIPAL ================= */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* TOP STATUS BAR */
+.top-status-bar {
+  height: 60px;
+  background: rgba(15, 18, 29, 0.7);
+  border-bottom: 1px solid var(--sidebar-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 35px;
+  font-size: 16px;
+}
+
+.top-pills {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.btn-header {
-  background: #191c28;
+.pill-info {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.pill-info strong {
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 17px;
+}
+
+.server-quick-btn {
+  background: #1e2436;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
-.btn-header.unlocked {
-  background: #2e7d32;
-  border-color: #4caf50;
-}
-
-.digital-clock {
-  font-size: 24px;
+.clock-live {
+  font-size: 20px;
   font-weight: 800;
   color: #ffd54f;
-  min-width: 140px;
-  text-align: right;
+  letter-spacing: 1px;
 }
 
-/* ================= VIEW 1: HOME DASHBOARD (ESTILO VIZZION PLAY) ================= */
-#viewHome {
+/* ================= 3. TELA INÍCIO (HOME COM CARROSSEL INFINITO) ================= */
+.view-container {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 40px 60px 25px;
-}
-
-.home-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.home-welcome h2 {
-  font-size: 38px;
-  font-weight: 800;
-  margin: 0 0 6px 0;
-  color: #ffffff;
-}
-
-.home-welcome p {
-  font-size: 20px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.home-status-card {
-  background: rgba(229, 9, 20, 0.15);
-  border: 1px solid rgba(229, 9, 20, 0.4);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-size: 18px;
-  color: #ff9e9e;
-  font-weight: 600;
-}
-
-/* 4 CARDS PRINCIPAIS DO VIZZION PLAY */
-.home-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 30px;
-  margin: 30px 0;
-  align-items: stretch;
-}
-
-.vizzion-card {
-  position: relative;
-  height: 380px;
-  border-radius: 20px;
-  padding: 30px 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  cursor: pointer;
   overflow: hidden;
-  border: 2px solid transparent;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
-.card-tv {
-  background: linear-gradient(145deg, #1b2030, #10121d);
-  border-color: rgba(229, 9, 20, 0.3);
+#viewHome {
+  padding: 24px 35px;
+  gap: 20px;
+  overflow-y: auto;
 }
 
-.card-movies {
-  background: linear-gradient(145deg, #182338, #0e1524);
-  border-color: rgba(2, 136, 209, 0.3);
+/* CARROSSEL INFINITO DE DESTAQUES */
+.hero-carousel {
+  position: relative;
+  width: 100%;
+  height: 310px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-end;
+  padding: 30px;
+  background-size: cover;
+  background-position: center;
 }
 
-.card-series {
-  background: linear-gradient(145deg, #241a33, #150f21);
-  border-color: rgba(156, 39, 176, 0.3);
+.hero-carousel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to top, rgba(9, 10, 16, 0.95) 15%, rgba(9, 10, 16, 0.3) 70%, transparent);
 }
 
-.card-favs {
-  background: linear-gradient(145deg, #282017, #19130d);
-  border-color: rgba(245, 124, 0, 0.3);
+.hero-info {
+  position: relative;
+  z-index: 2;
+  max-width: 65%;
 }
 
-.card-glow-badge {
-  width: 70px;
-  height: 70px;
-  border-radius: 18px;
+.hero-tag {
+  background: var(--primary-red);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.hero-title {
+  margin: 0 0 8px 0;
+  font-size: 38px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+}
+
+.hero-desc {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #cbd5e1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-btn {
+  padding: 12px 28px;
+  background: var(--primary-red);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 3 GRANDES CARDS DO DASHBOARD */
+.home-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.dash-card {
+  height: 240px;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s ease;
+}
+
+.dash-card.card-tv {
+  background: linear-gradient(135deg, #1f2538, #111420);
+  border-color: rgba(229, 9, 20, 0.4);
+}
+
+.dash-card.card-movies {
+  background: linear-gradient(135deg, #1b263b, #0e1624);
+  border-color: rgba(2, 136, 209, 0.4);
+}
+
+.dash-card.card-series {
+  background: linear-gradient(135deg, #271d36, #150f21);
+  border-color: rgba(123, 31, 162, 0.4);
+}
+
+.dash-card-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
-}
-
-.card-tv .card-glow-badge {
-  background: rgba(229, 9, 20, 0.2);
-  color: #ff4d4d;
-}
-
-.card-movies .card-glow-badge {
-  background: rgba(2, 136, 209, 0.2);
-  color: #29b6f6;
-}
-
-.card-series .card-glow-badge {
-  background: rgba(156, 39, 176, 0.2);
-  color: #ba68c8;
-}
-
-.card-favs .card-glow-badge {
-  background: rgba(245, 124, 0, 0.2);
-  color: #ffb74d;
-}
-
-.card-content h3 {
   font-size: 32px;
-  font-weight: 900;
-  margin: 0 0 10px 0;
-  color: #ffffff;
 }
 
-.card-content p {
-  font-size: 19px;
+.dash-card.card-tv .dash-card-icon { background: rgba(229, 9, 20, 0.2); }
+.dash-card.card-movies .dash-card-icon { background: rgba(2, 136, 209, 0.2); }
+.dash-card.card-series .dash-card-icon { background: rgba(123, 31, 162, 0.2); }
+
+.dash-card h3 {
+  margin: 0 0 6px 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.dash-card p {
+  margin: 0;
+  font-size: 16px;
   color: var(--text-muted);
-  margin: 0 0 18px 0;
 }
 
-.card-stats {
+.dash-badge {
   background: rgba(0, 0, 0, 0.4);
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-size: 17px;
-  font-weight: 700;
-  display: inline-block;
   color: #ffd54f;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  align-self: flex-start;
 }
 
-/* ================= VIEW 2: TELA DE CANAIS (AO VIVO) ================= */
+/* ================= 4. TELA TV AO VIVO (COM MINI-PLAYER & EPG) ================= */
 #viewChannels {
-  flex: 1;
   display: grid;
   grid-template-columns: 24% 36% 40%;
   gap: 16px;
   padding: 16px 25px;
-  height: calc(100vh - 90px);
+  height: 100%;
 }
 
-.pane-card {
+.pane {
   background: var(--panel-bg);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.pane-header {
-  padding: 14px 20px;
+.pane-title {
+  padding: 14px 18px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid var(--card-border);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.pane-badge {
+.badge-counter {
   background: rgba(229, 9, 20, 0.25);
   color: #ff6b72;
-  font-size: 15px;
-  padding: 3px 12px;
-  border-radius: 12px;
+  font-size: 14px;
+  padding: 2px 10px;
+  border-radius: 10px;
 }
 
-.cat-list, .ch-list {
+.list-scroll {
   list-style: none;
   margin: 0;
   padding: 8px;
@@ -322,49 +409,48 @@ header {
   flex: 1;
 }
 
-.cat-item-btn, .ch-item-btn {
+.list-scroll li {
+  margin-bottom: 6px;
+}
+
+.item-btn {
   width: 100%;
-  padding: 14px 18px;
-  background: #171b26;
-  color: #ffffff;
+  padding: 12px 16px;
+  background: #171b28;
+  color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  text-align: left;
-  font-size: 20px;
+  border-radius: 8px;
+  font-size: 19px;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
 }
 
-.cat-item-btn.active {
-  background: rgba(229, 9, 20, 0.3);
-  border-color: var(--primary-red);
-}
-
-.ch-item-btn.active {
+.item-btn.active {
   background: #8b060d;
   border-color: var(--primary-red);
 }
 
-/* MINI-PLAYER NA TELA DE CANAIS */
-.player-pane {
+/* PLAYER & EPG PANE */
+.player-container {
   display: flex;
   flex-direction: column;
+  padding: 14px;
   gap: 14px;
-  padding: 12px;
 }
 
-.player-box {
+.video-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
 }
 
 video {
@@ -373,19 +459,19 @@ video {
   background: #000;
 }
 
-.player-details {
-  background: #161924;
-  border-radius: 12px;
-  padding: 18px 22px;
+.epg-card {
+  background: #171b28;
+  border-radius: 10px;
+  padding: 16px 20px;
   border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-.playing-title {
+.epg-now-title {
   margin: 0;
-  font-size: 25px;
+  font-size: 22px;
   font-weight: 800;
   color: #ffd54f;
   white-space: nowrap;
@@ -393,118 +479,219 @@ video {
   text-overflow: ellipsis;
 }
 
-.playing-category {
-  margin: 0;
-  font-size: 18px;
+.epg-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+.epg-progress {
+  width: 45%;
+  height: 100%;
+  background: var(--primary-red);
+}
+
+.epg-time {
+  font-size: 15px;
   color: var(--text-muted);
 }
 
-.player-buttons {
+.epg-next {
+  font-size: 15px;
+  color: #a0aec0;
+}
+
+/* ================= 5. TELA DE CONFIGURAÇÕES (CLONE EXATO VIZZION PLAY) ================= */
+#viewSettings {
+  display: grid;
+  grid-template-columns: 35% 65%;
+  gap: 20px;
+  padding: 25px 40px;
+  height: 100%;
+}
+
+.settings-menu {
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setting-opt-btn {
+  width: 100%;
+  padding: 14px 18px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 19px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
-.player-btn {
-  flex: 1;
-  padding: 14px;
-  background: #252a38;
+.setting-opt-btn.active {
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.player-btn.primary {
-  background: var(--primary-red);
-  border-color: var(--primary-red);
-}
-
-/* ================= VIEW 3: FILMES E SÉRIES (VOD GRID) ================= */
-#viewVod {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 20px 40px;
-  height: calc(100vh - 90px);
-}
-
-.vod-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.vod-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
+.settings-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 30px;
   overflow-y: auto;
-  flex: 1;
-  padding-right: 10px;
 }
 
-.vod-card {
-  background: #171a26;
-  border-radius: 12px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.settings-section-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 20px 0;
+  color: #ffffff;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 12px;
 }
 
-.vod-poster {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 8px;
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.info-item {
+  background: #1a1e2d;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.info-label {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.info-val {
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* RELÓGIO FLIP CLOCK */
+.time-clock-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  gap: 16px;
+  padding: 30px;
+}
+
+.flip-digit {
+  background: #1a1e2d;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  font-size: 70px;
+  font-weight: 900;
+  padding: 20px 30px;
+  color: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.flip-dots {
+  font-size: 60px;
+  font-weight: 900;
   color: #ffd54f;
 }
 
-.vod-title {
-  font-size: 18px;
+/* ================= 6. TELA DE LISTAS E SERVIDORES ================= */
+#viewLists {
+  padding: 25px 40px;
+  overflow-y: auto;
+  gap: 20px;
+}
+
+.servers-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.server-card-btn {
+  padding: 20px;
+  background: #171b28;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.vod-group {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
+.server-card-btn.active-server {
+  border-color: var(--primary-red);
+  background: rgba(229, 9, 20, 0.2);
 }
 
-/* ================= FOCO DO CONTROLE REMOTO (D-PAD LG WEBOS) ================= */
+.server-tag {
+  font-size: 13px;
+  color: #ffd54f;
+  background: rgba(255, 213, 79, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+/* MODAL DE LISTA MANUAL */
+.manual-box {
+  background: #171b28;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  margin-top: 20px;
+}
+
+.manual-box input {
+  width: 100%;
+  padding: 14px 18px;
+  background: #10121b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 18px;
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
+/* ================= 7. FOCO DO CONTROLE REMOTO (D-PAD LG WEBOS) ================= */
 :focus,
 .tv-focus {
   outline: 4px solid var(--focus-ring) !important;
-  outline-offset: 2px;
+  outline-offset: 1px;
   box-shadow: 0 0 25px rgba(255, 213, 79, 0.9) !important;
-  transform: scale(1.03);
+  transform: scale(1.02);
   z-index: 10;
 }
 
-/* ================= MODAL DE SERVIDORES ================= */
-.modal-overlay {
+/* MODAL CONFIRMAÇÃO SAÍDA */
+.confirm-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.88);
   display: flex;
   align-items: center;
@@ -512,117 +699,40 @@ video {
   z-index: 100;
 }
 
-.modal-card {
-  background: #141724;
+.confirm-card {
+  background: #151824;
   border: 2px solid rgba(229, 9, 20, 0.6);
   border-radius: 16px;
-  width: 640px;
-  max-width: 90vw;
+  width: 500px;
   padding: 28px;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95);
+  text-align: center;
 }
 
-.modal-header {
-  font-size: 26px;
-  font-weight: 800;
-  color: #ffffff;
-  margin-bottom: 20px;
+.confirm-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
 }
 
-.server-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-
-.server-pick-btn {
-  padding: 16px;
-  background: #1c2130;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+.btn-confirm {
+  flex: 1;
+  padding: 14px;
   font-size: 19px;
   font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.server-pick-btn.selected {
-  background: rgba(229, 9, 20, 0.35);
-  border-color: var(--primary-red);
-}
-
-/* ================= MODAL PIN ADULTO ================= */
-.pin-screen {
-  font-size: 42px;
-  letter-spacing: 14px;
-  text-align: center;
-  padding: 12px;
-  background: #000;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  margin: 18px 0;
-  color: #ffd54f;
-  min-height: 70px;
-}
-
-.pin-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  width: 300px;
-  margin: 0 auto 16px;
-}
-
-.key-btn {
-  padding: 14px;
-  font-size: 26px;
-  font-weight: 800;
-  background: #202534;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
+  border: none;
   cursor: pointer;
 }
 
-/* ================= BARRA DE AJUDA / BOTÕES COLORIDOS DO CONTROLE LG ================= */
-.remote-help-bar {
-  height: 50px;
-  background: rgba(10, 12, 18, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 40px;
-  font-size: 16px;
-  color: #94a3b8;
-  flex-shrink: 0;
+.btn-confirm.danger {
+  background: var(--primary-red);
+  color: #fff;
 }
 
-.help-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.btn-confirm.cancel {
+  background: #272c3d;
+  color: #fff;
 }
-
-.color-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.color-dot.red { background: #e50914; }
-.color-dot.green { background: #4caf50; }
-.color-dot.yellow { background: #ffeb3b; }
-.color-dot.blue { background: #2196f3; }
 
 .hidden {
   display: none !important;
