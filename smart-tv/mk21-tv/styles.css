@@ -1,245 +1,481 @@
-/* MK21 TV — 10-Foot UI Stylesheet para Smart TVs LG (webOS 1080p / 4K) */
+/* MK21 TV — Smart TV 10-Foot UI (Padrão APK MK21 / XCIPTV para LG webOS) */
 * {
   box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:root {
+  --primary-red: #e50914;
+  --primary-hover: #ff1f2d;
+  --bg-dark: #0a0b10;
+  --panel-bg: #12141c;
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --focus-ring: #ffd54f;
+  --text-main: #ffffff;
+  --text-muted: #959bb0;
 }
 
 body {
   margin: 0;
-  padding: 30px 45px;
-  background: #08090c;
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  font-size: 26px;
-  line-height: 1.4;
+  padding: 0;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 20px;
   overflow: hidden;
   height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
 }
 
+/* TOP BAR */
 header {
+  height: 80px;
+  background: #0f1118;
+  border-bottom: 2px solid rgba(229, 9, 20, 0.35);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  padding: 0 35px;
+  flex-shrink: 0;
+  z-index: 10;
 }
 
-h1 {
-  margin: 0;
-  font-size: 46px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #e50914;
-  text-shadow: 0 4px 14px rgba(229, 9, 20, 0.4);
-}
-
-.badge {
-  background: #e50914;
-  color: #fff;
-  font-size: 16px;
-  padding: 4px 12px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  font-weight: bold;
-  vertical-align: middle;
-  margin-left: 14px;
-}
-
-.row {
+.logo-area {
   display: flex;
-  gap: 16px;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
 }
 
-input, button {
-  font-family: inherit;
-  font-size: 24px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  outline: none;
-  transition: all 0.15s ease-in-out;
+.brand-badge {
+  background: var(--primary-red);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+  padding: 6px 14px;
+  border-radius: 8px;
+  letter-spacing: 1px;
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6);
 }
 
-input {
-  flex: 1;
-  padding: 16px 24px;
-  background: #14161d;
+.brand-title {
+  font-size: 28px;
+  font-weight: 800;
   color: #ffffff;
+  letter-spacing: 0.5px;
 }
 
-input::placeholder {
-  color: #717686;
+.brand-title span {
+  color: var(--primary-red);
 }
 
-input:focus {
-  border-color: #ffd54f;
-  background: #1d202b;
-  box-shadow: 0 0 16px rgba(255, 213, 79, 0.5);
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-button {
-  padding: 16px 36px;
-  background: #e50914;
+.server-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.server-select-btn {
+  background: #1c202c;
   color: #ffffff;
-  font-weight: bold;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 20px;
+  font-weight: 700;
   cursor: pointer;
-  border: none;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
   gap: 10px;
 }
 
-button:hover, button:focus {
-  background: #ff1f2d;
-  outline: 4px solid #ffd54f;
-  box-shadow: 0 0 20px rgba(255, 213, 79, 0.7);
-  transform: scale(1.02);
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-.btn-secondary {
-  background: #252833;
+.lock-btn {
+  background: #1f2330;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.btn-secondary:hover, .btn-secondary:focus {
-  background: #353a4a;
+.lock-btn.unlocked {
+  background: #2e7d32;
+  border-color: #4caf50;
 }
 
-#status {
-  margin: 6px 0 16px 0;
-  font-size: 20px;
+.status-badge {
+  font-size: 16px;
   color: #9ea4b5;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 14px;
+  border-radius: 6px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* Grade Principal da TV */
-.layout {
+/* 3-COLUMN MAIN LAYOUT */
+.main-content {
+  flex: 1;
   display: grid;
-  grid-template-columns: 45% 1fr;
-  gap: 28px;
-  height: calc(100vh - 250px);
+  grid-template-columns: 24% 36% 40%;
+  gap: 16px;
+  padding: 16px 25px;
+  overflow: hidden;
+  height: calc(100vh - 80px);
 }
 
-.panel {
-  background: #11131a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 20px;
+.column-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Painel de Canais */
-.search-box {
-  margin-bottom: 14px;
-}
-
-.search-box input {
-  width: 100%;
+.col-header {
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--panel-border);
   font-size: 20px;
-  padding: 12px 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
 }
 
-#channels {
+.col-header .count-badge {
+  background: rgba(229, 9, 20, 0.2);
+  color: #ff6b72;
+  font-size: 15px;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+/* COLUNA 1: CATEGORIAS */
+.categories-list {
   list-style: none;
   margin: 0;
-  padding: 4px;
+  padding: 8px;
   overflow-y: auto;
   flex: 1;
 }
 
-#channels li {
-  margin-bottom: 8px;
+.categories-list li {
+  margin-bottom: 6px;
 }
 
-#channels button {
+.cat-btn {
   width: 100%;
-  padding: 16px 20px;
-  background: #181a24;
-  color: #e4e6eb;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
+  padding: 14px 16px;
+  background: #181b24;
+  color: #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
   text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 600;
-}
-
-#channels button .cat-tag {
-  font-size: 15px;
-  font-weight: normal;
-  color: #ff9800;
-  background: rgba(255, 152, 0, 0.15);
-  padding: 2px 8px;
-  border-radius: 4px;
-  align-self: flex-start;
-}
-
-#channels button:focus,
-#channels button:hover {
-  background: #e50914;
-  color: #ffffff;
-  outline: 4px solid #ffd54f;
-  box-shadow: 0 0 18px rgba(255, 213, 79, 0.8);
-  transform: translateX(6px);
-}
-
-#channels button:focus .cat-tag,
-#channels button:hover .cat-tag {
-  color: #ffffff;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-/* Painel do Player */
-.player-panel {
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: space-between;
 }
 
-.video-container {
-  position: relative;
+.cat-btn.active {
+  background: rgba(229, 9, 20, 0.25);
+  border-color: var(--primary-red);
+  color: #ffffff;
+}
+
+.cat-count {
+  font-size: 14px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* COLUNA 2: CANAIS */
+.search-container {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.search-input {
   width: 100%;
+  padding: 12px 16px;
+  background: #1a1d27;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 18px;
+  outline: none;
+}
+
+.channels-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
   flex: 1;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
+}
+
+.channels-list li {
+  margin-bottom: 6px;
+}
+
+.ch-btn {
+  width: 100%;
+  padding: 14px 16px;
+  background: #181b24;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  text-align: left;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ch-btn.active-channel {
+  background: #8b060d;
+  border-color: var(--primary-red);
+}
+
+.ch-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+}
+
+.ch-group-tag {
+  font-size: 13px;
+  color: #ffb74d;
+  background: rgba(255, 183, 77, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* COLUNA 3: PLAYER DE VÍDEO */
+.player-column {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 14px;
+}
+
+.video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 video {
   width: 100%;
   height: 100%;
-  max-height: 100%;
   background: #000;
-  outline: none;
+  display: block;
 }
 
-.player-info {
-  margin-top: 14px;
+.video-overlay-channel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 17px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.player-details {
+  background: #171922;
+  border-radius: 10px;
+  padding: 16px 20px;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.playing-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffd54f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playing-subtitle {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+.player-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.act-btn {
+  flex: 1;
+  padding: 14px 18px;
+  background: #252836;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.act-btn.primary {
+  background: var(--primary-red);
+  border-color: var(--primary-red);
+}
+
+/* FOCO DO CONTROLE REMOTO (D-PAD / MAGIC REMOTE) - CRÍTICO */
+:focus,
+.tv-focused {
+  outline: 4px solid var(--focus-ring) !important;
+  outline-offset: 1px;
+  box-shadow: 0 0 22px rgba(255, 213, 79, 0.8) !important;
+  transform: scale(1.02);
+  z-index: 5;
+}
+
+/* MODAL DE SERVIDORES */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #151821;
+  border: 2px solid rgba(229, 9, 20, 0.5);
+  border-radius: 14px;
+  width: 600px;
+  max-width: 90vw;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+}
+
+.modal-header {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-#playing {
-  font-size: 26px;
-  font-weight: bold;
-  color: #ffd54f;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 75%;
+.server-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.fullscreen-btn {
-  font-size: 18px;
-  padding: 10px 20px;
+.server-item-btn {
+  padding: 16px;
+  background: #1e222e;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.server-item-btn.selected {
+  background: rgba(229, 9, 20, 0.3);
+  border-color: var(--primary-red);
+}
+
+/* MODAL DE PIN ADULTO */
+.pin-display {
+  font-size: 40px;
+  letter-spacing: 12px;
+  text-align: center;
+  padding: 14px;
+  background: #000;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #ffd54f;
+  min-height: 70px;
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 280px;
+  margin: 0 auto 16px;
+}
+
+.key-btn {
+  padding: 14px;
+  font-size: 24px;
+  font-weight: 800;
+  background: #232734;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none !important;
 }

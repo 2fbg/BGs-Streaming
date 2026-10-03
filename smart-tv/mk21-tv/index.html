@@ -9,37 +9,121 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
+  <!-- HEADER / BARRA SUPERIOR -->
   <header>
-    <div>
-      <h1>MK21 TV <span class="badge">webOS</span></h1>
+    <div class="logo-area">
+      <span class="brand-badge">MK21</span>
+      <span class="brand-title">TV <span>STREAMING</span></span>
+    </div>
+
+    <div class="header-center">
+      <span class="server-label">Servidor Ativo:</span>
+      <button id="btnOpenServers" class="server-select-btn" tabindex="0">
+        <span id="currentServerName">🟢 VLOG</span>
+        <span style="font-size: 14px; opacity: 0.7;">▼ (Trocar)</span>
+      </button>
+    </div>
+
+    <div class="header-right">
+      <button id="btnAdultLock" class="lock-btn" tabindex="0">
+        <span id="lockIcon">🔒</span>
+        <span id="lockText">Adulto (Bloqueado)</span>
+      </button>
+      <div id="statusBadge" class="status-badge">Carregando canais...</div>
     </div>
   </header>
 
-  <div class="row">
-    <input id="url" type="url" placeholder="Informe a URL da Playlist M3U">
-    <button id="load">Carregar Canais</button>
-  </div>
-  
-  <p id="status">Carregando canais...</p>
-
-  <div class="layout">
-    <div class="panel">
-      <div class="search-box">
-        <input id="filter" type="text" placeholder="🔍 Filtrar canal ou categoria...">
+  <!-- CONTEÚDO PRINCIPAL EM 3 COLUNAS (PADRÃO APK MK21) -->
+  <main class="main-content">
+    
+    <!-- COLUNA 1: CATEGORIAS -->
+    <section class="column-card" id="colCategories">
+      <div class="col-header">
+        <span>📁 Categorias</span>
+        <span id="catTotalBadge" class="count-badge">0</span>
       </div>
-      <ul id="channels">
-        <li><button disabled>Nenhum canal carregado. Clique em "Carregar Canais".</button></li>
+      <ul id="categoriesList" class="categories-list">
+        <li><button class="cat-btn active" tabindex="0">Carregando categorias...</button></li>
       </ul>
-    </div>
+    </section>
 
-    <div class="panel player-panel">
-      <div class="video-container" id="videoWrapper">
+    <!-- COLUNA 2: CANAIS -->
+    <section class="column-card" id="colChannels">
+      <div class="col-header">
+        <span id="currentCatTitle">📺 Todos os Canais</span>
+        <span id="channelsCountBadge" class="count-badge">0</span>
+      </div>
+      <div class="search-container">
+        <input id="searchInput" type="text" class="search-input" placeholder="🔍 Filtrar canal pelo nome..." tabindex="0">
+      </div>
+      <ul id="channelsList" class="channels-list">
+        <li><button class="ch-btn" disabled>Aguarde o carregamento...</button></li>
+      </ul>
+    </section>
+
+    <!-- COLUNA 3: PLAYER DE VÍDEO & CONTROLES -->
+    <section class="column-card player-column" id="colPlayer">
+      <div class="video-frame" id="videoFrame">
         <video id="player" controls playsinline></video>
+        <div id="videoOverlay" class="video-overlay-channel hidden">Animal Planet FHD</div>
       </div>
-      <div class="player-info">
-        <p id="playing">Selecione um canal para assistir.</p>
-        <button id="btnFullscreen" class="fullscreen-btn">⛶ Tela Cheia</button>
+
+      <div class="player-details">
+        <div>
+          <h2 id="nowPlayingTitle" class="playing-title">Selecione um canal</h2>
+          <p id="nowPlayingSubtitle" class="playing-subtitle">Navegue pelas categorias e canais</p>
+        </div>
+
+        <div class="player-actions">
+          <button id="btnFullscreen" class="act-btn primary" tabindex="0">⛶ Tela Cheia</button>
+          <button id="btnPlayPause" class="act-btn" tabindex="0">⏯ Pausar</button>
+          <button id="btnReloadStream" class="act-btn" tabindex="0">🔄 Recarregar</button>
+        </div>
       </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL SELETOR DE SERVIDORES (7 SERVIDORES MK21) -->
+  <div id="serverModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Selecionar Servidor MK21</span>
+        <button id="btnCloseServerModal" class="act-btn" style="padding: 6px 14px; font-size: 16px;" tabindex="0">✕ Fechar</button>
+      </div>
+      <div id="serverGrid" class="server-grid">
+        <!-- Servidores renderizados via JS -->
+      </div>
+      <p style="font-size: 16px; color: #888; margin: 0;">Dica: Selecione com o controle remoto e aperte OK para conectar.</p>
+    </div>
+  </div>
+
+  <!-- MODAL DE PIN PARA CONTEÚDO ADULTO (+18) -->
+  <div id="pinModal" class="modal-overlay hidden">
+    <div class="modal-card" style="width: 440px; text-align: center;">
+      <div class="modal-header">
+        <span>🔒 Bloqueio Parental (18+)</span>
+        <button id="btnClosePinModal" class="act-btn" style="padding: 6px 14px; font-size: 16px;" tabindex="0">✕</button>
+      </div>
+      <p style="font-size: 18px; color: #bbb; margin: 0 0 10px;">Digite a senha de 4 dígitos para liberar os canais adultos (Padrão: 0000):</p>
+      
+      <div id="pinDisplay" class="pin-display">----</div>
+
+      <div class="pin-keypad">
+        <button class="key-btn" data-key="1" tabindex="0">1</button>
+        <button class="key-btn" data-key="2" tabindex="0">2</button>
+        <button class="key-btn" data-key="3" tabindex="0">3</button>
+        <button class="key-btn" data-key="4" tabindex="0">4</button>
+        <button class="key-btn" data-key="5" tabindex="0">5</button>
+        <button class="key-btn" data-key="6" tabindex="0">6</button>
+        <button class="key-btn" data-key="7" tabindex="0">7</button>
+        <button class="key-btn" data-key="8" tabindex="0">8</button>
+        <button class="key-btn" data-key="9" tabindex="0">9</button>
+        <button class="key-btn" data-key="C" style="background:#5c1d1d;" tabindex="0">Limpar</button>
+        <button class="key-btn" data-key="0" tabindex="0">0</button>
+        <button class="key-btn" data-key="OK" style="background:#1b5e20;" tabindex="0">OK</button>
+      </div>
+      <p id="pinError" style="color: #ff5252; font-size: 16px; min-height: 20px; margin: 0;"></p>
     </div>
   </div>
 

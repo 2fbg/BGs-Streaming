@@ -1,10 +1,10 @@
 {
   "id": "org.mk21.tv",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "vendor": "MK21",
   "type": "web",
   "main": "index.html",
-  "title": "MK21 TV",
+  "title": "MK21 TV Streaming",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
   "splashBackground": "splash.png",
