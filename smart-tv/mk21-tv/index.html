@@ -3,114 +3,182 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=1920, user-scalable=no">
-  <title>MK21 TV</title>
+  <title>MK21 Play</title>
   <link rel="stylesheet" href="styles.css">
-  <!-- HLS.js para reprodução garantida de transmissões .m3u8 no LG webOS -->
+  <!-- HLS.js para reprodução de streams na Smart TV LG webOS -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
-  <!-- HEADER / BARRA SUPERIOR -->
+
+  <!-- ================= HEADER SUPERIOR ================= -->
   <header>
-    <div class="logo-area">
-      <span class="brand-badge">MK21</span>
-      <span class="brand-title">TV <span>STREAMING</span></span>
+    <div class="brand-container">
+      <span class="logo-badge">MK21</span>
+      <span class="brand-text">PLAY <span>OTT</span></span>
     </div>
 
-    <div class="header-center">
-      <span class="server-label">Servidor:</span>
-      <button id="btnOpenServers" class="server-select-btn" tabindex="0">
-        <span id="currentServerName">🟢 VLOG</span>
-        <span style="font-size: 14px; opacity: 0.7;">▼ (Trocar)</span>
-      </button>
-      <button id="btnRefreshList" class="act-btn" style="padding: 10px 16px; font-size: 17px;" title="Atualizar canais agora" tabindex="0">
-        🔄 Atualizar
+    <div class="header-center-info">
+      <div class="info-pill">
+        <span>👤 Usuário:</span>
+        <strong id="userAccount">601334065</strong>
+      </div>
+      <div class="info-pill">
+        <span>🗓️ Vencimento:</span>
+        <strong style="color: #4caf50;">15/03/2027</strong>
+      </div>
+      <button id="btnHeaderServer" class="server-btn" tabindex="0">
+        <span id="headerServerName">🟢 VLOG</span>
+        <span style="font-size: 13px; opacity: 0.7;">▼</span>
       </button>
     </div>
 
-    <div class="header-right">
-      <button id="btnAdultLock" class="lock-btn" tabindex="0">
-        <span id="lockIcon">🔒</span>
-        <span id="lockText">Adulto (Bloqueado)</span>
+    <div class="header-actions">
+      <button id="btnHeaderLock" class="btn-header" tabindex="0">
+        <span id="lockStatusIcon">🔒</span>
+        <span id="lockStatusText">Adulto (Bloqueado)</span>
       </button>
-      <div id="statusBadge" class="status-badge">Carregando canais...</div>
+      <div id="clockDisplay" class="digital-clock">00:00:00</div>
     </div>
   </header>
 
-  <!-- CONTEÚDO PRINCIPAL EM 3 COLUNAS (PADRÃO APK MK21) -->
-  <main class="main-content">
-    
-    <!-- COLUNA 1: CATEGORIAS -->
-    <section class="column-card" id="colCategories">
-      <div class="col-header">
-        <span>📁 Categorias</span>
-        <span id="catTotalBadge" class="count-badge">0</span>
+  <!-- ================= TELA 1: HOME DASHBOARD (VIZZION PLAY) ================= -->
+  <main id="viewHome">
+    <div class="home-hero">
+      <div class="home-welcome">
+        <h2>Bem-vindo ao MK21 Play</h2>
+        <p>Selecione uma opção no controle remoto para iniciar</p>
       </div>
-      <ul id="categoriesList" class="categories-list">
-        <li><button class="cat-btn active" tabindex="0">Carregando categorias...</button></li>
-      </ul>
-    </section>
-
-    <!-- COLUNA 2: CANAIS -->
-    <section class="column-card" id="colChannels">
-      <div class="col-header">
-        <span id="currentCatTitle">📺 Todos os Canais</span>
-        <span id="channelsCountBadge" class="count-badge">0</span>
+      <div id="homeSyncStatus" class="home-status-card">
+        ⚡ Carregando catálogo...
       </div>
-      <div class="search-container">
-        <input id="searchInput" type="text" class="search-input" placeholder="🔍 Filtrar canal pelo nome..." tabindex="0">
-      </div>
-      <ul id="channelsList" class="channels-list">
-        <li><button class="ch-btn" disabled>Aguarde o carregamento...</button></li>
-      </ul>
-    </section>
+    </div>
 
-    <!-- COLUNA 3: PLAYER DE VÍDEO & CONTROLES -->
-    <section class="column-card player-column" id="colPlayer">
-      <div class="video-frame" id="videoFrame">
-        <video id="player" controls playsinline></video>
-        <div id="videoOverlay" class="video-overlay-channel hidden">Animal Planet FHD</div>
-      </div>
-
-      <div class="player-details">
-        <div>
-          <h2 id="nowPlayingTitle" class="playing-title">Selecione um canal</h2>
-          <p id="nowPlayingSubtitle" class="playing-subtitle">Navegue pelas categorias e canais</p>
-        </div>
-
-        <div class="player-actions">
-          <button id="btnFullscreen" class="act-btn primary" tabindex="0">⛶ Tela Cheia</button>
-          <button id="btnPlayPause" class="act-btn" tabindex="0">⏯ Pausar</button>
-          <button id="btnReloadStream" class="act-btn" tabindex="0">🔄 Recarregar Canal</button>
+    <!-- 4 GRANDES CARDS DO VIZZION PLAY -->
+    <div class="home-cards-grid">
+      <!-- CARD 1: TV AO VIVO -->
+      <div id="cardLiveTv" class="vizzion-card card-tv" tabindex="0">
+        <div class="card-glow-badge">📺</div>
+        <div class="card-content">
+          <h3>TV AO VIVO</h3>
+          <p>Canais abertos, esportes, notícias e entretenimento ao vivo.</p>
+          <div id="tvCountBadge" class="card-stats">Carregando...</div>
         </div>
       </div>
-    </section>
 
+      <!-- CARD 2: FILMES -->
+      <div id="cardMovies" class="vizzion-card card-movies" tabindex="0">
+        <div class="card-glow-badge">🎬</div>
+        <div class="card-content">
+          <h3>FILMES (VOD)</h3>
+          <p>Lançamentos, clássicos e acervo sob demanda em Full HD e 4K.</p>
+          <div id="moviesCountBadge" class="card-stats">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- CARD 3: SÉRIES -->
+      <div id="cardSeries" class="vizzion-card card-series" tabindex="0">
+        <div class="card-glow-badge">🍿</div>
+        <div class="card-content">
+          <h3>SÉRIES</h3>
+          <p>Temporadas completas e episódios atualizados.</p>
+          <div id="seriesCountBadge" class="card-stats">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- CARD 4: FAVORITOS -->
+      <div id="cardFavs" class="vizzion-card card-favs" tabindex="0">
+        <div class="card-glow-badge">⭐</div>
+        <div class="card-content">
+          <h3>FAVORITOS</h3>
+          <p>Seus canais e conteúdos marcados para acesso rápido.</p>
+          <div id="favsCountBadge" class="card-stats">0 Marcados</div>
+        </div>
+      </div>
+    </div>
+
+    <div></div>
   </main>
 
-  <!-- MODAL SELETOR DE SERVIDORES (7 SERVIDORES MK21) -->
-  <div id="serverModal" class="modal-overlay hidden">
+  <!-- ================= TELA 2: CANAIS AO VIVO (3 COLUNAS) ================= -->
+  <section id="viewChannels" class="hidden">
+    <!-- COLUNA 1: CATEGORIAS -->
+    <div class="pane-card">
+      <div class="pane-header">
+        <span>📁 Categorias</span>
+        <span id="catCountBadge" class="pane-badge">0</span>
+      </div>
+      <ul id="liveCategoriesList" class="cat-list"></ul>
+    </div>
+
+    <!-- COLUNA 2: CANAIS -->
+    <div class="pane-card">
+      <div class="pane-header">
+        <span id="activeCategoryTitle">📺 Todos os Canais</span>
+        <span id="channelCountBadge" class="pane-badge">0</span>
+      </div>
+      <div style="padding: 10px; background: rgba(0,0,0,0.2);">
+        <input id="channelSearchInput" type="text" placeholder="🔍 Filtrar canal..." style="width: 100%; padding: 12px; background: #1a1e2b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 18px;" tabindex="0">
+      </div>
+      <ul id="liveChannelsList" class="ch-list"></ul>
+    </div>
+
+    <!-- COLUNA 3: MINI-PLAYER -->
+    <div class="pane-card player-pane">
+      <div class="player-box">
+        <video id="player" controls playsinline></video>
+      </div>
+      <div class="player-details">
+        <h3 id="currentStreamTitle" class="playing-title">Selecione um canal</h3>
+        <p id="currentStreamCategory" class="playing-category">Navegue pelas categorias e canais</p>
+        <div class="player-buttons">
+          <button id="btnPlayerFullscreen" class="player-btn primary" tabindex="0">⛶ Tela Cheia</button>
+          <button id="btnPlayerPause" class="player-btn" tabindex="0">⏯ Pausar</button>
+          <button id="btnPlayerFav" class="player-btn" tabindex="0">⭐ Favoritar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TELA 3: FILMES E SÉRIES (VOD GRID) ================= -->
+  <section id="viewVod" class="hidden">
+    <div class="vod-header">
+      <h2 id="vodScreenTitle" style="margin: 0; font-size: 32px; font-weight: 800;">🎬 Filmes Sob Demanda</h2>
+      <button id="btnBackFromVod" class="btn-header" tabindex="0">⮌ Voltar ao Início</button>
+    </div>
+    <div id="vodGrid" class="vod-grid"></div>
+  </section>
+
+  <!-- ================= BARRA DE AJUDA DO CONTROLE LG ================= -->
+  <footer class="remote-help-bar">
+    <div class="help-item"><span class="color-dot red"></span> <span>Trocar Servidor</span></div>
+    <div class="help-item"><span class="color-dot green"></span> <span>Atualizar Lista</span></div>
+    <div class="help-item"><span class="color-dot yellow"></span> <span>Favoritar</span></div>
+    <div class="help-item"><span class="color-dot blue"></span> <span>Bloqueio Adulto (+18)</span></div>
+    <div class="help-item"><span>⮌ <strong>Voltar:</strong> Menu Anterior</span></div>
+  </footer>
+
+  <!-- ================= MODAL SELETOR DE SERVIDORES ================= -->
+  <div id="serverPickerModal" class="modal-overlay hidden">
     <div class="modal-card">
       <div class="modal-header">
         <span>Selecionar Servidor MK21</span>
-        <button id="btnCloseServerModal" class="act-btn" style="padding: 6px 14px; font-size: 16px;" tabindex="0">✕ Fechar</button>
+        <button id="btnCloseServerPicker" class="btn-header" style="padding: 6px 14px;" tabindex="0">✕</button>
       </div>
-      <div id="serverGrid" class="server-grid">
-        <!-- Servidores renderizados via JS -->
-      </div>
-      <p style="font-size: 16px; color: #888; margin: 0;">Dica: Cada servidor possui seu próprio cache ultra-rápido salvo na Smart TV.</p>
+      <div id="serverPickList" class="server-grid"></div>
+      <p style="font-size: 16px; color: #888; margin: 0;">Pressione OK no controle remoto para conectar e atualizar a lista.</p>
     </div>
   </div>
 
-  <!-- MODAL DE PIN PARA CONTEÚDO ADULTO (+18) -->
-  <div id="pinModal" class="modal-overlay hidden">
+  <!-- ================= MODAL PIN ADULTO ================= -->
+  <div id="adultPinModal" class="modal-overlay hidden">
     <div class="modal-card" style="width: 440px; text-align: center;">
       <div class="modal-header">
         <span>🔒 Bloqueio Parental (18+)</span>
-        <button id="btnClosePinModal" class="act-btn" style="padding: 6px 14px; font-size: 16px;" tabindex="0">✕</button>
+        <button id="btnClosePinModal" class="btn-header" style="padding: 6px 14px;" tabindex="0">✕</button>
       </div>
-      <p style="font-size: 18px; color: #bbb; margin: 0 0 10px;">Digite a senha de 4 dígitos para liberar os canais adultos (Padrão: 0000):</p>
+      <p style="font-size: 18px; color: #cbd5e1; margin: 0 0 10px;">Digite o PIN de 4 dígitos para desbloquear (Padrão: 0000):</p>
       
-      <div id="pinDisplay" class="pin-display">----</div>
+      <div id="pinScreen" class="pin-screen">----</div>
 
       <div class="pin-keypad">
         <button class="key-btn" data-key="1" tabindex="0">1</button>
@@ -126,7 +194,7 @@
         <button class="key-btn" data-key="0" tabindex="0">0</button>
         <button class="key-btn" data-key="OK" style="background:#1b5e20;" tabindex="0">OK</button>
       </div>
-      <p id="pinError" style="color: #ff5252; font-size: 16px; min-height: 20px; margin: 0;"></p>
+      <p id="pinStatusMsg" style="color: #ff5252; font-size: 16px; min-height: 20px; margin: 0;"></p>
     </div>
   </div>
 

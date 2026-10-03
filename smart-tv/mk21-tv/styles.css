@@ -1,27 +1,28 @@
-/* MK21 TV — Smart TV 10-Foot UI (Padrão APK MK21 / XCIPTV para LG webOS) */
+/* MK21 PLAY — Smart TV OTT/IPTV UI (Clone Premium Vizzion Play para LG webOS 1080p/4K) */
+:root {
+  --primary-red: #e50914;
+  --primary-glow: rgba(229, 9, 20, 0.6);
+  --bg-main: radial-gradient(circle at 50% 10%, #151824 0%, #090a0f 80%);
+  --panel-bg: rgba(20, 24, 35, 0.95);
+  --card-bg: #141824;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --focus-ring: #ffd54f;
+  --text-main: #ffffff;
+  --text-muted: #959bb0;
+}
+
 * {
   box-sizing: border-box;
   -webkit-user-select: none;
   user-select: none;
 }
 
-:root {
-  --primary-red: #e50914;
-  --primary-hover: #ff1f2d;
-  --bg-dark: #0a0b10;
-  --panel-bg: #12141c;
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --focus-ring: #ffd54f;
-  --text-main: #ffffff;
-  --text-muted: #959bb0;
-}
-
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg-dark);
+  background: var(--bg-main);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 20px;
   overflow: hidden;
   height: 100vh;
@@ -30,86 +31,76 @@ body {
   flex-direction: column;
 }
 
-/* TOP BAR */
+/* ================= HEADER SUPERIOR ================= */
 header {
-  height: 80px;
-  background: #0f1118;
-  border-bottom: 2px solid rgba(229, 9, 20, 0.35);
+  height: 90px;
+  background: rgba(10, 11, 16, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(229, 9, 20, 0.3);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 35px;
+  padding: 0 40px;
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
-.logo-area {
+.brand-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.brand-badge {
-  background: var(--primary-red);
-  color: #fff;
+.logo-badge {
+  background: linear-gradient(135deg, #e50914, #990000);
+  color: #ffffff;
   font-size: 26px;
   font-weight: 900;
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 8px;
+  box-shadow: 0 0 20px var(--primary-glow);
   letter-spacing: 1px;
-  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6);
 }
 
-.brand-title {
-  font-size: 28px;
-  font-weight: 800;
-  color: #ffffff;
+.brand-text {
+  font-size: 30px;
+  font-weight: 900;
   letter-spacing: 0.5px;
 }
 
-.brand-title span {
+.brand-text span {
   color: var(--primary-red);
 }
 
-.header-center {
+.header-center-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
 }
 
-.server-label {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-muted);
+.info-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.server-select-btn {
-  background: #1c202c;
+.info-pill strong {
+  color: #ffffff;
+}
+
+.server-btn {
+  background: #1c2130;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-size: 20px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.lock-btn {
-  background: #1f2330;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 10px 18px;
-  font-size: 18px;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 17px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -117,63 +108,213 @@ header {
   gap: 8px;
 }
 
-.lock-btn.unlocked {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-header {
+  background: #191c28;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-header.unlocked {
   background: #2e7d32;
   border-color: #4caf50;
 }
 
-.status-badge {
-  font-size: 16px;
-  color: #9ea4b5;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 8px 14px;
-  border-radius: 6px;
-  white-space: nowrap;
+.digital-clock {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffd54f;
+  min-width: 140px;
+  text-align: right;
 }
 
-/* 3-COLUMN MAIN LAYOUT */
-.main-content {
+/* ================= VIEW 1: HOME DASHBOARD (ESTILO VIZZION PLAY) ================= */
+#viewHome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 60px 25px;
+}
+
+.home-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-welcome h2 {
+  font-size: 38px;
+  font-weight: 800;
+  margin: 0 0 6px 0;
+  color: #ffffff;
+}
+
+.home-welcome p {
+  font-size: 20px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.home-status-card {
+  background: rgba(229, 9, 20, 0.15);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 18px;
+  color: #ff9e9e;
+  font-weight: 600;
+}
+
+/* 4 CARDS PRINCIPAIS DO VIZZION PLAY */
+.home-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  margin: 30px 0;
+  align-items: stretch;
+}
+
+.vizzion-card {
+  position: relative;
+  height: 380px;
+  border-radius: 20px;
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid transparent;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-tv {
+  background: linear-gradient(145deg, #1b2030, #10121d);
+  border-color: rgba(229, 9, 20, 0.3);
+}
+
+.card-movies {
+  background: linear-gradient(145deg, #182338, #0e1524);
+  border-color: rgba(2, 136, 209, 0.3);
+}
+
+.card-series {
+  background: linear-gradient(145deg, #241a33, #150f21);
+  border-color: rgba(156, 39, 176, 0.3);
+}
+
+.card-favs {
+  background: linear-gradient(145deg, #282017, #19130d);
+  border-color: rgba(245, 124, 0, 0.3);
+}
+
+.card-glow-badge {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+}
+
+.card-tv .card-glow-badge {
+  background: rgba(229, 9, 20, 0.2);
+  color: #ff4d4d;
+}
+
+.card-movies .card-glow-badge {
+  background: rgba(2, 136, 209, 0.2);
+  color: #29b6f6;
+}
+
+.card-series .card-glow-badge {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ba68c8;
+}
+
+.card-favs .card-glow-badge {
+  background: rgba(245, 124, 0, 0.2);
+  color: #ffb74d;
+}
+
+.card-content h3 {
+  font-size: 32px;
+  font-weight: 900;
+  margin: 0 0 10px 0;
+  color: #ffffff;
+}
+
+.card-content p {
+  font-size: 19px;
+  color: var(--text-muted);
+  margin: 0 0 18px 0;
+}
+
+.card-stats {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  display: inline-block;
+  color: #ffd54f;
+}
+
+/* ================= VIEW 2: TELA DE CANAIS (AO VIVO) ================= */
+#viewChannels {
   flex: 1;
   display: grid;
   grid-template-columns: 24% 36% 40%;
   gap: 16px;
   padding: 16px 25px;
-  overflow: hidden;
-  height: calc(100vh - 80px);
+  height: calc(100vh - 90px);
 }
 
-.column-card {
+.pane-card {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.col-header {
-  padding: 14px 18px;
+.pane-header {
+  padding: 14px 20px;
   background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid var(--panel-border);
-  font-size: 20px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 21px;
   font-weight: 700;
-  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0;
 }
 
-.col-header .count-badge {
-  background: rgba(229, 9, 20, 0.2);
+.pane-badge {
+  background: rgba(229, 9, 20, 0.25);
   color: #ff6b72;
   font-size: 15px;
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: 12px;
 }
 
-/* COLUNA 1: CATEGORIAS */
-.categories-list {
+.cat-list, .ch-list {
   list-style: none;
   margin: 0;
   padding: 8px;
@@ -181,121 +322,48 @@ header {
   flex: 1;
 }
 
-.categories-list li {
-  margin-bottom: 6px;
-}
-
-.cat-btn {
+.cat-item-btn, .ch-item-btn {
   width: 100%;
-  padding: 14px 16px;
-  background: #181b24;
-  color: #d1d5db;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  text-align: left;
-  font-size: 19px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cat-btn.active {
-  background: rgba(229, 9, 20, 0.25);
-  border-color: var(--primary-red);
-  color: #ffffff;
-}
-
-.cat-count {
-  font-size: 14px;
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-
-/* COLUNA 2: CANAIS */
-.search-container {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--panel-border);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 16px;
-  background: #1a1d27;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 18px;
-  outline: none;
-}
-
-.channels-list {
-  list-style: none;
-  margin: 0;
-  padding: 8px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.channels-list li {
-  margin-bottom: 6px;
-}
-
-.ch-btn {
-  width: 100%;
-  padding: 14px 16px;
-  background: #181b24;
+  padding: 14px 18px;
+  background: #171b26;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: 10px;
   text-align: left;
   font-size: 20px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 
-.ch-btn.active-channel {
+.cat-item-btn.active {
+  background: rgba(229, 9, 20, 0.3);
+  border-color: var(--primary-red);
+}
+
+.ch-item-btn.active {
   background: #8b060d;
   border-color: var(--primary-red);
 }
 
-.ch-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ch-group-tag {
-  font-size: 13px;
-  color: #ffb74d;
-  background: rgba(255, 183, 77, 0.15);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* COLUNA 3: PLAYER DE VÍDEO */
-.player-column {
+/* MINI-PLAYER NA TELA DE CANAIS */
+.player-pane {
   display: flex;
   flex-direction: column;
-  padding: 12px;
   gap: 14px;
+  padding: 12px;
 }
 
-.video-frame {
+.player-box {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #000000;
-  border-radius: 10px;
+  background: #000;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -303,27 +371,13 @@ video {
   width: 100%;
   height: 100%;
   background: #000;
-  display: block;
-}
-
-.video-overlay-channel {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 17px;
-  font-weight: bold;
-  pointer-events: none;
 }
 
 .player-details {
-  background: #171922;
-  border-radius: 10px;
-  padding: 16px 20px;
-  border: 1px solid var(--panel-border);
+  background: #161924;
+  border-radius: 12px;
+  padding: 18px 22px;
+  border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -331,7 +385,7 @@ video {
 
 .playing-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 800;
   color: #ffd54f;
   white-space: nowrap;
@@ -339,25 +393,24 @@ video {
   text-overflow: ellipsis;
 }
 
-.playing-subtitle {
+.playing-category {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   color: var(--text-muted);
 }
 
-.player-actions {
+.player-buttons {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
-.act-btn {
+.player-btn {
   flex: 1;
-  padding: 14px 18px;
-  background: #252836;
+  padding: 14px;
+  background: #252a38;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
@@ -367,29 +420,92 @@ video {
   gap: 8px;
 }
 
-.act-btn.primary {
+.player-btn.primary {
   background: var(--primary-red);
   border-color: var(--primary-red);
 }
 
-/* FOCO DO CONTROLE REMOTO (D-PAD / MAGIC REMOTE) - CRÍTICO */
-:focus,
-.tv-focused {
-  outline: 4px solid var(--focus-ring) !important;
-  outline-offset: 1px;
-  box-shadow: 0 0 22px rgba(255, 213, 79, 0.8) !important;
-  transform: scale(1.02);
-  z-index: 5;
+/* ================= VIEW 3: FILMES E SÉRIES (VOD GRID) ================= */
+#viewVod {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 40px;
+  height: calc(100vh - 90px);
 }
 
-/* MODAL DE SERVIDORES */
+.vod-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.vod-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 10px;
+}
+
+.vod-card {
+  background: #171a26;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vod-poster {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #ffd54f;
+}
+
+.vod-title {
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.vod-group {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ================= FOCO DO CONTROLE REMOTO (D-PAD LG WEBOS) ================= */
+:focus,
+.tv-focus {
+  outline: 4px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 25px rgba(255, 213, 79, 0.9) !important;
+  transform: scale(1.03);
+  z-index: 10;
+}
+
+/* ================= MODAL DE SERVIDORES ================= */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,20 +513,20 @@ video {
 }
 
 .modal-card {
-  background: #151821;
-  border: 2px solid rgba(229, 9, 20, 0.5);
-  border-radius: 14px;
-  width: 600px;
+  background: #141724;
+  border: 2px solid rgba(229, 9, 20, 0.6);
+  border-radius: 16px;
+  width: 640px;
   max-width: 90vw;
-  padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+  padding: 28px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95);
 }
 
 .modal-header {
   font-size: 26px;
   font-weight: 800;
   color: #ffffff;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -419,17 +535,17 @@ video {
 .server-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 20px;
 }
 
-.server-item-btn {
+.server-pick-btn {
   padding: 16px;
-  background: #1e222e;
+  background: #1c2130;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 20px;
+  border-radius: 10px;
+  font-size: 19px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
@@ -438,21 +554,21 @@ video {
   gap: 10px;
 }
 
-.server-item-btn.selected {
-  background: rgba(229, 9, 20, 0.3);
+.server-pick-btn.selected {
+  background: rgba(229, 9, 20, 0.35);
   border-color: var(--primary-red);
 }
 
-/* MODAL DE PIN ADULTO */
-.pin-display {
-  font-size: 40px;
-  letter-spacing: 12px;
+/* ================= MODAL PIN ADULTO ================= */
+.pin-screen {
+  font-size: 42px;
+  letter-spacing: 14px;
   text-align: center;
-  padding: 14px;
+  padding: 12px;
   background: #000;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  margin: 16px 0;
+  border-radius: 10px;
+  margin: 18px 0;
   color: #ffd54f;
   min-height: 70px;
 }
@@ -460,21 +576,53 @@ video {
 .pin-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  width: 280px;
+  gap: 12px;
+  width: 300px;
   margin: 0 auto 16px;
 }
 
 .key-btn {
   padding: 14px;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
-  background: #232734;
+  background: #202534;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
 }
+
+/* ================= BARRA DE AJUDA / BOTÕES COLORIDOS DO CONTROLE LG ================= */
+.remote-help-bar {
+  height: 50px;
+  background: rgba(10, 12, 18, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 40px;
+  font-size: 16px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.color-dot.red { background: #e50914; }
+.color-dot.green { background: #4caf50; }
+.color-dot.yellow { background: #ffeb3b; }
+.color-dot.blue { background: #2196f3; }
 
 .hidden {
   display: none !important;
