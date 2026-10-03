@@ -1,8 +1,8 @@
-// MK21 PLAY v3.1.0 — Motor Unificado com Classificação Oficial do APK Android
+// MK21 PLAY v3.2.0 — Motor com Manutenção Completa de Servidores (Inclusão e Exclusão)
 const $ = id => document.getElementById(id);
 
-// 1. CONFIGURAÇÃO DOS 7 SERVIDORES MK21
-const SERVERS = [
+// 1. CONFIGURAÇÃO DOS 7 SERVIDORES PADRÃO MK21
+const DEFAULT_SERVERS = [
   { id: 'cb6000', name: '🔵 CB6000', url: 'http://cdn.caterlune.top/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'vlog', name: '🟢 VLOG', url: 'http://myopbx.beer/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
   { id: 'lub', name: '⚪ LUB TV', url: 'http://pottermax.sbs/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' },
@@ -12,10 +12,23 @@ const SERVERS = [
   { id: 'multt', name: '🟤 MULTT TV', url: 'http://dali-as.skin/get.php?username=601334065&password=820866576&type=m3u_plus&output=mpegts' }
 ];
 
+let SERVERS = [...DEFAULT_SERVERS];
+
+// Carregar servidores salvos no localStorage
+try {
+  const savedServers = localStorage.getItem('mk21_servers_list');
+  if (savedServers) {
+    const parsed = JSON.parse(savedServers);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      SERVERS = parsed;
+    }
+  }
+} catch (e) {}
+
 const ADULT_KEYWORDS = ['ADULTO', 'ADULTOS', 'XXX', 'PLAYBOY', 'VENUS', 'SEXTREME', 'SEX', 'ERÓTICO', 'EROTICO', 'PRIVE', 'FORBIDDEN', 'HOT', '18+', 'PORNO', 'BABES', 'REDLIGHT'];
 
 // 2. BANCO DE DADOS LOCAL (IndexedDB)
-const DB_NAME = 'MK21_PLAY_V31_DB';
+const DB_NAME = 'MK21_PLAY_V32_DB';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalog';
 
@@ -67,7 +80,7 @@ let enteredPin = '';
 let activeItem = null;
 let hlsInstance = null;
 
-// Categorias e Itens da Aba Atual
+// Categorias e Itens da Aba Ativa
 let currentCategoriesMap = {};
 let currentCategoryKeys = [];
 let activeCategoryKey = 'ALL';
@@ -79,7 +92,6 @@ let focusedHeaderIdx = 0;
 let focusedCatIdx = 0;
 let focusedItemIdx = 0;
 
-// Lista de elementos focáveis do cabeçalho
 const headerElements = [
   'tabLive', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings',
   'btnHeaderServer', 'btnRefreshList', 'btnHeaderAdult'
@@ -123,42 +135,36 @@ function isAdult(text) {
   return false;
 }
 
-// 4. LÓGICA EXATA DO APK ANDROID (determineType do M3UParser.kt)
+// 4. LÓGICA OFICIAL DO APK ANDROID (determineType do M3UParser.kt)
 function determineType(name, category, url) {
   const uppercaseName = name.toUpperCase();
   const uppercaseCategory = category.toUpperCase();
   const uppercaseUrl = url.toUpperCase();
 
-  // Verificação explícita pela URL (padrão Xtream Codes)
   if (uppercaseUrl.includes("/SERIES/")) return "SERIES";
   if (uppercaseUrl.includes("/MOVIE/")) return "MOVIE";
   if (uppercaseUrl.includes("/LIVE/")) return "LIVE";
 
-  // Palavras-chave explícitas de séries
   const seriesCategories = [
     "SERIES", "SÉRIES", "SERIADOS", "SEASON", "TEMPORADA", "EPISODIOS", "EPISÓDIOS",
     "ANIME", "ANIMES", "NOVELAS", "NOVELA"
   ];
 
-  // Palavras-chave explícitas de filmes
   const movieCategories = [
     "FILMES", "MOVIES", "VOD", "CINEMA", "BLOCKBUSTER", "LANCAMENTOS", "LANÇAMENTOS",
     "PREMIUM FILMES", "CINE", "ACTION", "COMEDY", "DRAMA", "HORROR", "TERROR"
   ];
 
-  // Padrões de séries no nome da categoria ou título do stream
   if (seriesCategories.some(k => uppercaseCategory.includes(k)) ||
       uppercaseName.includes("S0") || uppercaseName.includes("E0") ||
       uppercaseName.includes("TEMPORADA") || uppercaseName.includes("CAPITULO") || uppercaseName.includes("EPISODIO")) {
     return "SERIES";
   }
 
-  // Padrões de filmes na categoria
   if (movieCategories.some(k => uppercaseCategory.includes(k))) {
     return "MOVIE";
   }
 
-  // Fallbacks baseados na extensão da URL
   if (uppercaseUrl.endsWith(".MP4") || uppercaseUrl.endsWith(".MKV") || uppercaseUrl.endsWith(".AVI")) {
     if (uppercaseUrl.includes("/SERIES/") || uppercaseUrl.includes("/EPISODES/") || uppercaseName.includes("S0") || uppercaseName.includes("E0")) {
       return "SERIES";
@@ -167,15 +173,14 @@ function determineType(name, category, url) {
     }
   }
 
-  // Padrões de canais ao vivo (geralmente .m3u8, .ts ou /live/)
   if (uppercaseUrl.includes("/LIVE/") || uppercaseUrl.endsWith(".M3U8") || uppercaseUrl.endsWith(".TS") || uppercaseUrl.includes(".TS?")) {
     return "LIVE";
   }
 
-  return "LIVE"; // Padrão é Ao Vivo
+  return "LIVE";
 }
 
-// 5. PARSER OTIMIZADO COM LÓGICA DO APK E PROTEÇÃO DE MEMÓRIA (ANTI-CRASH)
+// 5. PARSER COM CONTROLE DE MEMÓRIA (ANTI-CRASH)
 function parseM3UWithApkLogic(content) {
   const lines = content.split(/\r?\n/);
   const live = [];
@@ -186,7 +191,6 @@ function parseM3UWithApkLogic(content) {
   let group = 'Geral';
   let logo = '';
 
-  // Limites seguros de títulos VOD em memória para evitar que o webOS feche o app
   const MAX_MOVIES = 1500;
   const MAX_SERIES = 600;
 
@@ -205,14 +209,7 @@ function parseM3UWithApkLogic(content) {
       const isAdultContent = isAdult(name) || isAdult(group);
       const contentType = determineType(name, group, line);
 
-      const item = {
-        name,
-        group,
-        logo,
-        url: line,
-        contentType,
-        isAdult: isAdultContent
-      };
+      const item = { name, group, logo, url: line, contentType, isAdult: isAdultContent };
 
       if (contentType === 'SERIES') {
         if (series.length < MAX_SERIES) series.push(item);
@@ -231,8 +228,15 @@ function parseM3UWithApkLogic(content) {
   return { LIVE: live, MOVIE: movies, SERIES: series };
 }
 
-// 6. CARREGAMENTO DOS SERVIDORES
+// 6. CARREGAMENTO DO SERVIDOR ATUAL
 async function loadServer(forceRefresh = false) {
+  if (SERVERS.length === 0) {
+    SERVERS = [...DEFAULT_SERVERS];
+  }
+  if (currentServerIndex >= SERVERS.length) {
+    currentServerIndex = 0;
+  }
+
   const srv = SERVERS[currentServerIndex];
   $('txtActiveServer').textContent = srv.name;
 
@@ -265,7 +269,7 @@ async function loadServer(forceRefresh = false) {
   }
 }
 
-// 7. AGRUPAMENTO DE CATEGORIAS DA ABA ATIVA (LIVE, MOVIE OU SERIES)
+// 7. AGRUPAMENTO DE CATEGORIAS DA ABA ATIVA
 function buildCurrentCategories() {
   currentCategoriesMap = { 'ALL': [] };
   currentCategoryKeys = ['ALL'];
@@ -378,7 +382,6 @@ function renderItemsList() {
 
     btn.onclick = () => playStream(item);
 
-    // Duplo clique rápido: tela cheia
     let lastClick = 0;
     btn.addEventListener('click', () => {
       const now = Date.now();
@@ -392,7 +395,6 @@ function renderItemsList() {
 
   ul.appendChild(fragment);
 
-  // Auto-play no primeiro canal se for TV e nada estiver tocando
   if (!activeItem && currentContentType === 'LIVE' && currentFilteredItems.length > 0) {
     playStream(currentFilteredItems[0]);
   }
@@ -479,7 +481,7 @@ $('btnFavorite').onclick = () => {
   if (activeItem) toggleFav(activeItem.url);
 };
 
-// 10. TROCA DE ABAS DO TOPO (LIVE, FILMES, SÉRIES, FAVORITOS, CONFIGURAÇÕES)
+// 10. TROCA DE ABAS DO TOPO
 $('tabLive').onclick = () => switchContentType('LIVE');
 $('tabMovies').onclick = () => switchContentType('MOVIE');
 $('tabSeries').onclick = () => switchContentType('SERIES');
@@ -489,7 +491,6 @@ $('tabSettings').onclick = () => switchContentType('SETTINGS');
 function switchContentType(type) {
   currentContentType = type;
 
-  // Atualizar botões de abas
   ['tabLive', 'tabMovies', 'tabSeries', 'tabFavs', 'tabSettings'].forEach(t => $(t).classList.remove('active'));
   const activeTabId = type === 'LIVE' ? 'tabLive' : (type === 'MOVIE' ? 'tabMovies' : (type === 'SERIES' ? 'tabSeries' : (type === 'FAVORITES' ? 'tabFavs' : 'tabSettings')));
   $(activeTabId).classList.add('active');
@@ -511,7 +512,7 @@ function switchContentType(type) {
   activeZone = 'channels';
 }
 
-// 11. TELA DE CONFIGURAÇÕES (CLONE VIZZION PLAY)
+// 11. TELA DE CONFIGURAÇÕES
 const CFG_BUTTONS = ['cfgBtnInfo', 'cfgBtnIdioma', 'cfgBtnFluxo', 'cfgBtnPin', 'cfgBtnCategorias', 'cfgBtnLimpar', 'cfgBtnTempo'];
 
 CFG_BUTTONS.forEach(bId => {
@@ -548,7 +549,7 @@ function renderSettings(sec) {
         </div>
         <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
           <div style="font-size:14px; color:#888;">Versão do Aplicativo</div>
-          <div style="font-size:18px; font-weight:700; color:#fff;">3.1.0 (webOS 1080p)</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">3.2.0 (webOS 1080p)</div>
         </div>
       </div>
     `;
@@ -598,7 +599,136 @@ window.clearAllCache = () => {
   } catch (e) {}
 };
 
-// 12. NAVEGAÇÃO ESPACIAL D-PAD COMPLETA (INCLUINDO CABEÇALHO)
+// 12. GERENCIADOR DE SERVIDORES (MANUTENÇÃO, INCLUSÃO MANUAL E EXCLUSÃO)
+function saveServersToStorage() {
+  try {
+    localStorage.setItem('mk21_servers_list', JSON.stringify(SERVERS));
+  } catch (e) {}
+}
+
+function openServerPicker() {
+  renderServerPickerList();
+  $('modalServerPicker').classList.remove('hidden');
+  const first = $('serverItemsGrid').querySelector('.btn-server-connect');
+  if (first) first.focus();
+}
+
+function renderServerPickerList() {
+  const container = $('serverItemsGrid');
+  container.innerHTML = '';
+
+  SERVERS.forEach((srv, idx) => {
+    const row = document.createElement('div');
+    row.className = 'server-manager-row' + (idx === currentServerIndex ? ' active-server' : '');
+
+    const infoCol = document.createElement('div');
+    infoCol.className = 'server-info-col';
+
+    const nameLine = document.createElement('div');
+    nameLine.className = 'server-info-name';
+    nameLine.textContent = srv.name + (idx === currentServerIndex ? '  [✓ ATIVO]' : '');
+
+    const urlLine = document.createElement('div');
+    urlLine.className = 'server-info-url';
+    urlLine.textContent = srv.url;
+
+    infoCol.appendChild(nameLine);
+    infoCol.appendChild(urlLine);
+
+    const actionsCol = document.createElement('div');
+    actionsCol.className = 'server-row-actions';
+
+    // Botão Conectar / Ativar
+    const btnConnect = document.createElement('button');
+    btnConnect.className = 'btn-server-connect' + (idx === currentServerIndex ? ' active' : '');
+    btnConnect.setAttribute('tabindex', '0');
+    btnConnect.textContent = idx === currentServerIndex ? '✓ Conectado' : 'Conectar';
+    btnConnect.onclick = () => {
+      currentServerIndex = idx;
+      try { localStorage.setItem('mk21_last_server', idx); } catch (e) {}
+      $('modalServerPicker').classList.add('hidden');
+      loadServer();
+    };
+
+    // Botão Excluir
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn-server-delete';
+    btnDelete.setAttribute('tabindex', '0');
+    btnDelete.textContent = '🗑️ Excluir';
+    btnDelete.onclick = () => deleteServer(idx);
+
+    actionsCol.appendChild(btnConnect);
+    actionsCol.appendChild(btnDelete);
+
+    row.appendChild(infoCol);
+    row.appendChild(actionsCol);
+
+    container.appendChild(row);
+  });
+}
+
+function deleteServer(index) {
+  if (SERVERS.length <= 1) {
+    alert('Você deve manter pelo menos um servidor cadastrado.');
+    return;
+  }
+  const deletedName = SERVERS[index].name;
+  SERVERS.splice(index, 1);
+  if (currentServerIndex >= SERVERS.length) {
+    currentServerIndex = 0;
+  }
+  saveServersToStorage();
+  renderServerPickerList();
+  alert(`Servidor "${deletedName}" excluído com sucesso.`);
+}
+
+// Inclusão Manual de Servidor
+$('btnAddServerSubmit').onclick = () => {
+  const name = $('inputNewServerName').value.trim();
+  const url = $('inputNewServerUrl').value.trim();
+
+  if (!name) {
+    alert('Por favor, informe o nome do servidor.');
+    return;
+  }
+  if (!url.startsWith('http')) {
+    alert('Por favor, informe uma URL válida começando com http:// ou https://');
+    return;
+  }
+
+  const newServer = {
+    id: 'custom_' + Date.now(),
+    name: '⭐ ' + name,
+    url: url
+  };
+
+  SERVERS.push(newServer);
+  currentServerIndex = SERVERS.length - 1;
+  saveServersToStorage();
+  try { localStorage.setItem('mk21_last_server', currentServerIndex); } catch (e) {}
+
+  $('inputNewServerName').value = '';
+  $('inputNewServerUrl').value = '';
+  $('modalServerPicker').classList.add('hidden');
+
+  loadServer();
+  alert(`Servidor "${name}" adicionado e conectado com sucesso!`);
+};
+
+// Restaurar Servidores Padrão
+$('btnRestoreDefaultServers').onclick = () => {
+  SERVERS = [...DEFAULT_SERVERS];
+  currentServerIndex = 0;
+  saveServersToStorage();
+  try { localStorage.setItem('mk21_last_server', 0); } catch (e) {}
+  renderServerPickerList();
+  alert('Os 7 servidores padrão foram restaurados com sucesso.');
+};
+
+$('btnHeaderServer').onclick = openServerPicker;
+$('btnCloseServerPicker').onclick = () => $('modalServerPicker').classList.add('hidden');
+
+// 13. NAVEGAÇÃO ESPACIAL D-PAD COMPLETA (INCLUINDO CABEÇALHO)
 document.addEventListener('keydown', e => {
   const k = e.keyCode;
 
@@ -646,13 +776,12 @@ document.addEventListener('keydown', e => {
       return;
     }
 
-    // Se estiver nas categorias do Live TV -> diálogo de saída
     $('modalExitConfirm').classList.remove('hidden');
     $('btnExitCancel').focus();
     return;
   }
 
-  // ================= 1. SE O FOCO ESTIVER NO CABEÇALHO =================
+  // ================= 1. CABEÇALHO =================
   if (activeZone === 'header') {
     if (k === 39) { // Seta Direita no cabeçalho
       e.preventDefault();
@@ -676,7 +805,6 @@ document.addEventListener('keydown', e => {
         activeZone = 'settings';
         $('cfgBtnInfo').focus();
       } else {
-        // Se estava nas primeiras abas, desce para Categorias; senão desce para Canais
         if (focusedHeaderIdx < 2) {
           activeZone = 'categories';
         } else {
@@ -702,7 +830,6 @@ document.addEventListener('keydown', e => {
         focusedCatIdx--;
         focusActiveElement();
       } else {
-        // Chegou ao topo das categorias: sobe para o CABEÇALHO!
         activeZone = 'header';
         focusedHeaderIdx = 0;
         $(headerElements[0]).focus();
@@ -712,7 +839,6 @@ document.addEventListener('keydown', e => {
         focusedItemIdx--;
         focusActiveElement();
       } else {
-        // Chegou ao topo dos canais: sobe para o campo de busca ou cabeçalho!
         activeZone = 'header';
         focusedHeaderIdx = 1;
         $(headerElements[1]).focus();
@@ -802,34 +928,8 @@ function focusActiveElement() {
   }
 }
 
-// 13. MODAIS E BOTÕES DO CABEÇALHO
+// 14. MODAIS EXTRAS (PIN & SAÍDA)
 $('btnRefreshList').onclick = () => loadServer(true);
-$('btnHeaderServer').onclick = openServerPicker;
-
-function openServerPicker() {
-  const grid = $('serverItemsGrid');
-  grid.innerHTML = '';
-  SERVERS.forEach((s, idx) => {
-    const b = document.createElement('button');
-    b.className = 'server-item-btn' + (idx === currentServerIndex ? ' selected' : '');
-    b.setAttribute('tabindex', '0');
-    b.textContent = s.name;
-    b.onclick = () => {
-      currentServerIndex = idx;
-      try { localStorage.setItem('mk21_last_server', idx); } catch (e) {}
-      $('modalServerPicker').classList.add('hidden');
-      loadServer();
-    };
-    grid.appendChild(b);
-  });
-  $('modalServerPicker').classList.remove('hidden');
-  const first = grid.querySelector('.server-item-btn');
-  if (first) first.focus();
-}
-
-$('btnCloseServerPicker').onclick = () => $('modalServerPicker').classList.add('hidden');
-
-// BLOQUEIO ADULTO (+18)
 $('btnHeaderAdult').onclick = openPinModal;
 
 function openPinModal() {
@@ -897,7 +997,7 @@ $('btnExitConfirm').onclick = () => {
   else window.close();
 };
 
-// 14. INICIALIZAÇÃO AUTOMÁTICA
+// 15. INICIALIZAÇÃO AUTOMÁTICA
 window.addEventListener('load', () => {
   try {
     const saved = localStorage.getItem('mk21_last_server');

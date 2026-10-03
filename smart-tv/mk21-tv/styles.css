@@ -476,7 +476,7 @@ video {
 .color-dot.yellow { background: #ffeb3b; }
 .color-dot.blue { background: #2196f3; }
 
-/* ================= 6. FOCO DO CONTROLE REMOTO D-PAD (BRILHANTE E NÍTIDO) ================= */
+/* ================= 6. FOCO DO CONTROLE REMOTO D-PAD ================= */
 :focus,
 .tab-btn:focus,
 .action-btn:focus,
@@ -484,7 +484,9 @@ video {
 .ctrl-btn:focus,
 .cfg-menu-item:focus,
 .pin-key:focus,
-.header-focusable:focus {
+.header-focusable:focus,
+.btn-server-connect:focus,
+.btn-server-delete:focus {
   outline: 4px solid var(--focus-ring) !important;
   outline-offset: 1px;
   box-shadow: 0 0 25px rgba(255, 213, 79, 0.95) !important;
@@ -513,37 +515,107 @@ video {
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9);
 }
 
-.modal-header {
-  font-size: 24px;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 20px;
+/* MODAL GERENCIADOR DE SERVIDORES & MANUTENÇÃO */
+.server-manager-modal {
+  width: 840px;
+  max-width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.server-manager-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+}
+
+.servers-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.server-manager-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.servers-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  padding: 12px 16px;
+  background: #181b28;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   gap: 12px;
 }
 
-.server-item-btn {
-  padding: 16px;
-  background: #1c2130;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 19px;
+.server-manager-row.active-server {
+  border-color: var(--primary-red);
+  background: rgba(229, 9, 20, 0.15);
+}
+
+.server-info-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.server-info-name {
+  font-size: 18px;
   font-weight: 700;
-  text-align: left;
+  color: #ffffff;
+}
+
+.server-info-url {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+.server-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-server-connect {
+  padding: 8px 16px;
+  background: #252a3b;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.server-item-btn.selected {
-  background: rgba(229, 9, 20, 0.35);
-  border-color: var(--primary-red);
+.btn-server-connect.active {
+  background: #2e7d32;
+  border-color: #4caf50;
+}
+
+.btn-server-delete {
+  padding: 8px 14px;
+  background: #5c1d1d;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-server-card {
+  background: #181b28;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 4px;
 }
 
 .pin-display-box {
