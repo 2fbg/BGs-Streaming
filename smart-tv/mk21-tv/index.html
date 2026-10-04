@@ -68,6 +68,7 @@
         <div class="search-box">
           <input id="inputSearch" type="text" placeholder="🔍 Buscar canal, filme ou série..." tabindex="0">
           <button id="btnVoiceSearch" class="voice-btn" tabindex="0">🎙️</button>
+          <button id="btnSortOrder" class="voice-btn" tabindex="0" title="Ordem dos Canais" style="width: auto; padding: 0 12px; font-size: 14px;">↕️ A-Z</button>
         </div>
         <ul id="listItems" class="pane-scroll"></ul>
       </div>
@@ -95,6 +96,9 @@
           <button id="btnFullscreen" class="ctrl-btn primary" tabindex="0">⛶ Tela Cheia</button>
           <button id="btnPlayPause" class="ctrl-btn" tabindex="0">⏯ Pausar</button>
           <button id="btnFavorite" class="ctrl-btn" tabindex="0">⭐ Favoritar</button>
+          <button id="btnSpeed" class="ctrl-btn" tabindex="0">⚡ 1x</button>
+          <button id="btnAudioTrack" class="ctrl-btn" tabindex="0">🔊 Áudio</button>
+          <button id="btnSubtitles" class="ctrl-btn" tabindex="0">💬 Legenda</button>
         </div>
       </div>
 
@@ -104,6 +108,8 @@
     <section id="sectionSettings" class="content-section hidden">
       <div class="settings-left-menu">
         <button id="cfgBtnInfo" class="cfg-menu-item active" tabindex="0">⚙️ Informação geral</button>
+        <button id="cfgBtnSpeedTest" class="cfg-menu-item" tabindex="0">🚀 Teste de velocidade</button>
+        <button id="cfgBtnFonte" class="cfg-menu-item" tabindex="0">🔤 Tamanho da fonte</button>
         <button id="cfgBtnIdioma" class="cfg-menu-item" tabindex="0">🌐 Mudar idioma</button>
         <button id="cfgBtnFluxo" class="cfg-menu-item" tabindex="0">📺 Alterar formato de fluxo</button>
         <button id="cfgBtnPin" class="cfg-menu-item" tabindex="0">🔒 Alterar código pin</button>
@@ -195,6 +201,41 @@
         <button id="btnExitCancel" class="ctrl-btn" style="flex:1; padding: 14px;" tabindex="0">Continuar Assistindo</button>
         <button id="btnExitConfirm" class="ctrl-btn primary" style="flex:1; padding: 14px;" tabindex="0">Sair</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal de Séries (Temporadas e Episódios estilo Netflix / APK) -->
+  <div id="modalSeriesEpisodes" class="app-modal hidden">
+    <div class="modal-content series-episodes-modal" style="width: 1080px; max-height: 85vh; background: #0f121d;">
+      <div class="modal-header">
+        <span id="seriesModalTitle" style="color: #ffd54f; font-size: 22px; font-weight: bold;">📺 Nome da Série</span>
+        <button id="btnCloseSeriesModal" class="ctrl-btn" style="padding: 6px 14px;" tabindex="0">✕ Fechar</button>
+      </div>
+      <div style="display: flex; gap: 20px; padding: 20px; height: 500px; overflow: hidden;">
+        <!-- Coluna de Temporadas -->
+        <div style="width: 280px; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px; overflow-y: auto;">
+          <h4 style="margin: 0 0 12px 0; color: #ffd54f; font-size: 18px;">📁 Temporadas</h4>
+          <ul id="listSeasons" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;"></ul>
+        </div>
+        <!-- Coluna de Episódios -->
+        <div style="flex: 1; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px; overflow-y: auto;">
+          <h4 id="episodesListHeading" style="margin: 0 0 12px 0; color: #fff; font-size: 18px;">🎬 Episódios Disponíveis</h4>
+          <ul id="listEpisodes" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD de Carregamento em Tempo Real com Porcentagem -->
+  <div id="hudLoadingOverlay" class="hud-loading-overlay hidden">
+    <div class="hud-loading-card">
+      <div class="spinner-ring"></div>
+      <h3 id="hudLoadingTitle" style="margin: 16px 0 8px 0; font-size: 24px; color: #fff;">Atualizando Lista MK21</h3>
+      <p id="hudLoadingSub" style="margin: 0 0 16px 0; font-size: 16px; color: #ffd54f;">Priorizando Canais Ao Vivo...</p>
+      <div class="hud-progress-track">
+        <div id="hudProgressBar" class="hud-progress-fill" style="width: 0%;"></div>
+      </div>
+      <span id="hudProgressPercent" style="display: block; margin-top: 10px; font-weight: 800; font-size: 20px; color: #fff;">0%</span>
     </div>
   </div>
 
