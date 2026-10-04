@@ -749,33 +749,59 @@ video {
 body.font-large {
   font-size: 21px;
 }
+body.font-large .cat-item-btn { font-size: 21px; padding: 16px 20px; }
+body.font-large .channel-item-btn { font-size: 22px; padding: 16px 20px; }
+body.font-large .epg-name { font-size: 28px; }
+body.font-large .epg-sub { font-size: 20px; }
+body.font-large .tab-btn { font-size: 20px; }
+body.font-large .ctrl-btn { font-size: 18px; padding: 12px 22px; }
 
-body.font-large .cat-item-btn {
-  font-size: 21px;
-  padding: 16px 20px;
+body.font-xlarge {
+  font-size: 25px;
 }
+body.font-xlarge .cat-item-btn { font-size: 25px; padding: 18px 22px; }
+body.font-xlarge .channel-item-btn { font-size: 26px; padding: 18px 22px; }
+body.font-xlarge .epg-name { font-size: 32px; }
+body.font-xlarge .epg-sub { font-size: 23px; }
+body.font-xlarge .tab-btn { font-size: 23px; }
+body.font-xlarge .ctrl-btn { font-size: 21px; padding: 14px 24px; }
 
-body.font-large .channel-item-btn {
-  font-size: 22px;
-  padding: 16px 20px;
+body.font-xxlarge {
+  font-size: 29px;
 }
+body.font-xxlarge .cat-item-btn { font-size: 29px; padding: 20px 24px; }
+body.font-xxlarge .channel-item-btn { font-size: 30px; padding: 20px 24px; }
+body.font-xxlarge .series-card-btn { font-size: 29px; padding: 20px 24px; }
+body.font-xxlarge .epg-name { font-size: 38px; }
+body.font-xxlarge .epg-sub { font-size: 26px; }
+body.font-xxlarge .tab-btn { font-size: 26px; }
+body.font-xxlarge .ctrl-btn { font-size: 24px; padding: 16px 28px; }
 
-body.font-large .epg-name {
-  font-size: 28px;
+body.font-huge {
+  font-size: 33px;
 }
+body.font-huge .cat-item-btn { font-size: 32px; padding: 22px 26px; }
+body.font-huge .channel-item-btn { font-size: 33px; padding: 22px 26px; }
+body.font-huge .series-card-btn { font-size: 32px; padding: 22px 26px; }
+body.font-huge .epg-name { font-size: 42px; }
+body.font-huge .epg-sub { font-size: 29px; }
+body.font-huge .tab-btn { font-size: 28px; padding: 14px 22px; }
+body.font-huge .ctrl-btn { font-size: 26px; padding: 18px 30px; }
+body.font-huge .season-tab-btn { font-size: 28px; padding: 16px 20px; }
+body.font-huge .episode-item-btn { font-size: 28px; padding: 16px 20px; }
 
-body.font-large .epg-sub {
-  font-size: 20px;
+body.font-ultra {
+  font-size: 38px;
 }
-
-body.font-large .tab-btn {
-  font-size: 20px;
-}
-
-body.font-large .ctrl-btn {
-  font-size: 18px;
-  padding: 12px 22px;
-}
+body.font-ultra .cat-item-btn { font-size: 36px; padding: 24px 28px; }
+body.font-ultra .channel-item-btn { font-size: 37px; padding: 24px 28px; }
+body.font-ultra .series-card-btn { font-size: 36px; padding: 24px 28px; }
+body.font-ultra .epg-name { font-size: 46px; }
+body.font-ultra .epg-sub { font-size: 32px; }
+body.font-ultra .tab-btn { font-size: 31px; padding: 16px 24px; }
+body.font-ultra .ctrl-btn { font-size: 28px; padding: 20px 32px; }
+body.font-ultra .season-tab-btn { font-size: 30px; padding: 18px 24px; }
+body.font-ultra .episode-item-btn { font-size: 30px; padding: 18px 24px; }
 
 /* ================= 11. TESTE DE VELOCIDADE ================= */
 .speed-meter-box {

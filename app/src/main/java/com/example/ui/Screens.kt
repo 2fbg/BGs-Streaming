@@ -2206,27 +2206,8 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Aggressive Lazy Loading State & Memory Recycling
-            val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
-
-            val shouldLoadMore by remember {
-                derivedStateOf {
-                    val layoutInfo = lazyListState.layoutInfo
-                    val total = layoutInfo.totalItemsCount
-                    val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                    total > 0 && lastVisible >= total - 6
-                }
-            }
-
-            LaunchedEffect(shouldLoadMore) {
-                if (shouldLoadMore) {
-                    viewModel.loadMoreItems()
-                }
-            }
-
             // Scrollable Content
             LazyColumn(
-                state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
@@ -2371,11 +2352,8 @@ fun HomeScreen(
                         }
                     }
                 } else if (contentType == ContentType.SERIES) {
-                    // Smart Netflix-style Series Grouping layout using optimized remembered chunks & component recycling
-                    items(
-                        items = processedSeriesChunks,
-                        key = { rowSeries -> rowSeries.firstOrNull()?.title ?: rowSeries.hashCode() }
-                    ) { rowSeries ->
+                    // Smart Netflix-style Series Grouping layout using optimized remembered chunks!
+                    items(processedSeriesChunks) { rowSeries ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2383,13 +2361,11 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             for (series in rowSeries) {
-                                key(series.title) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        GroupedSeriesCard(
-                                            series = series,
-                                            onClick = { selectedSeriesForDetail = series }
-                                        )
-                                    }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    GroupedSeriesCard(
+                                        series = series,
+                                        onClick = { selectedSeriesForDetail = series }
+                                    )
                                 }
                             }
                             if (rowSeries.size < gridColumnsCount) {
@@ -2400,11 +2376,8 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    // Optimized Grid Layout using custom grouping chunk loops & stable recycling keys
-                    items(
-                        items = processedNormalChunks,
-                        key = { rowItems -> rowItems.firstOrNull()?.id ?: rowItems.hashCode() }
-                    ) { rowItems ->
+                    // Optimized Grid Layout using custom grouping chunk loops and remembered list processing!
+                    items(processedNormalChunks) { rowItems ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2412,16 +2385,14 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             for (item in rowItems) {
-                                key(item.id) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        GridItemCard(
-                                            item = item,
-                                            isGridCompact = contentType != ContentType.LIVE,
-                                            onClick = { viewModel.playContent(item) },
-                                            onToggleFavorite = { viewModel.toggleFavorite(item) },
-                                            onPreviewEpg = { selectedChannelForEpg = item }
-                                        )
-                                    }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    GridItemCard(
+                                        item = item,
+                                        isGridCompact = contentType != ContentType.LIVE,
+                                        onClick = { viewModel.playContent(item) },
+                                        onToggleFavorite = { viewModel.toggleFavorite(item) },
+                                        onPreviewEpg = { selectedChannelForEpg = item }
+                                    )
                                 }
                             }
                             // Filler boxes to balance columns nicely
@@ -2986,12 +2957,7 @@ fun GroupedSeriesCard(series: GroupedSeries, onClick: () -> Unit) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(enhancedLogoFallback(series.logoUrl, series.title))
-                        .size(180, 260)
-                        .precision(coil.size.Precision.INEXACT)
-                        .allowRgb565(true)
-                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                        .crossfade(150)
+                        .crossfade(true)
                         .build(),
                     contentDescription = series.title,
                     modifier = Modifier.fillMaxSize(),
@@ -3278,12 +3244,7 @@ fun GridItemCard(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(enhancedLogoFallback(item.logoUrl, item.name))
-                                .size(180, 260)
-                                .precision(coil.size.Precision.INEXACT)
-                                .allowRgb565(true)
-                                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                                .crossfade(150)
+                                .crossfade(true)
                                 .build(),
                             contentDescription = item.name,
                             modifier = Modifier.fillMaxSize(),
@@ -3369,12 +3330,7 @@ fun GridItemCard(
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(logoModel)
-                                    .size(120, 100)
-                                    .precision(coil.size.Precision.INEXACT)
-                                    .allowRgb565(true)
-                                    .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                                    .crossfade(150)
+                                    .crossfade(true)
                                     .build(),
                                 contentDescription = item.name,
                                 modifier = Modifier.fillMaxSize(),

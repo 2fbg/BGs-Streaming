@@ -241,13 +241,7 @@ object M3UParser {
             return com.example.data.model.ContentType.SERIES
         }
 
-        // 2. Explicit streaming extensions for live broadcast (.ts / .m3u8)
-        if (uppercaseUrl.endsWith(".TS") || uppercaseUrl.contains(".TS?") || 
-            uppercaseUrl.endsWith(".M3U8") || uppercaseUrl.contains(".M3U8?")) {
-            return com.example.data.model.ContentType.LIVE
-        }
-
-        // 3. Live TV group categories - even if they have "Filmes" or "Cine" (e.g. "Canais | 24H Filmes", "Canais | CineSky", "Canais | Telecine")
+        // 2. Explicit Live TV categories - channels like 24h, aberta, esportes, noticias
         val isLiveCategory = 
             uppercaseCategory.startsWith("CANAIS") ||
             uppercaseCategory.startsWith("CANAL") ||
@@ -268,7 +262,8 @@ object M3UParser {
             uppercaseCategory.contains("DAZN") ||
             uppercaseCategory.contains("TELECINE") ||
             uppercaseCategory.contains("CINESKY") ||
-            uppercaseCategory.contains("DISCOVERY")
+            uppercaseCategory.contains("DISCOVERY") ||
+            uppercaseCategory.contains("CANAIS 4K")
 
         if (isLiveCategory) {
             val isExplicitVodFile = (uppercaseUrl.endsWith(".MP4") || uppercaseUrl.endsWith(".MKV")) && !uppercaseUrl.contains("/LIVE/")
@@ -277,13 +272,12 @@ object M3UParser {
             }
         }
 
-        // 4. VOD file extensions
+        // 3. VOD file extensions
         val isVodExtension = uppercaseUrl.endsWith(".MP4") || uppercaseUrl.endsWith(".MKV") || uppercaseUrl.endsWith(".AVI")
 
-        // 5. Explicit series detection (seasons, episodes, S01E01)
-        val hasSeriesPattern = 
-            uppercaseName.contains("S0") || uppercaseName.contains("S1") || uppercaseName.contains("S2") ||
-            uppercaseName.contains("E0") || uppercaseName.contains("E1") || uppercaseName.contains("E2") ||
+        // 4. Series detection (seasons, episodes, S01E01, providers)
+        val seriesRegex = Regex("(?i)(?:\\b(?:s\\d{1,3}\\s*)?(?:e|ep|ep\\.|episodio|cap|cap\\.|capitulo)\\s*\\d{1,4}\\b|\\b\\d{1,3}x\\d{1,4}\\b|\\bs\\d{1,3}e\\d{1,4}\\b|\\bt\\d{1,3}e\\d{1,4}\\b|\\btemp\\.\\s*\\d+\\s*ep\\.\\s*\\d+\\b|\\btemporada\\s*\\d+\\b)")
+        val hasSeriesPattern = seriesRegex.containsMatchIn(name) ||
             uppercaseName.contains("TEMPORADA") || uppercaseName.contains("TEMP.") ||
             uppercaseName.contains("CAPITULO") || uppercaseName.contains("CAPÍTULO") ||
             uppercaseName.contains("EPISODIO") || uppercaseName.contains("EPISÓDIO")
@@ -295,16 +289,28 @@ object M3UParser {
             uppercaseCategory.startsWith("SÉRIES:") ||
             uppercaseCategory.startsWith("SERIE |") ||
             uppercaseCategory.startsWith("SÉRIE |") ||
+            uppercaseCategory.contains("NETFLIX") ||
+            uppercaseCategory.contains("AMAZON") ||
+            uppercaseCategory.contains("PRIME VIDEO") ||
+            uppercaseCategory.contains("HBO") ||
+            uppercaseCategory.contains("MAX") ||
+            uppercaseCategory.contains("DISNEY") ||
+            uppercaseCategory.contains("APPLE TV") ||
+            uppercaseCategory.contains("PARAMOUNT") ||
+            uppercaseCategory.contains("GLOBOPLAY") ||
+            uppercaseCategory.contains("OUTRAS PRODUTORAS") ||
             uppercaseCategory.contains("SERIADOS") ||
             uppercaseCategory.contains("NOVELAS") ||
             uppercaseCategory.contains("ANIMES") ||
-            uppercaseCategory.contains("DORAMAS")
+            uppercaseCategory.contains("DORAMAS") ||
+            uppercaseCategory.contains("MINISSERIE") ||
+            uppercaseCategory.contains("MINISSÉRIE")
 
         if (isSeriesCategory || hasSeriesPattern) {
             return com.example.data.model.ContentType.SERIES
         }
 
-        // 6. Explicit movie detection
+        // 5. Movie detection
         val isMovieCategory = 
             uppercaseCategory.startsWith("FILMES |") ||
             uppercaseCategory.startsWith("FILME |") ||
@@ -313,17 +319,20 @@ object M3UParser {
             uppercaseCategory.startsWith("VOD |") ||
             uppercaseCategory.startsWith("VOD:") ||
             uppercaseCategory.startsWith("CINEMA |") ||
-            uppercaseCategory.contains("LANCAMENTOS 202") ||
-            uppercaseCategory.contains("LANÇAMENTOS 202") ||
+            uppercaseCategory.contains("LANCAMENTOS") ||
+            uppercaseCategory.contains("LANÇAMENTOS") ||
             uppercaseCategory.contains("FILMES 4K") ||
             uppercaseCategory.contains("FILMES DUBLADOS") ||
-            uppercaseCategory.contains("FILMES LEGENDADOS")
+            uppercaseCategory.contains("FILMES LEGENDADOS") ||
+            uppercaseCategory.contains("FILMES ACAO") ||
+            uppercaseCategory.contains("FILMES COMEDIA")
 
         if (isMovieCategory || isVodExtension) {
             return com.example.data.model.ContentType.MOVIE
         }
 
-        return com.example.data.model.ContentType.LIVE // default is Ao Vivo
+        // 6. Explicit streaming extensions or default is Ao Vivo
+        return com.example.data.model.ContentType.LIVE
     }
 
     private fun isAdultContent(name: String, category: String): Boolean {
