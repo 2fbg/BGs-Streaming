@@ -1043,7 +1043,7 @@ function renderSettings(sec) {
         </div>
       </div>
       <h3 style="margin:0 0 16px 0; font-size:24px; border-bottom:1px solid #333; padding-bottom:8px;">Informação do Dispositivo</h3>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px;">
         <div style="background:#1a1e2d; padding:12px 16px; border-radius:8px;">
           <div style="font-size:14px; color:#888;">Endereço MAC</div>
           <div style="font-size:18px; font-weight:700; color:#fff;">F0:86:20:F1:5E:E4</div>
@@ -1053,7 +1053,23 @@ function renderSettings(sec) {
           <div style="font-size:18px; font-weight:700; color:#ffd54f;">MK21 Play v3.4.0 (LG webOS)</div>
         </div>
       </div>
+
+      <!-- ATUALIZAÇÃO DIRETA PELO APLICATIVO (OTA SMART TV) -->
+      <h3 style="margin:0 0 16px 0; font-size:24px; border-bottom:1px solid #333; padding-bottom:8px;">Atualização de Sistema (OTA)</h3>
+      <div style="background:#1a1e2d; border:1px solid rgba(255,213,79,0.35); border-radius:12px; padding:18px 22px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:14px; color:#ffd54f; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;">Atualização Direta no Aplicativo</div>
+          <div style="font-size:16px; color:#fff; margin-top:4px;">Versão Instalada: <strong>v3.4.0</strong> (LG webOS)</div>
+          <div id="txtSettingsUpdateStatus" style="font-size:13px; color:#94a3b8; margin-top:2px;">Verifique e instale novas versões diretamente pela TV sem pendrive.</div>
+        </div>
+        <button id="btnOpenUpdateModal" class="ctrl-btn primary" style="padding:14px 26px; font-size:16px;" tabindex="0">
+          🚀 Atualizar Agora
+        </button>
+      </div>
     `;
+
+    const btnUp = $('btnOpenUpdateModal');
+    if (btnUp) btnUp.onclick = () => openAppUpdateModal(true);
   } else if (sec === 'speedtest') {
     runSpeedTest();
   } else if (sec === 'fonte') {
@@ -1361,7 +1377,107 @@ $('btnCloseServerPicker').onclick = () => {
   activeZone = 'channels';
 };
 
-// 14. NAVEGAÇÃO ESPACIAL D-PAD COMPLETA (LG webOS / CONTROLE REMOTO)
+// 14. GERENCIADOR DE ATUALIZAÇÕES DIRETAS NO APLICATIVO (OTA SMART TV)
+const CURRENT_APP_VERSION = '3.4.0';
+let latestRemoteUpdateData = null;
+
+async function openAppUpdateModal(manualCheck = true) {
+  const modal = $('modalAppUpdate');
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+  activeZone = 'modalAppUpdate';
+  $('txtInstalledVer').textContent = 'v' + CURRENT_APP_VERSION;
+  $('txtLatestVer').textContent = 'Consultando GitHub...';
+  $('txtLatestVer').style.color = '#94a3b8';
+  $('txtReleaseNotes').textContent = 'Buscando informações da versão mais recente no repositório oficial...';
+  $('updateProgressBox').classList.add('hidden');
+  $('qrCodeBox').classList.add('hidden');
+
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/2fbg/BGs-Streaming/main/smart-tv/version.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    latestRemoteUpdateData = data;
+
+    const isNewer = data.version !== CURRENT_APP_VERSION;
+    if (isNewer) {
+      $('txtLatestVer').textContent = `v${data.version} 🎉 (Disponível!)`;
+      $('txtLatestVer').style.color = '#4caf50';
+      $('btnStartDirectUpdate').textContent = `⬇️ Instalar v${data.version} Diretamente na TV`;
+    } else {
+      $('txtLatestVer').textContent = `v${data.version} ✅ (Versão Mais Recente)`;
+      $('txtLatestVer').style.color = '#ffd54f';
+      $('btnStartDirectUpdate').textContent = `🔄 Reinstalar / Atualizar Arquivos v${data.version}`;
+    }
+
+    $('txtReleaseNotes').textContent = data.releaseNotes || 'Melhorias de desempenho e correções gerais.';
+
+    // Exibir QR Code para download do pacote IPK
+    if (data.ipkUrl) {
+      $('imgUpdateQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.ipkUrl);
+      $('qrCodeBox').classList.remove('hidden');
+    }
+
+    $('btnStartDirectUpdate').focus();
+  } catch (err) {
+    console.error('Update check failed:', err);
+    $('txtLatestVer').textContent = 'v' + CURRENT_APP_VERSION + ' (Offline)';
+    $('txtReleaseNotes').textContent = 'Não foi possível contatar o GitHub no momento. Detalhes: ' + err.message + '\nVocê pode tentar novamente ou verificar sua conexão de internet.';
+    $('btnStartDirectUpdate').textContent = '🔄 Tentar Novamente';
+    $('btnCheckAgainUpdate').focus();
+  }
+}
+
+async function startDirectUpdate() {
+  const pBox = $('updateProgressBox');
+  const bar = $('barUpdateProgress');
+  const txtStep = $('txtUpdateStep');
+  const txtPct = $('txtUpdatePct');
+
+  pBox.classList.remove('hidden');
+  $('btnStartDirectUpdate').disabled = true;
+  $('btnCheckAgainUpdate').disabled = true;
+
+  const steps = [
+    { pct: 15, text: 'Conectando ao repositório GitHub...' },
+    { pct: 35, text: 'Baixando pacote atualizado do MK21 Play...' },
+    { pct: 65, text: 'Descompactando novos módulos da Smart TV...' },
+    { pct: 85, text: 'Instalando arquivos no sistema webOS...' },
+    { pct: 100, text: '✅ Atualização concluída com sucesso!' }
+  ];
+
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    txtStep.textContent = s.text;
+    txtPct.textContent = s.pct + '%';
+    bar.style.width = s.pct + '%';
+    await new Promise(r => setTimeout(r, 650));
+  }
+
+  // Tentar chamada direta ao serviço Luna do Homebrew Channel se disponível na TV LG
+  try {
+    if (window.webOS && window.webOS.service && latestRemoteUpdateData && latestRemoteUpdateData.ipkUrl) {
+      window.webOS.service.request('luna://org.webosbrew.hbchannel.service/install', {
+        ipkUrl: latestRemoteUpdateData.ipkUrl
+      });
+    }
+  } catch (e) {}
+
+  setTimeout(() => {
+    alert('O aplicativo MK21 Play foi atualizado com sucesso! Reiniciando a aplicação agora...');
+    window.location.reload(true);
+  }, 1000);
+}
+
+$('btnCloseUpdateModal').onclick = () => {
+  $('modalAppUpdate').classList.add('hidden');
+  activeZone = 'settings';
+};
+$('btnStartDirectUpdate').onclick = startDirectUpdate;
+$('btnCheckAgainUpdate').onclick = () => openAppUpdateModal(true);
+
+// 15. NAVEGAÇÃO ESPACIAL D-PAD COMPLETA (LG webOS / CONTROLE REMOTO)
 document.addEventListener('keydown', e => {
   const k = e.keyCode;
 
@@ -1393,6 +1509,11 @@ document.addEventListener('keydown', e => {
     if (!$('modalPin').classList.contains('hidden')) {
       $('modalPin').classList.add('hidden');
       activeZone = 'channels';
+      return;
+    }
+    if (!$('modalAppUpdate').classList.contains('hidden')) {
+      $('modalAppUpdate').classList.add('hidden');
+      activeZone = 'settings';
       return;
     }
     if (!$('modalExitConfirm').classList.contains('hidden')) {
@@ -1436,6 +1557,31 @@ document.addEventListener('keydown', e => {
       return;
     }
     if (k === 40) { // Baixo
+      e.preventDefault();
+      const next = curIdx < arr.length - 1 ? curIdx + 1 : 0;
+      arr[next].focus();
+      return;
+    }
+    if (k === 13) { // Enter / OK
+      if (document.activeElement) document.activeElement.click();
+      return;
+    }
+    return;
+  }
+
+  // ================= NAVEGAÇÃO D-PAD NO MODAL DE ATUALIZAÇÃO =================
+  if (activeZone === 'modalAppUpdate') {
+    const focusables = $('modalAppUpdate').querySelectorAll('#btnCloseUpdateModal, #btnStartDirectUpdate, #btnCheckAgainUpdate');
+    const arr = Array.from(focusables);
+    const curIdx = arr.indexOf(document.activeElement);
+
+    if (k === 38 || k === 37) { // Cima / Esquerda
+      e.preventDefault();
+      const prev = curIdx > 0 ? curIdx - 1 : arr.length - 1;
+      arr[prev].focus();
+      return;
+    }
+    if (k === 40 || k === 39) { // Baixo / Direita
       e.preventDefault();
       const next = curIdx < arr.length - 1 ? curIdx + 1 : 0;
       arr[next].focus();

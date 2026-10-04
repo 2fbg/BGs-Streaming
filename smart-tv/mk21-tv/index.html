@@ -224,6 +224,57 @@
     </div>
   </div>
 
+  <!-- Modal de Atualização Direta do Aplicativo (OTA para Smart TV) -->
+  <div id="modalAppUpdate" class="app-modal hidden">
+    <div class="modal-content" style="width: 640px; background: #0f121d; border: 1px solid rgba(255,213,79,0.3); border-radius: 16px; padding: 0; overflow: hidden;">
+      <div class="modal-header" style="padding: 16px 22px; background: #141724; border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <span style="color:#ffd54f; font-size:20px; font-weight:bold;">🚀 Atualização do Aplicativo (OTA)</span>
+        <button id="btnCloseUpdateModal" class="ctrl-btn" style="padding: 6px 14px;" tabindex="0">✕</button>
+      </div>
+      <div style="padding: 24px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="color: #888; font-size: 13px;">Versão Instalada</div>
+            <div id="txtInstalledVer" style="color: #fff; font-size: 18px; font-weight: bold;">v3.4.0</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #888; font-size: 13px;">Versão Mais Recente</div>
+            <div id="txtLatestVer" style="color: #4caf50; font-size: 18px; font-weight: bold;">Verificando...</div>
+          </div>
+        </div>
+
+        <div id="boxUpdateNotes" style="background: #141724; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-bottom: 20px; max-height: 180px; overflow-y: auto;">
+          <h4 style="margin: 0 0 8px 0; color: #ffd54f; font-size: 15px;">Novidades da Versão:</h4>
+          <pre id="txtReleaseNotes" style="color: #cbd5e1; font-size: 13px; white-space: pre-wrap; font-family: inherit; margin: 0;">Verificando notas da versão no GitHub...</pre>
+        </div>
+
+        <div id="updateProgressBox" class="hidden" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #aaa; margin-bottom: 6px;">
+            <span id="txtUpdateStep">Baixando atualização...</span>
+            <span id="txtUpdatePct">0%</span>
+          </div>
+          <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+            <div id="barUpdateProgress" style="background: #e50914; height: 100%; width: 0%; transition: width 0.3s;"></div>
+          </div>
+        </div>
+
+        <div id="updateActionsRow" style="display: flex; gap: 12px;">
+          <button id="btnStartDirectUpdate" class="ctrl-btn primary" style="flex: 2; padding: 14px;" tabindex="0">
+            ⬇️ Baixar e Atualizar Agora na TV
+          </button>
+          <button id="btnCheckAgainUpdate" class="ctrl-btn" style="flex: 1; padding: 14px;" tabindex="0">
+            🔄 Verificar Novamente
+          </button>
+        </div>
+
+        <div id="qrCodeBox" class="hidden" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+          <p style="color: #aaa; font-size: 12px; margin: 0 0 10px 0;">Ou aponte a câmera do celular para baixar o arquivo .ipk direto:</p>
+          <img id="imgUpdateQr" src="" alt="QR Code IPK" style="width: 140px; height: 140px; background: #fff; border-radius: 8px; padding: 6px; display: inline-block;">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- HUD de Carregamento em Tempo Real com Porcentagem -->
   <div id="hudLoadingOverlay" class="hud-loading-overlay hidden">
     <div class="hud-loading-card">
